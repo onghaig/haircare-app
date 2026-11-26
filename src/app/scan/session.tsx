@@ -49,6 +49,7 @@ export default function ScanSessionScreen() {
   // Voice is on by default: you can't read the screen with your head turned or tilted down.
   const [voiceOn, setVoiceOn] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const camera = useRef<HeadMapCameraViewRef>(null);
   const coach = useMemo(() => new VoiceCoach((line) => Speech.speak(line, { rate: 0.95 })), []);
   const view = currentView(state);
@@ -60,10 +61,12 @@ export default function ScanSessionScreen() {
   useEffect(() => {
     if (state.phase !== 'done') return;
     const record = buildScanRecord(state, newId(), new Date());
-    save(record).then((saved) =>
-      // The first finished scan leads into the forecast reveal; later scans show their result.
-      firstReveal ? router.replace('/reveal/analysing') : router.replace({ pathname: '/scan/[id]', params: { id: saved.id } }),
-    );
+    save(record)
+      .then((saved) =>
+        // The first finished scan leads into the forecast reveal; later scans show their result.
+        firstReveal ? router.replace('/reveal/analysing') : router.replace({ pathname: '/scan/[id]', params: { id: saved.id } }),
+      )
+      .catch((e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)));
   }, [state, save, firstReveal]);
 
   // Announce each new view with what to do; the crown is always voice-guided.
@@ -152,13 +155,17 @@ export default function ScanSessionScreen() {
     );
   }
 
-  const prompt = cameraError
-    ? { title: 'Camera problem', detail: cameraError, tone: 'fix' as const, voice: '' }
-    : held
-      ? { title: 'Got it', tone: 'ready' as const, voice: 'Got it' }
-      : live
-        ? promptFor(live)
-      : { title: 'Line up with the outline', tone: 'fix' as const, voice: '' };
+  const prompt = saveError
+    ? { title: 'Couldn’t save this scan', detail: saveError, tone: 'fix' as const, voice: '' }
+    : state.phase === 'done'
+      ? { title: 'Saving your scan', tone: 'ready' as const, voice: '' }
+      : cameraError
+        ? { title: 'Camera problem', detail: cameraError, tone: 'fix' as const, voice: '' }
+        : held
+          ? { title: 'Got it', tone: 'ready' as const, voice: 'Got it' }
+          : live
+            ? promptFor(live)
+            : { title: 'Line up with the outline', tone: 'fix' as const, voice: '' };
   const ghost = baseline?.views[view]?.uri;
   const tip = state.tip ? TIPS[state.tip] : null;
 
@@ -255,9 +262,22 @@ const styles = StyleSheet.create({
   center: { flex: 1, padding: spacing.xl, gap: spacing.md, alignItems: 'center', justifyContent: 'center' },
   camera: { flex: 1, backgroundColor: '#000' },
   hud: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  top: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
   viewTitle: { textAlign: 'center', marginTop: spacing.sm },
   bottom: { padding: spacing.lg, gap: spacing.md },
   close: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
-  pill: { backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, minHeight: 32, justifyContent: 'center' },
+  pill: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    minHeight: 32,
+    justifyContent: 'center',
+  },
 });

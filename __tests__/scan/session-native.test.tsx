@@ -145,6 +145,16 @@ describe('Scan session with the native camera', () => {
     expect(screen.getByLabelText('View 2 of 5')).toBeOnTheScreen();
   });
 
+  it('says so when the scan cannot be saved, instead of hanging', async () => {
+    const store = new MemoryScanStore();
+    jest.spyOn(store, 'save').mockRejectedValue(new Error('Disk full'));
+    await openCamera(store, '2026-11-01T00:00:00Z');
+    for (const view of SCAN_ORDER) await shot(view);
+    expect(await screen.findByText('Couldn’t save this scan')).toBeOnTheScreen();
+    expect(screen.getByText('Disk full')).toBeOnTheScreen();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
   it('talks you through each view by default', async () => {
     const Speech = jest.requireMock('expo-speech') as { speak: jest.Mock };
     Speech.speak.mockClear();
