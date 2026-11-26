@@ -54,10 +54,43 @@ export class Rng {
     return u * m;
   }
 
-  /** Fill a new array with n standard-normal draws. */
+  /**
+   * Fill a new array with n standard-normal draws. Bulk version with the generator state held
+   * in locals: several times faster than calling normal() in a loop, which matters for the
+   * forecast's 200k-sample draws on a phone.
+   */
   normals(n: number, mean = 0): Float64Array {
     const a = new Float64Array(n);
-    for (let i = 0; i < n; i++) a[i] = mean + this.normal();
+    const st = this.s;
+    let s0 = st[0], s1 = st[1], s2 = st[2], s3 = st[3];
+    let i = 0;
+    if (this.spare !== null && n > 0) {
+      a[i++] = mean + this.spare;
+      this.spare = null;
+    }
+    while (i < n) {
+      let u = 0;
+      let v = 0;
+      let q = 0;
+      do {
+        // two xoshiro128** steps, inlined
+        let r = Math.imul(rotl(Math.imul(s1, 5) >>> 0, 7), 9) >>> 0;
+        let t = (s1 << 9) >>> 0;
+        s2 = (s2 ^ s0) >>> 0; s3 = (s3 ^ s1) >>> 0; s1 = (s1 ^ s2) >>> 0; s0 = (s0 ^ s3) >>> 0;
+        s2 = (s2 ^ t) >>> 0; s3 = rotl(s3, 11);
+        u = (r / 4294967296) * 2 - 1;
+        r = Math.imul(rotl(Math.imul(s1, 5) >>> 0, 7), 9) >>> 0;
+        t = (s1 << 9) >>> 0;
+        s2 = (s2 ^ s0) >>> 0; s3 = (s3 ^ s1) >>> 0; s1 = (s1 ^ s2) >>> 0; s0 = (s0 ^ s3) >>> 0;
+        s2 = (s2 ^ t) >>> 0; s3 = rotl(s3, 11);
+        v = (r / 4294967296) * 2 - 1;
+        q = u * u + v * v;
+      } while (q === 0 || q >= 1);
+      const m = Math.sqrt((-2 * Math.log(q)) / q);
+      a[i++] = mean + u * m;
+      if (i < n) a[i++] = mean + v * m;
+    }
+    st[0] = s0; st[1] = s1; st[2] = s2; st[3] = s3;
     return a;
   }
 }

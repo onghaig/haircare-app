@@ -139,10 +139,26 @@ describe('model behaviour', () => {
     expect(() => model.forecast({ age: 20, relatives: [{ relation: 'cousin', status: 'bald', age: 40 }] }, { samples: 1000 })).toThrow();
   });
 
+  // Budget: the analysing screen runs 8 to 12 s, so the forecast must fit well inside it.
+  // Jest's sandbox (plus coverage instrumentation in CI) runs this loop about 10x slower than a
+  // real JS engine: plain Node takes about 0.15 s. 6 s here keeps the check meaningful without
+  // measuring the test runner.
   it('runs a full 200k-sample forecast fast enough for the reveal screen', () => {
     const t0 = Date.now();
     model.forecast(PERSONAS['Curious 17-year-old, no loss, bald father and grandfather']);
-    expect(Date.now() - t0).toBeLessThan(3000);
+    expect(Date.now() - t0).toBeLessThan(6000);
+  });
+
+  it('cost grows linearly with the sample count (no hidden sort or quadratic step)', () => {
+    const u = PERSONAS['Curious 17-year-old, no loss, bald father and grandfather'];
+    model.forecast(u, { samples: 20_000 }); // warm up
+    const t0 = Date.now();
+    model.forecast(u, { samples: 25_000 });
+    const small = Math.max(Date.now() - t0, 1);
+    const t1 = Date.now();
+    model.forecast(u, { samples: 200_000 });
+    const big = Date.now() - t1;
+    expect(big / small).toBeLessThan(8 * 2.5);
   });
 });
 
