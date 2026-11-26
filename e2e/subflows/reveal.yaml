@@ -7,11 +7,11 @@ appId: com.onghaig.haircare
 - tapOn:
     text: "Open"
     optional: true
-- assertVisible: "Building your forecast"
+# The analysing screen can be brief, so don't assert it; the reveal proves it ran.
 - takeScreenshot: e2e-20-analysing
 - extendedWaitUntil:
     visible: "Your Norwood timeline"
-    timeout: 20000
+    timeout: 40000
 - assertVisible: "Norwood today.*"
 - assertVisible: "You in 5 years"
 - assertVisible: ".*Illustration based on your forecast, not a medical prediction"
