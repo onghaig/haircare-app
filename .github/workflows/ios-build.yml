@@ -1,0 +1,47 @@
+name: iOS build
+
+# Compiles the full iOS app, including the Swift HeadMap module against MediaPipe and
+# ExpoModulesCore, on a simulator SDK. Runs only when native code or config changes,
+# because macOS minutes are expensive.
+on:
+  pull_request:
+    paths:
+      - 'modules/**'
+      - 'app.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Download on-device models
+        run: npm run models
+      - name: Swift core tests on macOS
+        working-directory: modules/headmap/core
+        run: swift test
+      - name: Generate the iOS project
+        run: npx expo prebuild --platform ios --no-install
+      - name: Install pods
+        working-directory: ios
+        run: pod install
+      - name: Build for the simulator
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild -workspace Haircare.xcworkspace -scheme Haircare -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -200

@@ -1,0 +1,7 @@
+{
+  "name": "headmap",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Guided head scan: native camera, on-device face and hair detection, quality checks, hairline measurement.",
+  "main": "index.ts"
+}
