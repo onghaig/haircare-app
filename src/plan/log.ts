@@ -47,7 +47,7 @@ export class FileLogStore implements LogStore {
   }
   async save(book: LogBook) {
     if (!this.root.exists) this.root.create({ intermediates: true });
-    this.file.write(JSON.stringify(book));
+    await this.file.write(JSON.stringify(book));
   }
 }
 
