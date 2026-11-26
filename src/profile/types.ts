@@ -1,4 +1,5 @@
 import type { Subscription } from '@/paywall/purchases';
+import type { ReminderSettings } from '@/plan/reminders';
 
 /** The hair profile built during onboarding. Every answer is optional except age. */
 
@@ -78,6 +79,7 @@ export interface Profile {
   revealSeenAt?: string;
   /** Set once the user subscribes (or starts a trial). */
   subscription?: Subscription;
+  reminders?: ReminderSettings;
 }
 
 export const emptyProfile = (): Profile => ({

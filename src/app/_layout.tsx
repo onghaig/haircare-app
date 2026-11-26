@@ -2,6 +2,7 @@ import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { PurchasesProvider } from '@/paywall/PurchasesProvider';
+import { PlanProvider } from '@/plan/PlanProvider';
 import { ProfileProvider } from '@/profile/ProfileProvider';
 import { ForecastProvider } from '@/reveal/ForecastProvider';
 import { ScanProvider } from '@/scan/ScanProvider';
@@ -25,6 +26,7 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <PurchasesProvider>
       <ProfileProvider>
+        <PlanProvider>
         <ForecastProvider>
           <ScanProvider>
             <Stack
@@ -38,6 +40,8 @@ export default function RootLayout() {
               <Stack.Screen name="reveal/analysing" options={{ gestureEnabled: false, animation: 'fade' }} />
               <Stack.Screen name="reveal/index" options={{ gestureEnabled: false, animation: 'fade' }} />
               <Stack.Screen name="paywall" options={{ presentation: 'modal', gestureEnabled: false }} />
+              <Stack.Screen name="massage" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="log" options={{ presentation: 'modal' }} />
               <Stack.Screen
                 name="scan/session"
                 options={{
@@ -49,6 +53,7 @@ export default function RootLayout() {
             </Stack>
           </ScanProvider>
         </ForecastProvider>
+        </PlanProvider>
       </ProfileProvider>
       </PurchasesProvider>
     </ThemeProvider>

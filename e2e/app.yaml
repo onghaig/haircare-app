@@ -10,3 +10,4 @@ appId: com.onghaig.haircare
 - runFlow: subflows/onboarding.yaml
 - runFlow: subflows/scan.yaml
 - runFlow: subflows/reveal.yaml
+- runFlow: subflows/today.yaml

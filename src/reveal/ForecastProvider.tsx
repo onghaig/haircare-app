@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { ForecastModel, type Forecast } from '@/forecast';
+import { adherence } from '@/plan/log';
+import { usePlan } from '@/plan/PlanProvider';
+import { dailyTasks } from '@/plan/tasks';
 import { toForecastInput } from '@/profile/forecastInput';
 import { useProfile } from '@/profile/ProfileProvider';
 
@@ -19,7 +22,16 @@ const YEARS = [1, 3, 5, 10, 15];
  */
 export function ForecastProvider({ samples = 200_000, children }: { samples?: number; children: ReactNode }) {
   const { profile } = useProfile();
-  const input = useMemo(() => toForecastInput(profile), [profile]);
+  const { book } = usePlan();
+  const input = useMemo(() => {
+    const base = toForecastInput(profile);
+    if (!base) return null;
+    // Daily check-ins scale the treatment effect (spec: adherence a in the projection).
+    const now = new Date();
+    const meds = dailyTasks(profile, now, []).filter((t) => t.kind === 'medication').map((t) => t.id);
+    const a = adherence(book, now, meds);
+    return a == null ? base : { ...base, adherence: Math.round(a * 20) / 20 };
+  }, [profile, book]);
   const key = input ? JSON.stringify(input) : null;
   const [result, setResult] = useState<{ key: string; forecast: Forecast } | null>(null);
 

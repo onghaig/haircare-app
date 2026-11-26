@@ -7,6 +7,8 @@ import type { PurchaseService } from '@/paywall/purchases';
 import { ProfileProvider } from '@/profile/ProfileProvider';
 import { MemoryProfileStore } from '@/profile/store';
 import { emptyProfile } from '@/profile/types';
+import { MemoryLogStore } from '@/plan/log';
+import { PlanProvider } from '@/plan/PlanProvider';
 import { ForecastProvider } from '@/reveal/ForecastProvider';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissAll: jest.fn() } }));
@@ -20,9 +22,11 @@ function setup(service?: PurchaseService) {
   const ui = (
     <PurchasesProvider service={service}>
       <ProfileProvider store={store}>
-        <ForecastProvider samples={3000}>
-          <PaywallScreen />
-        </ForecastProvider>
+        <PlanProvider store={new MemoryLogStore()}>
+          <ForecastProvider samples={3000}>
+            <PaywallScreen />
+          </ForecastProvider>
+        </PlanProvider>
       </ProfileProvider>
     </PurchasesProvider>
   );
@@ -68,7 +72,10 @@ describe('Paywall', () => {
   });
 
   it('says plainly when a purchase fails, and stays open', async () => {
-    const failing: PurchaseService = { isTest: false, purchase: jest.fn(async () => Promise.reject(new Error('Payment declined. You have not been charged.'))) };
+    const failing: PurchaseService = {
+      isTest: false,
+      purchase: jest.fn(async () => Promise.reject(new Error('Payment declined. You have not been charged.'))),
+    };
     await render(setup(failing).ui);
     expect(screen.queryByTestId('test-purchase-note')).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'Start free trial' }));

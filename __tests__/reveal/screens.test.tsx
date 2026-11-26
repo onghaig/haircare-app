@@ -7,6 +7,8 @@ import RevealScreen from '@/app/reveal';
 import { ProfileProvider } from '@/profile/ProfileProvider';
 import { MemoryProfileStore } from '@/profile/store';
 import { emptyProfile, type Profile } from '@/profile/types';
+import { MemoryLogStore } from '@/plan/log';
+import { PlanProvider } from '@/plan/PlanProvider';
 import { ForecastProvider } from '@/reveal/ForecastProvider';
 import { ANALYSING_MS } from '@/reveal/reveal';
 import { ScanProvider } from '@/scan/ScanProvider';
@@ -37,9 +39,11 @@ function setup(ui: ReactNode, seed: Partial<Profile> = adult) {
   const profiles = new MemoryProfileStore({ ...emptyProfile(), ...seed });
   const tree = (
     <ProfileProvider store={profiles}>
-      <ForecastProvider samples={5000}>
-        <ScanProvider store={new MemoryScanStore([firstScan])}>{ui}</ScanProvider>
-      </ForecastProvider>
+      <PlanProvider store={new MemoryLogStore()}>
+        <ForecastProvider samples={5000}>
+          <ScanProvider store={new MemoryScanStore([firstScan])}>{ui}</ScanProvider>
+        </ForecastProvider>
+      </PlanProvider>
     </ProfileProvider>
   );
   return { profiles, tree };

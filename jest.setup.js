@@ -8,3 +8,11 @@ jest.mock('expo-haptics', () => ({
 }));
 
 jest.mock('expo-speech', () => ({ speak: jest.fn(), stop: jest.fn() }));
+
+jest.mock('expo-notifications', () => ({
+  getPermissionsAsync: jest.fn(async () => ({ granted: false })),
+  requestPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  cancelAllScheduledNotificationsAsync: jest.fn(async () => {}),
+  scheduleNotificationAsync: jest.fn(async () => 'id'),
+  SchedulableTriggerInputTypes: { DAILY: 'daily', WEEKLY: 'weekly', DATE: 'date' },
+}));

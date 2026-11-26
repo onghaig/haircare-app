@@ -1,0 +1,20 @@
+# Today: the daily plan, the guided massage and the quick log.
+appId: com.onghaig.haircare
+---
+- tapOn: "Today"
+- assertVisible: "Scalp massage"
+- assertVisible: "Quick log"
+- takeScreenshot: e2e-40-today
+- tapOn: "Scalp massage"
+- assertVisible: "Full, 4 min"
+- tapOn: "Start"
+- assertVisible: "Warm-up"
+- takeScreenshot: e2e-41-massage
+- tapOn: "Close"
+- tapOn: "Quick log"
+- tapOn: "Normal"
+- tapOn: "2"
+- tapOn: "7 h"
+- tapOn: "Save"
+- assertVisible: "1 of \\d done today"
+- takeScreenshot: e2e-42-today-logged
