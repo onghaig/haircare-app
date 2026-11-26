@@ -44,3 +44,6 @@ example
 
 # test output
 coverage/
+# On-device models are downloaded by modules/headmap/scripts/download-models.sh
+modules/headmap/ios/models/*.task
+modules/headmap/ios/models/*.tflite
