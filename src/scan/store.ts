@@ -86,7 +86,7 @@ export class FileScanStore implements ScanStore {
     }
     const saved = { ...record, views };
     const all = (await this.list()).filter((r) => r.id !== record.id);
-    this.index.write(JSON.stringify(sortByDate([...all, saved])));
+    await this.index.write(JSON.stringify(sortByDate([...all, saved])));
     return saved;
   }
 
@@ -94,6 +94,6 @@ export class FileScanStore implements ScanStore {
     const dir = new Directory(this.root, id);
     if (dir.exists) dir.delete();
     const all = (await this.list()).filter((r) => r.id !== id);
-    if (this.root.exists) this.index.write(JSON.stringify(all));
+    if (this.root.exists) await this.index.write(JSON.stringify(all));
   }
 }
