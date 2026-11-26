@@ -1,3 +1,5 @@
+import type { Subscription } from '@/paywall/purchases';
+
 /** The hair profile built during onboarding. Every answer is optional except age. */
 
 export type Sex = 'male' | 'female';
@@ -74,6 +76,8 @@ export interface Profile {
   completedAt?: string;
   /** ISO time the first forecast reveal was shown. */
   revealSeenAt?: string;
+  /** Set once the user subscribes (or starts a trial). */
+  subscription?: Subscription;
 }
 
 export const emptyProfile = (): Profile => ({

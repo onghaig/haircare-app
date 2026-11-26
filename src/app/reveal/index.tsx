@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FuturePreview } from '@/components/reveal/FuturePreview';
 import { Button, Card, Text } from '@/components/ui';
+import { isPremium } from '@/paywall/purchases';
 import { useProfile } from '@/profile/ProfileProvider';
 import { useForecast } from '@/reveal/ForecastProvider';
 import {
@@ -47,6 +48,7 @@ export default function RevealScreen() {
   const zones = zoneSummary(profile);
   const preview = yearOf(forecast, years);
   const low = isLowRisk(forecast);
+  const premium = isPremium(profile);
   const timeline = PREVIEW_YEARS.map((y) => yearOf(forecast, y)).filter((y) => y != null);
 
   return (
@@ -88,7 +90,7 @@ export default function RevealScreen() {
             <Text variant="headline">
               You in {years} year{years === 1 ? '' : 's'}
             </Text>
-            <FuturePreview stage={preview.untreated.p50} age={preview.age} />
+            <FuturePreview stage={preview.untreated.p50} age={preview.age} locked={!premium} />
             <View style={styles.segment} accessibilityRole="tablist">
               {PREVIEW_YEARS.map((y) => (
                 <Pressable
@@ -126,7 +128,7 @@ export default function RevealScreen() {
                   importantForAccessibility={i > 0 ? 'no-hide-descendants' : 'auto'}>
                   {rangeLabel(y!.untreated)}
                 </Text>
-                {i > 0 ? <BlurView intensity={40} tint="dark" style={styles.frost} testID="timeline-frost" /> : null}
+                {i > 0 && !premium ? <BlurView intensity={40} tint="dark" style={styles.frost} testID="timeline-frost" /> : null}
               </View>
             </View>
           ))}
@@ -136,7 +138,11 @@ export default function RevealScreen() {
         </Card>
       </ScrollView>
       <View style={styles.bottom}>
-        <Button label={low ? 'Unlock tracking and your plan' : 'Unlock your future look'} onPress={() => router.dismissAll()} />
+        {premium ? (
+          <Button label="Done" onPress={() => router.dismissAll()} />
+        ) : (
+          <Button label={low ? 'Unlock tracking and your plan' : 'Unlock your future look'} onPress={() => router.push('/paywall')} />
+        )}
       </View>
     </SafeAreaView>
   );

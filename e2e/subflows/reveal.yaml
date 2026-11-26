@@ -13,6 +13,7 @@ appId: com.onghaig.haircare
 - tapOn: "10 years"
 - assertVisible: "You in 10 years"
 - tapOn: "Unlock.*"
+- runFlow: paywall.yaml
 - tapOn: "Scan"
 - assertVisible: "Next scan in 7 days"
 - takeScreenshot: e2e-22-scan-history

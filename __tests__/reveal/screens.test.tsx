@@ -93,7 +93,7 @@ describe('Reveal', () => {
 
     await waitFor(async () => expect((await profiles.load()).revealSeenAt).toBeDefined());
     await fireEvent.press(screen.getByRole('button', { name: 'Unlock your future look' }));
-    expect(router.dismissAll).toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith('/paywall');
   });
 
   it('never shows teens a future face, only the timeline', async () => {
@@ -114,5 +114,20 @@ describe('Reveal', () => {
     );
     expect(await screen.findByText(/looks stable as of right now/, {}, { timeout: 5000 })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Unlock tracking and your plan' })).toBeOnTheScreen();
+  });
+
+  it('shows everything unblurred once subscribed', async () => {
+    await render(
+      setup(<RevealScreen />, {
+        ...adult,
+        subscription: { plan: 'annual', startedAt: '2026-11-26T10:00:00Z', trialEndsAt: '2026-11-29T10:00:00Z', test: true },
+      }).tree,
+    );
+    expect(await screen.findByText('Your Norwood timeline', {}, { timeout: 5000 })).toBeOnTheScreen();
+    expect(screen.queryByTestId('future-blur')).toBeNull();
+    expect(screen.queryAllByTestId('timeline-frost')).toHaveLength(0);
+    expect(screen.getByText('Illustration based on your forecast, not a medical prediction')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+    expect(router.dismissAll).toHaveBeenCalled();
   });
 });

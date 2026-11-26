@@ -96,6 +96,7 @@ analysis. Device builds never include it, and real photo capture is only checked
 | `src/app/scan/` | Guided scan (full-screen) and scan result screens |
 | `src/app/onboarding/` | Welcome and the nine onboarding questions |
 | `src/app/reveal/`, `src/reveal/` | Analysing screen and the free reveal with the blurred future look; runs the forecast on device |
+| `src/app/paywall.tsx`, `src/paywall/` | Paywall, plans and prices, the purchase interface (test purchases until StoreKit is connected) |
 | `src/profile/` | Hair profile: answers, on-device storage, onboarding rules, mapping to the forecast |
 | `src/components/head/`, `src/components/family/` | Drawn heads with tappable zones; the family tree and relative cards |
 | `modules/headmap/` | Native Swift scan module: camera, MediaPipe, measurement, quality checks ([README](modules/headmap/README.md)) |
