@@ -6,6 +6,7 @@ export const SCAN_VIEWS: readonly ScanView[] = ['front', 'leftTemple', 'rightTem
 /** Quality checks, in the order the user should fix them. Mirrors QualityCheck in Swift. */
 export type QualityCheck =
   | 'faceFound'
+  | 'hairInFrame'
   | 'centred'
   | 'pose'
   | 'distance'

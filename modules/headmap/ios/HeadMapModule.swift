@@ -19,6 +19,14 @@ public final class HeadMapModule: Module {
       }
     }
 
+    /// Voice coaching must be heard with the ring/silent switch on and over other audio, ducking
+    /// music while it speaks. Called when a scan starts.
+    AsyncFunction("prepareVoiceAudioAsync") { () throws in
+      let session = AVAudioSession.sharedInstance()
+      try session.setCategory(.playback, mode: .voicePrompt, options: [.duckOthers, .mixWithOthers])
+      try session.setActive(true)
+    }
+
     /// Measure a photo from disk, for example a family photo or a past photo of yourself.
     AsyncFunction("analyzeImageAsync") { (uri: String, view: String, baselineFaceWidth: Double?) throws -> [String: Any] in
       guard let url = URL(string: uri), let data = try? Data(contentsOf: url), let image = UIImage(data: data) else {

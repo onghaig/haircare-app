@@ -2,7 +2,7 @@ import Foundation
 
 /// One quality check the user must pass before a view is saved. Ordered by what to fix first.
 public enum QualityCheck: String, CaseIterable, Sendable {
-  case faceFound, centred, pose, distance, backlight, exposure, foreheadVisible, sharpness, hairlineFound
+  case faceFound, hairInFrame, centred, pose, distance, backlight, exposure, foreheadVisible, sharpness, hairlineFound
 
   /// Weight in the 0 to 100 scan quality score (same weights as the Python reference;
   /// distance and face-found gate capture but do not score).
@@ -14,7 +14,7 @@ public enum QualityCheck: String, CaseIterable, Sendable {
     case .backlight: return 10
     case .foreheadVisible: return 20
     case .hairlineFound: return 10
-    case .faceFound, .centred, .distance: return 0
+    case .faceFound, .hairInFrame, .centred, .distance: return 0
     }
   }
 }
@@ -57,6 +57,8 @@ public struct QualityThresholds: Sendable {
   public var guideCentre = Point(0.5, 0.45)
   /// Allowed offset of the face centre from the guide centre, as a share of the frame.
   public var centringTolerance = 0.08
+  /// Top and crown views: share of the centre of the frame that must be hair.
+  public var minHairCoverage = 0.35
   public init() {}
 }
 
@@ -89,17 +91,21 @@ public struct QualityScorer: Sendable {
     return dy < 0 ? .moveDown : .moveUp
   }
 
-  /// The crown view has no face to track (rear camera, voice guidance), so only image checks
-  /// apply, measured on the centre of the frame.
-  public func evaluateWithoutFace(view: ScanView, gray: GrayImage) -> QualityReport {
+  /// The top and crown views have no face to track (head tilted down, or the rear camera behind
+  /// the head), so image checks apply, measured on the centre of the frame, plus a check that
+  /// the frame is mostly hair when a hair mask is available.
+  public func evaluateWithoutFace(view: ScanView, gray: GrayImage, hair: HairMask? = nil) -> QualityReport {
     let w = Double(gray.width), h = Double(gray.height)
     let stats = ImageStats.compute(gray: gray, faceMin: Point(w * 0.25, h * 0.25), faceMax: Point(w * 0.75, h * 0.75))
-    let ok: [QualityCheck: Bool] = [
+    var ok: [QualityCheck: Bool] = [
       .sharpness: (stats?.sharpness ?? 0) > thresholds.minSharpness,
       .exposure: stats.map { $0.faceBrightness > thresholds.minBrightness && $0.faceBrightness < thresholds.maxBrightness } ?? false,
     ]
+    if view.checksHairCoverage, let hair { ok[.hairInFrame] = hair.coverage() >= thresholds.minHairCoverage }
     var score = 0
     for c in QualityCheck.allCases where ok[c] ?? true { score += c.weight }
+    // A sharp photo of something other than hair is not a usable top or crown photo.
+    if ok[.hairInFrame] == false { score = min(score, 40) }
     let order = QualityCheck.allCases
     return QualityReport(
       view: view, pose: nil, poseError: nil, distance: .ok, centring: .ok, faceWidth: nil, stats: stats, hairline: nil,

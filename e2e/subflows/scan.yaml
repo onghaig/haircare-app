@@ -12,18 +12,38 @@ appId: com.onghaig.haircare
 - waitForAnimationToEnd:
     timeout: 3000
 - takeScreenshot: e2e-11-front
-- tapOn: "Take photo now"
+# Each shot waits for the green line to finish drawing, then holds "Got it" before the next view.
+# One tap per view: a retried tap would queue a shot for the next view too.
+- tapOn:
+    text: "Take photo now"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "View 2 of 5"
+    timeout: 10000
 - assertVisible: "Left temple"
 - takeScreenshot: e2e-12-left-temple
-- tapOn: "Take photo now"
+- tapOn:
+    text: "Take photo now"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "View 3 of 5"
+    timeout: 10000
 - assertVisible: "Right temple"
-- tapOn: "Take photo now"
+- tapOn:
+    text: "Take photo now"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "View 4 of 5"
+    timeout: 10000
 - assertVisible: "Top of head"
-- assertVisible: "View 4 of 5"
 - takeScreenshot: e2e-13-top-down
-- tapOn: "Take photo now"
+- tapOn:
+    text: "Take photo now"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "View 5 of 5"
+    timeout: 10000
 - assertVisible: "Crown"
-- assertVisible: "View 5 of 5"
 - takeScreenshot: e2e-14-crown
 # The timer is 3 seconds and Maestro's settle wait on the animated screen can take longer, so
 # don't assert the countdown itself (it may already be over). One tap only: a retry would

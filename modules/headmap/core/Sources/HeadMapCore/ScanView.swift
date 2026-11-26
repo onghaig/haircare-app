@@ -8,15 +8,18 @@ public enum ScanView: String, CaseIterable, Sendable {
   public var targetPose: PoseAngles {
     switch self {
     case .front: return PoseAngles(yaw: 0, pitch: 0, roll: 0)
-    case .leftTemple: return PoseAngles(yaw: 45, pitch: 0, roll: 0)
-    case .rightTemple: return PoseAngles(yaw: -45, pitch: 0, roll: 0)
+    case .leftTemple: return PoseAngles(yaw: -45, pitch: 0, roll: 0)
+    case .rightTemple: return PoseAngles(yaw: 45, pitch: 0, roll: 0)
     case .top: return PoseAngles(yaw: 0, pitch: -60, roll: 0)
     case .crown: return PoseAngles(yaw: 0, pitch: 0, roll: 0)
     }
   }
 
-  /// The crown uses the rear camera with voice-only guidance; there is no face to track.
-  public var usesFaceTracking: Bool { self != .crown }
+  /// Face tracking only works while the face is visible: front and temples. The top view (head
+  /// tilted right down) and the crown (rear camera) are judged on the image and the hair in it.
+  public var usesFaceTracking: Bool { self == .front || self == .leftTemple || self == .rightTemple }
+  /// Views that must show mostly hair: the top of the head and the crown.
+  public var checksHairCoverage: Bool { !usesFaceTracking }
   /// Hairline position is measured on the front view only.
   public var measuresHairline: Bool { self == .front }
   public var needsForehead: Bool { self == .front }

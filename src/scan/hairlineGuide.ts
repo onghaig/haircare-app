@@ -25,11 +25,11 @@ export function bezier(p0: Pt, p1: Pt, p2: Pt, p3: Pt, steps = 16): Pt[] {
 const FRONT: Pt[] = [...bezier([46, 76], [54, 52], [76, 40], [100, 40]), ...bezier([100, 40], [124, 40], [146, 52], [154, 76]).slice(1)];
 
 /**
- * Temple corners. The front camera preview is mirrored, so the user's left temple is on the
- * left of the screen, as in a mirror.
+ * Temple corners. Each temple view highlights the temple on the side the user turns toward:
+ * the left temple view (turn left) on the right of the screen, the right temple view on the left.
  */
-const LEFT_TEMPLE: Pt[] = bezier([42, 100], [44, 80], [52, 62], [72, 48]);
-const RIGHT_TEMPLE: Pt[] = LEFT_TEMPLE.map(([x, y]) => [200 - x, y] as Pt);
+const RIGHT_TEMPLE: Pt[] = bezier([42, 100], [44, 80], [52, 62], [72, 48]);
+const LEFT_TEMPLE: Pt[] = RIGHT_TEMPLE.map(([x, y]) => [200 - x, y] as Pt);
 
 /** Top view: the head seen from above, hairline at the bottom, crown near the top. */
 export const TOP_VIEW = {

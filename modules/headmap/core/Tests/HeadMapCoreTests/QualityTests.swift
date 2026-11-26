@@ -21,7 +21,7 @@ final class PoseTests: XCTestCase {
 
   func testMaxDeviation() {
     let p = PoseAngles(yaw: 44, pitch: 3, roll: -6)
-    XCTAssertEqual(p.maxDeviation(from: ScanView.leftTemple.targetPose), 6, accuracy: 1e-9)
+    XCTAssertEqual(p.maxDeviation(from: ScanView.rightTemple.targetPose), 6, accuracy: 1e-9)
   }
 }
 
@@ -102,7 +102,8 @@ final class QualityScorerTests: XCTestCase {
   }
 
   func testTempleViewExpectsA45DegreeTurnAndNoHairline() {
-    let r = frame(yaw: 44, view: .leftTemple)
+    let r = frame(yaw: 44, view: .rightTemple)
+    XCTAssertTrue(frame(yaw: -44, view: .leftTemple).passed.contains(.pose))
     XCTAssertFalse(r.failed.contains(.pose))
     XCTAssertNil(r.hairline)
     XCTAssertFalse(r.failed.contains(.foreheadVisible))
@@ -159,6 +160,30 @@ final class QualityScorerTests: XCTestCase {
     let dark = Fixture.gray(width: 300, height: 400, faceMin: Point(0, 0), faceMax: Point(300, 400), face: 20, background: 20, textured: false)
     let d = scorer.evaluateWithoutFace(view: .crown, gray: dark)
     XCTAssertEqual(d.failed, [.exposure, .sharpness])
+  }
+
+  func testTopAndCrownNeedHairInFrame() {
+    XCTAssertFalse(ScanView.top.usesFaceTracking)
+    XCTAssertFalse(ScanView.crown.usesFaceTracking)
+    XCTAssertTrue(ScanView.leftTemple.usesFaceTracking)
+    let g = Fixture.gray(width: 300, height: 400, faceMin: Point(0, 0), faceMax: Point(300, 400))
+    let hair = HairMask(width: 30, height: 40, values: [Float](repeating: 0.9, count: 1200), imageWidth: 300, imageHeight: 400)!
+    let r = scorer.evaluateWithoutFace(view: .top, gray: g, hair: hair)
+    XCTAssertTrue(r.allPassed, "failed: \(r.failed)")
+    XCTAssertEqual(r.score, 100)
+    let wall = HairMask(width: 30, height: 40, values: [Float](repeating: 0.05, count: 1200), imageWidth: 300, imageHeight: 400)!
+    let w = scorer.evaluateWithoutFace(view: .crown, gray: g, hair: wall)
+    XCTAssertEqual(w.topIssue, .hairInFrame)
+    XCTAssertLessThanOrEqual(w.score, 40)
+  }
+
+  func testHairCoverageCountsTheCentre() {
+    // Hair only in the left half of the frame: half the centre region.
+    var v = [Float](repeating: 0, count: 100)
+    for y in 0..<10 { for x in 0..<5 { v[y * 10 + x] = 1 } }
+    let m = HairMask(width: 10, height: 10, values: v, imageWidth: 10, imageHeight: 10)!
+    XCTAssertEqual(m.coverage(x: 0...1, y: 0...1), 0.5, accuracy: 1e-9)
+    XCTAssertEqual(m.coverage(x: 0.0...0.5, y: 0...1), 1, accuracy: 1e-9)
   }
 
   func testWeightsAddUpTo100() {

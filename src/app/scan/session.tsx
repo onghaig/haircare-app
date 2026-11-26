@@ -8,14 +8,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   HeadMapCameraView,
   isHeadMapAvailable,
+  prepareVoiceAudioAsync,
   requestCameraPermissionAsync,
+  type CaptureResult,
   type HeadMapCameraViewRef,
+  type ScanView,
 } from '@modules/headmap';
 import { HairChecklist } from '@/components/scan/HairChecklist';
 import { HeadGuide } from '@/components/scan/HeadGuide';
 import { PromptCard, StatusChips, ViewProgress } from '@/components/scan/ScanHud';
 import { Button, Text } from '@/components/ui';
-import { promptFor, statusChips } from '@/scan/guidance';
+import { promptFor, statusChips, viewInstruction } from '@/scan/guidance';
 import { useProfile } from '@/profile/ProfileProvider';
 import { useScans } from '@/scan/ScanProvider';
 import {
@@ -23,6 +26,7 @@ import {
   currentView,
   initialScanState,
   scanReducer,
+  SHOW_CAPTURED_MS,
   TIPS,
   type HairState,
   VIEW_LABEL,
@@ -42,7 +46,8 @@ export default function ScanSessionScreen() {
   const [state, dispatch] = useReducer(scanReducer, initialScanState);
   const [permission, setPermission] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const [voiceOn, setVoiceOn] = useState(false);
+  // Voice is on by default: you can't read the screen with your head turned or tilted down.
+  const [voiceOn, setVoiceOn] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const camera = useRef<HeadMapCameraViewRef>(null);
   const coach = useMemo(() => new VoiceCoach((line) => Speech.speak(line, { rate: 0.95 })), []);
@@ -61,11 +66,46 @@ export default function ScanSessionScreen() {
     );
   }, [state, save, firstReveal]);
 
-  // Announce each new view; the crown is voice-guided because the user can't see the screen.
+  // Announce each new view with what to do; the crown is always voice-guided.
   useEffect(() => {
     if (state.phase !== 'capturing') return;
-    if (view === 'crown' || voiceOn) coach.say(VIEW_LABEL[view], Date.now());
+    if (view === 'crown' || voiceOn) coach.say(`${VIEW_LABEL[view]}. ${viewInstruction(view)}`, Date.now());
   }, [view, state.phase, voiceOn, coach]);
+
+  // The green line draws all the way for each view before a photo can be taken, and the finished
+  // line stays up for a moment after it ("Got it") before the next view starts.
+  const [drawnView, setDrawnView] = useState<ScanView | null>(null);
+  const noGuide = size.width <= 0 || size.height <= 0;
+  const drawn = noGuide || drawnView === view;
+  const [held, setHeld] = useState<CaptureResult | null>(null);
+  const [queued, setQueued] = useState<ScanView | null>(null);
+  const live = state.live;
+  const liveRef = useRef(live);
+  useEffect(() => {
+    liveRef.current = live;
+  });
+
+  function shoot() {
+    if (held) return;
+    if (drawn) camera.current?.capture();
+    else setQueued(view);
+  }
+
+  // A shot asked for mid-draw, or checks that went green before the line finished, fire now.
+  useEffect(() => {
+    if (!drawn || held) return;
+    if (queued === view || liveRef.current?.allPassed) camera.current?.capture();
+  }, [drawn, held, queued, view]);
+
+  useEffect(() => {
+    if (!held) return;
+    const t = setTimeout(() => {
+      dispatch({ type: 'captured', result: held });
+      setHeld(null);
+      setQueued(null);
+    }, SHOW_CAPTURED_MS);
+    return () => clearTimeout(t);
+  }, [held]);
 
   // Crown self-timer: the phone is behind your head, so count down out loud, then shoot.
   useEffect(() => {
@@ -73,7 +113,8 @@ export default function ScanSessionScreen() {
     Speech.speak(String(countdown), { rate: 1 });
     const t = setTimeout(() => {
       if (countdown <= 1) {
-        camera.current?.capture();
+        // Queue the shot: it fires as soon as the green line has finished drawing.
+        setQueued(view);
         setTimer(null);
       } else {
         setTimer({ view, left: countdown - 1 });
@@ -83,6 +124,7 @@ export default function ScanSessionScreen() {
   }, [countdown, view]);
 
   async function start(hairState: HairState) {
+    void prepareVoiceAudioAsync();
     if (isHeadMapAvailable) {
       const p = await requestCameraPermissionAsync();
       setPermission(p);
@@ -110,37 +152,49 @@ export default function ScanSessionScreen() {
     );
   }
 
-  const live = state.live;
   const prompt = cameraError
     ? { title: 'Camera problem', detail: cameraError, tone: 'fix' as const, voice: '' }
-    : live
-      ? promptFor(live)
+    : held
+      ? { title: 'Got it', tone: 'ready' as const, voice: 'Got it' }
+      : live
+        ? promptFor(live)
       : { title: 'Line up with the outline', tone: 'fix' as const, voice: '' };
   const ghost = baseline?.views[view]?.uri;
   const tip = state.tip ? TIPS[state.tip] : null;
 
   return (
-    <View style={styles.camera} onLayout={(e) => setSize(e.nativeEvent.layout)}>
+    <View testID="scan-camera" style={styles.camera} onLayout={(e) => setSize(e.nativeEvent.layout)}>
       <HeadMapCameraView
         ref={camera}
         style={StyleSheet.absoluteFill}
         view={view}
         baselineFaceWidth={baseline?.faceWidthPx ?? null}
         active={state.phase === 'capturing'}
+        autoCapture={drawn && !held}
         onQuality={({ nativeEvent }) => {
           dispatch({ type: 'quality', report: nativeEvent, now: Date.now() });
           coach.update(promptFor(nativeEvent).voice, Date.now(), view === 'crown' || voiceOn);
         }}
         onCapture={({ nativeEvent }) => {
           setCameraError(null);
-          dispatch({ type: 'captured', result: nativeEvent });
+          if (held || nativeEvent.view !== view) return;
+          if (view === 'crown' || voiceOn) coach.say('Got it', Date.now());
+          setHeld(nativeEvent);
         }}
         onError={({ nativeEvent }) => setCameraError(nativeEvent.message)}
       />
       {ghost && view !== 'crown' ? (
         <Image source={{ uri: ghost }} style={[StyleSheet.absoluteFill, { opacity: 0.28 }]} contentFit="cover" pointerEvents="none" />
       ) : null}
-      <HeadGuide view={view} aligned={!!live?.allPassed} width={size.width} height={size.height} hairline={live?.hairline} />
+      <HeadGuide
+        view={view}
+        aligned={!!held || !!live?.allPassed}
+        width={size.width}
+        height={size.height}
+        hairline={live?.hairline}
+        complete={!!held}
+        onDrawn={() => setDrawnView(view)}
+      />
       {countdown != null && countdown > 0 ? (
         <View pointerEvents="none" style={styles.countdown}>
           <Text variant="display" accessibilityLiveRegion="assertive">
@@ -172,7 +226,7 @@ export default function ScanSessionScreen() {
           <PromptCard prompt={prompt} tip={tip} />
           {live ? <StatusChips chips={statusChips(live)} /> : null}
           {view !== 'crown' ? (
-            <Button label="Take photo now" variant="secondary" onPress={() => camera.current?.capture()} />
+            <Button label="Take photo now" variant="secondary" onPress={shoot} />
           ) : (
             // The crown always gets captured: auto-capture when the checks pass, or this timer.
             <Button

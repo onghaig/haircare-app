@@ -1,7 +1,7 @@
 import type { QualityCheck, QualityReport } from '@modules/headmap';
 import { promptFor, statusChips } from '@/scan/guidance';
 
-const ALL: QualityCheck[] = ['faceFound', 'centred', 'pose', 'distance', 'backlight', 'exposure', 'foreheadVisible', 'sharpness', 'hairlineFound'];
+const ALL: QualityCheck[] = ['faceFound', 'hairInFrame', 'centred', 'pose', 'distance', 'backlight', 'exposure', 'foreheadVisible', 'sharpness', 'hairlineFound'];
 
 function report(failed: QualityCheck[], extra: Partial<QualityReport> = {}): QualityReport {
   return {
@@ -43,8 +43,8 @@ describe('promptFor', () => {
   });
 
   it('names the target pose for each view', () => {
-    expect(promptFor(report(['pose'], { view: 'leftTemple' })).title).toMatch(/45 degrees to the right/);
-    expect(promptFor(report(['pose'], { view: 'rightTemple' })).title).toMatch(/45 degrees to the left/);
+    expect(promptFor(report(['pose'], { view: 'leftTemple' })).title).toMatch(/45 degrees to the left/);
+    expect(promptFor(report(['pose'], { view: 'rightTemple' })).title).toMatch(/45 degrees to the right/);
     expect(promptFor(report(['pose'], { view: 'top' })).title).toMatch(/Tilt your head down/);
   });
 
@@ -70,9 +70,19 @@ describe('promptFor', () => {
 });
 
 describe('statusChips', () => {
-  it('shows five chips on the front view and four elsewhere', () => {
+  it('shows five chips on the front view, four on the temples, and hair checks for top and crown', () => {
     expect(statusChips(report([])).map((c) => c.label)).toEqual(['Head level', 'Distance', 'Light', 'Still', 'Forehead']);
-    expect(statusChips(report([], { view: 'top' }))).toHaveLength(4);
+    expect(statusChips(report([], { view: 'leftTemple' }))).toHaveLength(4);
+    expect(statusChips(report(['hairInFrame'], { view: 'top' }))).toEqual([
+      { label: 'Hair in frame', ok: false },
+      { label: 'Light', ok: true },
+      { label: 'Still', ok: true },
+    ]);
+  });
+
+  it('asks top and crown views for hair, not a face', () => {
+    expect(promptFor(report(['hairInFrame'], { view: 'top' })).title).toBe('Tilt your head down');
+    expect(promptFor(report(['hairInFrame'], { view: 'crown' })).title).toBe('Point the camera at your crown');
   });
 
   it('marks only the failing chip', () => {

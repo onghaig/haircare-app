@@ -62,6 +62,11 @@ export default function ScanResultScreen() {
         <Text variant="caption" color="textMuted">
           Changes smaller than a re-scan can tell apart show as no real change. Estimates for tracking, not a diagnosis.
         </Text>
+        <Button
+          label="See your hair from every angle"
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/scan/panorama', params: { id: scan.id } })}
+        />
         <Button label="Done" onPress={() => router.dismissTo('/scan')} />
       </ScrollView>
     </SafeAreaView>

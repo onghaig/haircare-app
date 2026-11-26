@@ -15,11 +15,16 @@ export interface Prompt {
 
 const VIEW_POSE: Record<ScanView, string> = {
   front: 'Look straight at the phone, chin level',
-  leftTemple: 'Turn your head 45 degrees to the right',
-  rightTemple: 'Turn your head 45 degrees to the left',
+  leftTemple: 'Turn your head 45 degrees to the left',
+  rightTemple: 'Turn your head 45 degrees to the right',
   top: 'Tilt your head down toward the phone',
   crown: 'Hold the phone above and behind your head',
 };
+
+/** What to do for a view, spoken when the view starts. */
+export function viewInstruction(view: ScanView): string {
+  return VIEW_POSE[view];
+}
 
 export function promptFor(report: QualityReport): Prompt {
   const issue = report.topIssue;
@@ -32,6 +37,10 @@ export function promptFor(report: QualityReport): Prompt {
       return report.view === 'crown'
         ? p('Point the camera at your crown', undefined, 'A little higher, tilt the phone toward you')
         : p('Bring your face into the outline');
+    case 'hairInFrame':
+      return report.view === 'crown'
+        ? p('Point the camera at your crown', 'The back of your head should fill the circle', 'A little higher, tilt the phone toward you')
+        : p('Tilt your head down', 'Let the top of your head fill the oval', 'Tilt your head down until your hair fills the screen');
     case 'centred': {
       const dir = { moveLeft: 'left', moveRight: 'right', moveUp: 'up', moveDown: 'down', ok: '' }[report.centring];
       return p(`Move your head ${dir} a little`, 'Line up with the outline');
@@ -70,6 +79,14 @@ export interface StatusChip {
 /** The five chips under the camera: Head level, Distance, Light, Still, Forehead. */
 export function statusChips(report: QualityReport): StatusChip[] {
   const failed = new Set<QualityCheck>(report.failed);
+  if (report.view === 'top' || report.view === 'crown') {
+    // No face to track: hair in frame, light and stillness are what matter.
+    return [
+      { label: 'Hair in frame', ok: !failed.has('hairInFrame') },
+      { label: 'Light', ok: !failed.has('exposure') && !failed.has('backlight') },
+      { label: 'Still', ok: !failed.has('sharpness') },
+    ];
+  }
   const chips: StatusChip[] = [
     { label: 'Head level', ok: !failed.has('pose') && !failed.has('centred') && !failed.has('faceFound') },
     { label: 'Distance', ok: !failed.has('distance') && !failed.has('faceFound') },

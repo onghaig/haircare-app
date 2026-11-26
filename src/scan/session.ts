@@ -19,6 +19,9 @@ export const VIEW_LABEL: Record<ScanView, string> = {
 
 /** How long one issue must block capture before it counts as a failed attempt. */
 export const STUCK_MS = 4000;
+
+/** After a photo, the finished green line and "Got it" stay up this long before the next view. */
+export const SHOW_CAPTURED_MS = 900;
 /** Tips appear only after the same check has failed this many times (spec: twice). */
 export const TIP_AFTER_FAILS = 2;
 
@@ -164,5 +167,6 @@ export const TIPS: Partial<Record<QualityCheck, string>> = {
   sharpness: 'Rest your elbow on something to keep the phone steady.',
   centred: 'Line up the outline with the edge of your face.',
   faceFound: 'Make sure your whole face is on screen and well lit.',
+  hairInFrame: 'Hold the phone a little further away so all of your hair is in view.',
   hairlineFound: 'Tilt the phone back slightly so the top of your head is in view.',
 };

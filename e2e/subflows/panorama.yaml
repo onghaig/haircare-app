@@ -1,0 +1,19 @@
+# The hair panorama: the scan's photos around the head, opened from the Scan tab.
+appId: com.onghaig.haircare
+---
+- tapOn: "Scan"
+- scrollUntilVisible:
+    element: "See your hair from every angle"
+- tapOn: "See your hair from every angle"
+- assertVisible: "Your hair, all the way round"
+- takeScreenshot: e2e-70-panorama-front
+- swipe:
+    from:
+      id: "panorama-viewer"
+    direction: LEFT
+- takeScreenshot: e2e-71-panorama-turned
+- tapOn: "Show back"
+- assertVisible: "Back"
+- tapOn: "Show top"
+- takeScreenshot: e2e-72-panorama-top
+- tapOn: "Close"

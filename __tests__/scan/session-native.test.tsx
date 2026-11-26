@@ -8,7 +8,7 @@ import { ProfileProvider } from '@/profile/ProfileProvider';
 import { MemoryProfileStore } from '@/profile/store';
 import { emptyProfile } from '@/profile/types';
 import { ScanProvider } from '@/scan/ScanProvider';
-import { SCAN_ORDER } from '@/scan/session';
+import { SCAN_ORDER, SHOW_CAPTURED_MS } from '@/scan/session';
 import { MemoryScanStore } from '@/scan/store';
 
 import { capture } from '../../test-utils/scanFixtures';
@@ -31,6 +31,7 @@ jest.mock('@modules/headmap', () => {
   return {
     isHeadMapAvailable: true,
     requestCameraPermissionAsync: jest.fn(async () => 'granted'),
+    prepareVoiceAudioAsync: jest.fn(async () => {}),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     HeadMapCameraView: React.forwardRef(function FakeCamera(props: any, ref: any) {
       mockCamera.props = props;
@@ -53,11 +54,19 @@ async function openCamera(store = new MemoryScanStore(), revealSeenAt?: string) 
   return store;
 }
 
+/** The camera reports a photo; the finished line holds for a moment, then the next view starts. */
+async function shot(view: (typeof SCAN_ORDER)[number]) {
+  await act(async () => mockCamera.props.onCapture({ nativeEvent: capture(view) }));
+  await act(async () => jest.advanceTimersByTime(SHOW_CAPTURED_MS));
+}
+
 beforeEach(() => {
+  jest.useFakeTimers();
   mockCamera.props = null;
   mockCamera.capture.mockClear();
   jest.mocked(router.replace).mockClear();
 });
+afterEach(() => jest.useRealTimers());
 
 describe('Scan session with the native camera', () => {
   it('shows a camera error instead of hanging silently', async () => {
@@ -76,9 +85,7 @@ describe('Scan session with the native camera', () => {
   it('runs all five views to a saved scan and opens its result', async () => {
     const store = await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
     await act(async () => mockCamera.props.onError({ nativeEvent: { message: 'Camera unavailable' } }));
-    for (const view of SCAN_ORDER) {
-      await act(async () => mockCamera.props.onCapture({ nativeEvent: capture(view) }));
-    }
+    for (const view of SCAN_ORDER) await shot(view);
     await waitFor(() => expect(router.replace).toHaveBeenCalled());
     const saved = await store.list();
     expect(saved).toHaveLength(1);
@@ -88,21 +95,16 @@ describe('Scan session with the native camera', () => {
 
   it('opens the forecast reveal after the very first finished scan', async () => {
     const store = await openCamera();
-    for (const view of SCAN_ORDER) {
-      await act(async () => mockCamera.props.onCapture({ nativeEvent: capture(view) }));
-    }
+    for (const view of SCAN_ORDER) await shot(view);
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/reveal/analysing'));
     expect(await store.list()).toHaveLength(1);
   });
 
   it('always captures the crown: a spoken 3-second self-timer, which can be cancelled', async () => {
-    jest.useFakeTimers();
-    try {
+    {
       const Speech = jest.requireMock('expo-speech') as { speak: jest.Mock };
       await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
-      for (const view of SCAN_ORDER.slice(0, -1)) {
-        await act(async () => mockCamera.props.onCapture({ nativeEvent: capture(view) }));
-      }
+      for (const view of SCAN_ORDER.slice(0, -1)) await shot(view);
       expect(screen.getByLabelText('View 5 of 5')).toBeOnTheScreen();
       expect(screen.queryByRole('button', { name: 'Take photo now' })).toBeNull();
 
@@ -122,8 +124,38 @@ describe('Scan session with the native camera', () => {
       await act(async () => jest.advanceTimersByTime(1000));
       expect(mockCamera.capture).toHaveBeenCalledTimes(1);
       expect(Speech.speak.mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(['3', '2', '1']));
-    } finally {
-      jest.useRealTimers();
     }
+  });
+
+  it('lets the green line finish drawing before the photo, then holds it with "Got it"', async () => {
+    await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
+    await fireEvent(screen.getByTestId('scan-camera'), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 844 } } });
+    expect(await screen.findByTestId('hairline-template')).toBeOnTheScreen();
+    expect(mockCamera.props.autoCapture).toBe(false);
+    await fireEvent.press(screen.getByRole('button', { name: 'Take photo now' }));
+    expect(mockCamera.capture).not.toHaveBeenCalled();
+    await act(async () => jest.advanceTimersByTime(1600));
+    expect(mockCamera.capture).toHaveBeenCalledTimes(1);
+    expect(mockCamera.props.autoCapture).toBe(true);
+
+    await act(async () => mockCamera.props.onCapture({ nativeEvent: capture('front') }));
+    expect(screen.getByText('Got it')).toBeOnTheScreen();
+    expect(screen.getByLabelText('View 1 of 5')).toBeOnTheScreen();
+    await act(async () => jest.advanceTimersByTime(SHOW_CAPTURED_MS));
+    expect(screen.getByLabelText('View 2 of 5')).toBeOnTheScreen();
+  });
+
+  it('talks you through each view by default', async () => {
+    const Speech = jest.requireMock('expo-speech') as { speak: jest.Mock };
+    Speech.speak.mockClear();
+    const { prepareVoiceAudioAsync } = jest.requireMock('@modules/headmap') as { prepareVoiceAudioAsync: jest.Mock };
+    await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
+    expect(prepareVoiceAudioAsync).toHaveBeenCalled();
+    expect(Speech.speak.mock.calls[0][0]).toBe('Front: hairline. Look straight at the phone, chin level');
+    expect(screen.getByRole('switch', { name: 'Voice guidance' })).toBeChecked();
+    await shot('front');
+    expect(Speech.speak.mock.calls.map((c) => c[0])).toEqual(
+      expect.arrayContaining(['Got it', expect.stringMatching(/^Left temple\. Turn your head 45 degrees to the left/)]),
+    );
   });
 });

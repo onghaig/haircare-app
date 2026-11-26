@@ -15,10 +15,10 @@ describe('hairline templates', () => {
     }
   });
 
-  it('mirrors the temples: left on the left of the screen, right on the right', () => {
+  it('highlights the temple on the side you turn toward: left temple on the right of the screen', () => {
     const meanX = (pts: readonly (readonly [number, number])[]) => pts.reduce((s, p) => s + p[0], 0) / pts.length;
-    expect(meanX(TEMPLATES.leftTemple)).toBeLessThan(100);
-    expect(meanX(TEMPLATES.rightTemple)).toBeGreaterThan(100);
+    expect(meanX(TEMPLATES.leftTemple)).toBeGreaterThan(100);
+    expect(meanX(TEMPLATES.rightTemple)).toBeLessThan(100);
     expect(meanX(TEMPLATES.leftTemple) + meanX(TEMPLATES.rightTemple)).toBeCloseTo(200);
   });
 

@@ -6,6 +6,7 @@ interface NativeHeadMap {
   meanInterPupilMM: number;
   requestCameraPermissionAsync(): Promise<PermissionStatus>;
   analyzeImageAsync(uri: string, view: ScanView, baselineFaceWidth: number | null): Promise<QualityReport>;
+  prepareVoiceAudioAsync?(): Promise<void>;
 }
 
 /** Null on web, in Jest and in Expo Go: the scan needs a development build. */
@@ -29,4 +30,16 @@ export function requestCameraPermissionAsync(): Promise<PermissionStatus> {
 /** Measure a saved photo (family photo, past photo of yourself) with the same checks as a live scan. */
 export function analyzeImageAsync(uri: string, view: ScanView = 'front', baselineFaceWidth?: number): Promise<QualityReport> {
   return native().analyzeImageAsync(uri, view, baselineFaceWidth ?? null);
+}
+
+/**
+ * Lets voice coaching play with the silent switch on and over music (ducking it). A no-op where
+ * the native module is missing (Expo Go, Jest, web).
+ */
+export async function prepareVoiceAudioAsync(): Promise<void> {
+  try {
+    await NativeHeadMapModule?.prepareVoiceAudioAsync?.();
+  } catch {
+    // Speech still works with the default session; it just follows the silent switch.
+  }
 }

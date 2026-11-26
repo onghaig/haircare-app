@@ -31,6 +31,13 @@ export default function ScanTab() {
       </Card>
 
       {latest ? <HairlineNumbers scan={latest} baseline={baseline} /> : null}
+      {latest && Object.keys(latest.views).length > 1 ? (
+        <Button
+          label="See your hair from every angle"
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/scan/panorama', params: { id: latest.id } })}
+        />
+      ) : null}
 
       {loaded && records.length > 0 ? (
         <View style={{ gap: spacing.sm }}>

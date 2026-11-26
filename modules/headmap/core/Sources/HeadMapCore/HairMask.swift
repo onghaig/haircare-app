@@ -35,4 +35,16 @@ public struct HairMask: Sendable {
     let bottom = v(x0, y0 + 1) * (1 - fx) + v(x0 + 1, y0 + 1) * fx
     return top * (1 - fy) + bottom * fy
   }
+
+  /// Share of mask cells inside a region (fractions of the frame, 0 to 1) that are hair.
+  public func coverage(x: ClosedRange<Double> = 0.2...0.8, y: ClosedRange<Double> = 0.2...0.8, threshold: Float = 0.5) -> Double {
+    let x0 = max(0, Int(x.lowerBound * Double(width))), x1 = min(width, Int(x.upperBound * Double(width)))
+    let y0 = max(0, Int(y.lowerBound * Double(height))), y1 = min(height, Int(y.upperBound * Double(height)))
+    guard x1 > x0, y1 > y0 else { return 0 }
+    var hair = 0
+    for yi in y0..<y1 {
+      for xi in x0..<x1 where values[yi * width + xi] >= threshold { hair += 1 }
+    }
+    return Double(hair) / Double((x1 - x0) * (y1 - y0))
+  }
 }
