@@ -39,6 +39,14 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose family photos so Haircare can compare their hairlines with yours. Photos stay on your phone.",
+          "cameraPermission": "Your camera scans your hairline the same way every time. Scans are analysed on your phone.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

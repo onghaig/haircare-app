@@ -1,10 +1,16 @@
+import { Redirect } from 'expo-router';
 import { NativeTabs } from 'expo-router/native-tabs';
 
 import { TABS } from '@/navigation/tabs';
+import { useProfile } from '@/profile/ProfileProvider';
 import { colors } from '@/theme';
 
 /** Native tab bar (UITabBarController on iOS, Material bottom navigation on Android). */
 export default function TabsLayout() {
+  const { loaded, onboarded } = useProfile();
+  // New users start with onboarding; until the profile has loaded, show nothing (the splash is up).
+  if (!loaded) return null;
+  if (!onboarded) return <Redirect href="/onboarding" />;
   return (
     <NativeTabs
       backgroundColor={colors.bg}

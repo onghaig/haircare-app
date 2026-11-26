@@ -2,53 +2,7 @@ import { baselineOf, daysUntilNextScan, FileScanStore, latestOf, MemoryScanStore
 
 import { record } from '../../test-utils/scanFixtures';
 
-// In-memory stand-in for expo-file-system's File and Directory classes.
-jest.mock('expo-file-system', () => {
-  const files = new Map<string, string>();
-  const dirs = new Set<string>();
-  const join = (parts: unknown[]) => {
-    const raw = parts.map((p) => (typeof p === 'string' ? p : (p as { uri: string }).uri)).join('/');
-    const [proto, rest] = raw.split('://');
-    return `${proto}://${rest.replace(/\/+/g, '/')}`;
-  };
-  class Directory {
-    uri: string;
-    constructor(...parts: unknown[]) {
-      this.uri = join(parts);
-    }
-    get exists() {
-      return dirs.has(this.uri);
-    }
-    create() {
-      dirs.add(this.uri);
-    }
-    delete() {
-      dirs.delete(this.uri);
-      for (const k of [...files.keys()]) if (k.startsWith(this.uri + '/')) files.delete(k);
-    }
-  }
-  class File {
-    uri: string;
-    constructor(...parts: unknown[]) {
-      this.uri = join(parts);
-    }
-    get exists() {
-      return files.has(this.uri);
-    }
-    async text() {
-      return files.get(this.uri) ?? '';
-    }
-    write(s: string) {
-      files.set(this.uri, s);
-    }
-    moveSync(dest: File) {
-      files.set(dest.uri, files.get(this.uri) ?? '');
-      files.delete(this.uri);
-      this.uri = dest.uri;
-    }
-  }
-  return { File, Directory, Paths: { document: new Directory('file:///doc') }, __files: files };
-});
+jest.mock('expo-file-system', () => require('../../test-utils/fsMock').createFsMock());
 
 describe('scan history helpers', () => {
   const a = record('a', '2026-10-01T10:00:00Z', { lowConfidence: true, quality: 40 });

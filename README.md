@@ -93,6 +93,9 @@ a real phone. When native iOS code changes, the sideload `.ipa` is rebuilt too.
 | `src/forecast/` | On-device forecast engine (port of the Python v0 model) |
 | `src/scan/` | Scan session state machine, guidance copy, voice coach, change detection, local scan storage |
 | `src/app/scan/` | Guided scan (full-screen) and scan result screens |
+| `src/app/onboarding/` | Welcome and the nine onboarding questions |
+| `src/profile/` | Hair profile: answers, on-device storage, onboarding rules, mapping to the forecast |
+| `src/components/head/`, `src/components/family/` | Drawn heads with tappable zones; the family tree and relative cards |
 | `modules/headmap/` | Native Swift scan module: camera, MediaPipe, measurement, quality checks ([README](modules/headmap/README.md)) |
 | `__tests__/` | Jest tests |
 | `e2e/` | Maestro end-to-end flows, run on an iOS simulator in CI |

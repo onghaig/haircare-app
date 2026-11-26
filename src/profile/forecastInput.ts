@@ -1,0 +1,71 @@
+import type { Ancestry, Relation, RelativeReport, RelativeStatus, Treatment, UserInput } from '@/forecast';
+
+import type { AncestryChoice, FamilyMember, HairStatus, Profile, TreatmentChoice } from './types';
+
+/** Relatives the v0 model has a liability correlation for. Mothers and grandmothers are kept for later. */
+const RELATION: Partial<Record<FamilyMember, Relation>> = {
+  father: 'father',
+  brother: 'brother',
+  maternalGrandfather: 'maternal_grandfather',
+  paternalGrandfather: 'paternal_grandfather',
+  maternalUncle: 'maternal_uncle',
+};
+
+/**
+ * When we don't know when a relative's status applied, assume a typical age for that generation.
+ * "Full hair at 70" is strong protective evidence; "thinning at 50" is weak risk evidence.
+ */
+const TYPICAL_AGE: Partial<Record<FamilyMember, number>> = {
+  father: 55,
+  maternalUncle: 55,
+  maternalGrandfather: 75,
+  paternalGrandfather: 75,
+};
+
+const STATUS: Record<HairStatus, RelativeStatus | null> = {
+  full: 'full',
+  thinning: 'thinning',
+  receding: 'thinning',
+  bald: 'bald',
+  unknown: null,
+};
+
+export function ancestryFor(choices: AncestryChoice[]): Ancestry | undefined {
+  if (choices.length === 0) return undefined;
+  if (choices.length > 1 || choices[0] === 'other') return 'mixed_or_other';
+  return choices[0];
+}
+
+/** The strongest treatment the user already takes, in the model's terms. */
+export function treatmentFor(choices: TreatmentChoice[]): Treatment {
+  const has = (t: TreatmentChoice) => choices.includes(t);
+  if (has('dutasteride')) return 'dutasteride';
+  if (has('finasteride') && has('minoxidil')) return 'finasteride+minoxidil';
+  if (has('finasteride')) return 'finasteride';
+  if (has('minoxidil')) return 'minoxidil';
+  return 'none';
+}
+
+export function relativesFor(profile: Profile): RelativeReport[] {
+  const out: RelativeReport[] = [];
+  for (const [member, r] of Object.entries(profile.family) as [FamilyMember, Profile['family'][FamilyMember]][]) {
+    const relation = RELATION[member];
+    const status = r ? STATUS[r.status] : null;
+    if (!relation || !r || !status) continue;
+    const typical = member === 'brother' ? Math.max(profile.age ?? 25, 18) : (TYPICAL_AGE[member] ?? 55);
+    const age = status !== 'full' && r.startAge ? r.startAge : typical;
+    out.push({ relation, status, age });
+  }
+  return out;
+}
+
+/** Everything the forecast engine needs from onboarding. Returns null until age is known. */
+export function toForecastInput(profile: Profile): UserInput | null {
+  if (profile.age == null) return null;
+  return {
+    age: profile.age,
+    ancestry: ancestryFor(profile.ancestry),
+    relatives: relativesFor(profile),
+    treatment: treatmentFor(profile.treatments),
+  };
+}

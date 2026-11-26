@@ -1,0 +1,11 @@
+# End-to-end: the real Release app (JS bundle + Swift HeadMap module) on an iOS simulator,
+# from a fresh install through every screen built so far. Each milestone adds its subflow here.
+# Screenshots land in the e2e-results artifact.
+appId: com.onghaig.haircare
+---
+- launchApp:
+    clearState: true
+    permissions:
+      camera: allow
+- runFlow: subflows/onboarding.yaml
+- runFlow: subflows/scan.yaml

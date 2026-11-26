@@ -74,7 +74,7 @@ jobs:
       - name: End-to-end flows (Maestro)
         run: |
           mkdir -p e2e-results
-          maestro --device "$UDID" test e2e/ --format junit --output e2e-results/report.xml \
+          maestro --device "$UDID" test e2e/app.yaml --format junit --output e2e-results/report.xml \
             --test-output-dir e2e-results
       - name: Upload e2e screenshots and report
         if: always()
