@@ -42,6 +42,7 @@ export default function RootLayout() {
               <Stack.Screen name="paywall" options={{ presentation: 'modal', gestureEnabled: false }} />
               <Stack.Screen name="massage" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="log" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="verdict" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen
                 name="scan/session"
                 options={{
