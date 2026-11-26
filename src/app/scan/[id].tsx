@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,11 +9,35 @@ import { useScans } from '@/scan/ScanProvider';
 import { SCAN_ORDER, VIEW_LABEL } from '@/scan/session';
 import { colors, spacing } from '@/theme';
 
-/** Scan complete: quality score, views captured, hairline numbers. */
+type Confirm = 'delete' | 'redo' | null;
+
+/** What happens to your baseline when this scan goes, so it's never a surprise. */
+function baselineNote(isBaseline: boolean, othersLeft: number): string {
+  if (!isBaseline) return '';
+  return othersLeft > 0
+    ? ' This is your baseline, so your next oldest scan becomes the baseline and your trends are measured from it.'
+    : ' This is your baseline, so your next scan sets a new one.';
+}
+
+/** Scan complete: quality score, views captured, hairline numbers. Redo or delete it from here. */
 export default function ScanResultScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { records, baseline } = useScans();
+  const { records, baseline, remove } = useScans();
   const scan = records.find((r) => r.id === id);
+  const [confirm, setConfirm] = useState<Confirm>(null);
+  const [busy, setBusy] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (deleted || (busy && !scan)) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.content}>
+          <Text accessibilityLiveRegion="polite">Scan deleted.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!scan) {
     return (
@@ -23,6 +48,28 @@ export default function ScanResultScreen() {
   }
 
   const isBaseline = baseline?.id === scan.id;
+  const othersLeft = records.filter((r) => r.id !== scan.id && !r.lowConfidence).length;
+
+  async function deleteScan() {
+    if (!scan) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await remove(scan.id);
+      setDeleted(true);
+      router.dismissTo('/scan');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  }
+
+  function redoScan() {
+    if (!scan) return;
+    // The old scan is only removed once the new one has saved, so backing out keeps it.
+    router.replace({ pathname: '/scan/session', params: { replaces: scan.id } });
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -68,6 +115,32 @@ export default function ScanResultScreen() {
           onPress={() => router.push({ pathname: '/scan/panorama', params: { id: scan.id } })}
         />
         <Button label="Done" onPress={() => router.dismissTo('/scan')} />
+
+        {confirm ? (
+          <Card style={styles.confirm} accessibilityLiveRegion="polite">
+            <Text variant="headline" accessibilityRole="header">
+              {confirm === 'delete' ? 'Delete this scan?' : 'Redo this scan?'}
+            </Text>
+            <Text color="textMuted">
+              {confirm === 'delete'
+                ? `Its photos and measurements are removed from this phone. This can’t be undone.${baselineNote(isBaseline, othersLeft)}`
+                : `You’ll take all five views again. This scan is replaced once the new one is saved; close the scan to keep it.${baselineNote(isBaseline, othersLeft)}`}
+            </Text>
+            {error ? <Text color="warning">{`Couldn’t delete this scan: ${error}`}</Text> : null}
+            <Button
+              label={confirm === 'delete' ? (busy ? 'Deleting…' : 'Delete scan') : 'Start the redo'}
+              variant="primary"
+              disabled={busy}
+              onPress={confirm === 'delete' ? deleteScan : redoScan}
+            />
+            <Button label="Keep this scan" variant="secondary" disabled={busy} onPress={() => setConfirm(null)} />
+          </Card>
+        ) : (
+          <View style={styles.manage}>
+            <Button label="Redo this scan" variant="secondary" onPress={() => setConfirm('redo')} style={{ flex: 1 }} />
+            <Button label="Delete this scan" variant="secondary" onPress={() => setConfirm('delete')} style={{ flex: 1 }} />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -79,5 +152,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: { borderWidth: 1, borderColor: colors.accentDim, backgroundColor: '#0D1F18', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
   chipMissing: { borderColor: colors.line, backgroundColor: colors.surface },
+  manage: { flexDirection: 'row', gap: spacing.sm },
+  confirm: { gap: spacing.sm, borderColor: colors.warning },
   quality: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
 });

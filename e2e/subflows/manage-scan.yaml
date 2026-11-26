@@ -1,0 +1,39 @@
+# Redo and delete a scan from its result screen, both behind a confirmation. Deleting the only
+# scan takes the Scan tab back to the first-scan state.
+appId: com.onghaig.haircare
+---
+- tapOn: "Scan"
+- scrollUntilVisible:
+    element: "Scan from .*"
+- tapOn: "Scan from .*"
+- scrollUntilVisible:
+    element: "Delete this scan"
+# Redo: confirm, and the new scan starts (closing it keeps the old one).
+- tapOn: "Redo this scan"
+- assertVisible: "Redo this scan\\?"
+- takeScreenshot: e2e-80-redo-confirm
+- tapOn: "Start the redo"
+- extendedWaitUntil:
+    visible: "Before you scan"
+    timeout: 10000
+- tapOn: "Close scan"
+- extendedWaitUntil:
+    visible: "Scan from .*"
+    timeout: 10000
+# Delete: change your mind first, then delete for real.
+- tapOn: "Scan from .*"
+- scrollUntilVisible:
+    element: "Delete this scan"
+- tapOn: "Delete this scan"
+- assertVisible: "Delete this scan\\?"
+- tapOn: "Keep this scan"
+- assertNotVisible: "Delete this scan\\?"
+- scrollUntilVisible:
+    element: "Delete this scan"
+- tapOn: "Delete this scan"
+- takeScreenshot: e2e-81-delete-confirm
+- tapOn: "Delete scan"
+- extendedWaitUntil:
+    visible: "Your first scan sets your baseline"
+    timeout: 10000
+- takeScreenshot: e2e-82-scan-deleted

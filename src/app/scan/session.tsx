@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
@@ -25,6 +25,7 @@ import {
   buildScanRecord,
   currentView,
   initialScanState,
+  SCAN_ORDER,
   scanReducer,
   SHOW_CAPTURED_MS,
   TIPS,
@@ -40,7 +41,9 @@ function newId() {
 
 /** The guided five-view scan. Camera and checks are native; this screen is the HUD. */
 export default function ScanSessionScreen() {
-  const { baseline, records, save } = useScans();
+  const { baseline, records, save, remove } = useScans();
+  // Redoing a scan from its result screen: the old one goes once this one has saved.
+  const { replaces } = useLocalSearchParams<{ replaces?: string }>();
   const { profile } = useProfile();
   const firstReveal = !profile.revealSeenAt;
   const [state, dispatch] = useReducer(scanReducer, initialScanState);
@@ -62,12 +65,14 @@ export default function ScanSessionScreen() {
     if (state.phase !== 'done') return;
     const record = buildScanRecord(state, newId(), new Date());
     save(record)
-      .then((saved) =>
+      .then(async (saved) => {
+        if (replaces && replaces !== saved.id) await remove(replaces);
         // The first finished scan leads into the forecast reveal; later scans show their result.
-        firstReveal ? router.replace('/reveal/analysing') : router.replace({ pathname: '/scan/[id]', params: { id: saved.id } }),
-      )
+        if (firstReveal) router.replace('/reveal/analysing');
+        else router.replace({ pathname: '/scan/[id]', params: { id: saved.id } });
+      })
       .catch((e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)));
-  }, [state, save, firstReveal]);
+  }, [state, save, remove, replaces, firstReveal]);
 
   // Announce each new view with what to do; the crown is always voice-guided.
   useEffect(() => {
@@ -87,6 +92,16 @@ export default function ScanSessionScreen() {
   useEffect(() => {
     liveRef.current = live;
   });
+
+  // The last photo taken, for "Redo last photo" (with retakes, not always the view before).
+  const lastTaken = SCAN_ORDER.slice(0, state.index).filter((v) => state.captures[v]).at(-1);
+  function redoLast() {
+    if (!lastTaken || held) return;
+    setTimer(null);
+    setQueued(null);
+    void camera.current?.resetCapture();
+    dispatch({ type: 'retake', view: lastTaken });
+  }
 
   function shoot() {
     if (held) return;
@@ -231,6 +246,17 @@ export default function ScanSessionScreen() {
         <View style={{ flex: 1 }} />
         <View style={styles.bottom}>
           <PromptCard prompt={prompt} tip={tip} />
+          {lastTaken && !held && state.phase === 'capturing' ? (
+            <Pressable
+              onPress={redoLast}
+              accessibilityRole="button"
+              accessibilityLabel={`Redo last photo: ${VIEW_LABEL[lastTaken].split(':')[0]}`}
+              style={styles.redo}>
+              <Text variant="caption" color="textMuted" style={{ fontWeight: '600' }}>
+                {`↺ Redo last photo (${VIEW_LABEL[lastTaken].split(':')[0]})`}
+              </Text>
+            </Pressable>
+          ) : null}
           {live ? <StatusChips chips={statusChips(live)} /> : null}
           {view !== 'crown' ? (
             <Button label="Take photo now" variant="secondary" onPress={shoot} />
@@ -257,6 +283,7 @@ function CloseButton() {
 }
 
 const styles = StyleSheet.create({
+  redo: { alignSelf: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   countdown: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   safe: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, padding: spacing.xl, gap: spacing.md, alignItems: 'center', justifyContent: 'center' },

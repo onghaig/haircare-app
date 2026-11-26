@@ -120,6 +120,19 @@ describe('latest report', () => {
     expect(r.versusForecast).toBe(versusForecast('holding'));
     expect(r.adjustments.at(-1)).toMatch(/Keep scanning weekly/);
   });
+  it('follows deleted scans: no baseline, a new baseline, or an earlier latest', () => {
+    const three = [...scans, record('c', at(57), { hairline: { centreMM: 74, leftTempleMM: 77, rightTempleMM: 78 } })];
+    const now = addDays(base, 60);
+    expect(latestReport(three, {}, adult, [], now)!.latest.id).toBe('c');
+    // Latest deleted: the report falls back to the one before.
+    expect(latestReport(three.filter((r) => r.id !== 'c'), {}, adult, [], now)!.latest.id).toBe('b');
+    // Baseline deleted: the next oldest is the baseline, so the eight weeks start again from it.
+    const noBase = three.filter((r) => r.id !== 'a');
+    expect(trendScans(noBase)[0].id).toBe('b');
+    expect(latestReport(noBase, {}, adult, [], now)).toBeNull();
+    // Everything deleted: nothing to report.
+    expect(latestReport([], {}, adult, [], now)).toBeNull();
+  });
 });
 
 it('rounds changes to whole millimetres', () => {

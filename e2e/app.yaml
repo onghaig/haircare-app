@@ -14,3 +14,4 @@ appId: com.onghaig.haircare
 - runFlow: subflows/progress.yaml
 - runFlow: subflows/predict.yaml
 - runFlow: subflows/panorama.yaml
+- runFlow: subflows/manage-scan.yaml

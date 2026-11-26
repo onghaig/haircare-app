@@ -21,6 +21,20 @@ appId: com.onghaig.haircare
     visible: "View 2 of 5"
     timeout: 10000
 - assertVisible: "Left temple"
+# Redo the photo just taken: back to the front view, then on again.
+- tapOn:
+    text: "Redo last photo.*"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "View 1 of 5"
+    timeout: 10000
+- takeScreenshot: e2e-12a-redo-last-photo
+- tapOn:
+    text: "Take photo now"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "View 2 of 5"
+    timeout: 10000
 - takeScreenshot: e2e-12-left-temple
 - tapOn:
     text: "Take photo now"

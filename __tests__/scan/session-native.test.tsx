@@ -1,7 +1,7 @@
 // The scan screen against a simulated native camera: the parts Jest can't reach through the
 // "needs a development build" fallback (camera errors, the shutter, a full five-view run).
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import ScanSessionScreen from '@/app/scan/session';
 import { ProfileProvider } from '@/profile/ProfileProvider';
@@ -11,10 +11,11 @@ import { ScanProvider } from '@/scan/ScanProvider';
 import { SCAN_ORDER, SHOW_CAPTURED_MS } from '@/scan/session';
 import { MemoryScanStore } from '@/scan/store';
 
-import { capture } from '../../test-utils/scanFixtures';
+import { capture, record } from '../../test-utils/scanFixtures';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() },
+  useLocalSearchParams: jest.fn(() => ({})),
 }));
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
@@ -91,6 +92,36 @@ describe('Scan session with the native camera', () => {
     expect(saved).toHaveLength(1);
     expect(Object.keys(saved[0].views).sort()).toEqual([...SCAN_ORDER].sort());
     expect(router.replace).toHaveBeenCalledWith({ pathname: '/scan/[id]', params: { id: saved[0].id } });
+  });
+
+  it('"Redo last photo" goes back to the view just taken and drops that photo', async () => {
+    await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
+    expect(screen.queryByRole('button', { name: /Redo last photo/ })).toBeNull();
+    await shot('front');
+    await shot('leftTemple');
+    expect(screen.getByLabelText('View 3 of 5')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Redo last photo: Left temple' }));
+    expect(screen.getByLabelText('View 2 of 5')).toBeOnTheScreen();
+    expect(mockCamera.props.view).toBe('leftTemple');
+    // Then the scan carries on from where it was.
+    await shot('leftTemple');
+    expect(mockCamera.props.view).toBe('rightTemple');
+  });
+
+  it('a redo replaces the old scan only once the new one has saved', async () => {
+    const old = record('old', '2026-11-10T09:00:00Z');
+    const keep = record('keep', '2026-11-01T09:00:00Z');
+    jest.mocked(useLocalSearchParams).mockReturnValue({ replaces: 'old' });
+    const store = await openCamera(new MemoryScanStore([keep, old]), '2026-11-01T00:00:00Z');
+    for (const view of SCAN_ORDER.slice(0, -1)) await shot(view);
+    expect((await store.list()).map((r) => r.id)).toEqual(['keep', 'old']);
+    await shot('crown');
+    await waitFor(() => expect(router.replace).toHaveBeenCalled());
+    const ids = (await store.list()).map((r) => r.id);
+    expect(ids).toHaveLength(2);
+    expect(ids).toContain('keep');
+    expect(ids).not.toContain('old');
+    jest.mocked(useLocalSearchParams).mockReturnValue({});
   });
 
   it('opens the forecast reveal after the very first finished scan', async () => {
