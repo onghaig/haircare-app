@@ -3,6 +3,10 @@
 appId: com.onghaig.haircare
 ---
 - openLink: haircare://reveal/analysing
+# iOS asks before a custom-scheme link opens an app; accept it when it shows.
+- tapOn:
+    text: "Open"
+    optional: true
 - assertVisible: "Building your forecast"
 - takeScreenshot: e2e-20-analysing
 - extendedWaitUntil:
