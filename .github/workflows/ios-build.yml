@@ -19,10 +19,13 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-15
+    # Expo SDK 58 / React Native 0.88 need Xcode 26; macos-15 ships Xcode 16.
+    runs-on: macos-26
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Xcode version
+        run: xcodebuild -version
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -41,7 +44,19 @@ jobs:
       - name: Build for the simulator
         working-directory: ios
         run: |
-          set -o pipefail
+          set +e
           xcodebuild -workspace Haircare.xcworkspace -scheme Haircare -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO build | tail -200
+            CODE_SIGNING_ALLOWED=NO build > build.log 2>&1
+          status=$?
+          echo "::group::Errors"
+          grep -nE "error:|fatal error|\*\* BUILD" build.log | head -150
+          echo "::endgroup::"
+          tail -80 build.log
+          exit $status
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: ios/build.log
