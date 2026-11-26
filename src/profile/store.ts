@@ -48,7 +48,7 @@ export class FileProfileStore implements ProfileStore {
 
   async save(profile: Profile): Promise<Profile> {
     this.ensure();
-    this.file.write(JSON.stringify(profile));
+    await this.file.write(JSON.stringify(profile));
     return profile;
   }
 
