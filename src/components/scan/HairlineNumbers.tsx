@@ -28,7 +28,7 @@ export function HairlineNumbers({ scan, baseline }: { scan: ScanRecord; baseline
           const b = compare?.[c.field];
           const verdict = v != null && b != null ? classifyHairlineChange(c.key, b, v) : null;
           return (
-            <View key={c.key} style={styles.col} accessibilityLabel={`${c.label} ${v != null ? `${Math.round(v)} millimetres` : 'not found'}`}>
+            <View key={c.key} style={styles.col} accessible accessibilityLabel={`${c.label} ${v != null ? `${Math.round(v)} millimetres` : 'not found'}`}>
               <Text variant="title">
                 {v != null ? Math.round(v) : '–'}
                 <Text variant="caption" color="textMuted">

@@ -8,7 +8,7 @@ import { colors, radius, spacing } from '@/theme';
 
 export function ViewProgress({ current, done }: { current: ScanView; done: Partial<Record<ScanView, unknown>> }) {
   return (
-    <View style={styles.dots} accessibilityLabel={`View ${SCAN_ORDER.indexOf(current) + 1} of ${SCAN_ORDER.length}`}>
+    <View style={styles.dots} accessible accessibilityLabel={`View ${SCAN_ORDER.indexOf(current) + 1} of ${SCAN_ORDER.length}`}>
       {SCAN_ORDER.map((v) => (
         <View
           key={v}
@@ -49,7 +49,7 @@ export function StatusChips({ chips }: { chips: StatusChip[] }) {
   return (
     <View style={styles.chips}>
       {chips.map((c) => (
-        <View key={c.label} style={styles.chip} accessibilityLabel={`${c.label}: ${c.ok ? 'OK' : 'needs fixing'}`}>
+        <View key={c.label} style={styles.chip} accessible accessibilityLabel={`${c.label}: ${c.ok ? 'OK' : 'needs fixing'}`}>
           <View style={[styles.chipDot, { backgroundColor: c.ok ? colors.accent : colors.warning }]} />
           <Text variant="caption" style={{ fontWeight: '600' }}>
             {c.label}
