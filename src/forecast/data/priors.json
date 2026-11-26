@@ -1,0 +1,10 @@
+{
+  "_note": "Approximate calibration targets compiled from published literature (Hamilton 1951, Norwood 1975, Rhodes et al. 1998, Nyholt et al. 2003 twin heritability ~0.8, Paik et al. 2001 Korean prevalence). Values are rounded working estimates for a v0 model, not exact study figures. Replace with verified numbers and, later, with the app's own longitudinal data.",
+  "prevalence_norwood_3_plus_white_men": {"20": 0.10, "25": 0.16, "35": 0.30, "45": 0.45, "55": 0.55, "65": 0.62, "75": 0.67},
+  "prevalence_norwood_5_plus_white_men": {"25": 0.02, "35": 0.07, "45": 0.15, "55": 0.24, "65": 0.32, "75": 0.38},
+  "heritability_liability": 0.8,
+  "liability_correlation": {"father": 0.40, "brother": 0.40, "maternal_grandfather": 0.30, "paternal_grandfather": 0.20, "maternal_uncle": 0.25},
+  "ancestry_liability_shift": {"white": 0.0, "east_asian": -0.75, "south_asian": -0.2, "black": -0.5, "hispanic": -0.25, "middle_eastern": 0.05, "mixed_or_other": -0.2},
+  "treatment_rate_reduction": {"none": 0.0, "minoxidil": 0.35, "finasteride": 0.80, "dutasteride": 0.85, "finasteride+minoxidil": 0.88},
+  "stage_measurement_sd": {"app_scan": 0.35, "self_report": 0.8, "old_photo": 0.6}
+}
