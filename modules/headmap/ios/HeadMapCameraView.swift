@@ -215,8 +215,26 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
     }
   }
 
+  /// An error raised before the view is on screen (for example "Camera unavailable" during
+  /// init) would be dropped, because JS has not attached its listener yet. Hold it until then.
+  private var pendingError: Error?
+
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    if window != nil, let error = pendingError {
+      pendingError = nil
+      onError(["message": error.localizedDescription])
+    }
+  }
+
   private func emitError(_ error: Error) {
-    onError(["message": error.localizedDescription])
+    DispatchQueue.main.async {
+      guard self.window != nil else {
+        self.pendingError = error
+        return
+      }
+      self.onError(["message": error.localizedDescription])
+    }
   }
 }
 
