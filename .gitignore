@@ -47,3 +47,4 @@ coverage/
 # On-device models are downloaded by modules/headmap/scripts/download-models.mjs
 modules/headmap/ios/models/*.task
 modules/headmap/ios/models/*.tflite
+modules/headmap/ios/models/*.jpg

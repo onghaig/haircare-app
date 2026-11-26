@@ -47,6 +47,9 @@ export default function ScanSessionScreen() {
   const camera = useRef<HeadMapCameraViewRef>(null);
   const coach = useMemo(() => new VoiceCoach((line) => Speech.speak(line, { rate: 0.95 })), []);
   const view = currentView(state);
+  /** Crown self-timer: seconds left for a view. A timer for another view is no timer. */
+  const [timer, setTimer] = useState<{ view: string; left: number } | null>(null);
+  const countdown = timer && timer.view === view ? timer.left : null;
 
   // Finish: save and show the result.
   useEffect(() => {
@@ -63,6 +66,21 @@ export default function ScanSessionScreen() {
     if (state.phase !== 'capturing') return;
     if (view === 'crown' || voiceOn) coach.say(VIEW_LABEL[view], Date.now());
   }, [view, state.phase, voiceOn, coach]);
+
+  // Crown self-timer: the phone is behind your head, so count down out loud, then shoot.
+  useEffect(() => {
+    if (countdown == null) return;
+    Speech.speak(String(countdown), { rate: 1 });
+    const t = setTimeout(() => {
+      if (countdown <= 1) {
+        camera.current?.capture();
+        setTimer(null);
+      } else {
+        setTimer({ view, left: countdown - 1 });
+      }
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [countdown, view]);
 
   async function start(hairState: HairState) {
     if (isHeadMapAvailable) {
@@ -122,7 +140,14 @@ export default function ScanSessionScreen() {
       {ghost && view !== 'crown' ? (
         <Image source={{ uri: ghost }} style={[StyleSheet.absoluteFill, { opacity: 0.28 }]} contentFit="cover" pointerEvents="none" />
       ) : null}
-      <HeadGuide view={view} aligned={!!live?.allPassed} width={size.width} height={size.height} />
+      <HeadGuide view={view} aligned={!!live?.allPassed} width={size.width} height={size.height} hairline={live?.hairline} />
+      {countdown != null && countdown > 0 ? (
+        <View pointerEvents="none" style={styles.countdown}>
+          <Text variant="display" accessibilityLiveRegion="assertive">
+            {countdown}
+          </Text>
+        </View>
+      ) : null}
 
       <SafeAreaView style={styles.hud} pointerEvents="box-none">
         <View style={styles.top}>
@@ -148,7 +173,14 @@ export default function ScanSessionScreen() {
           {live ? <StatusChips chips={statusChips(live)} /> : null}
           {view !== 'crown' ? (
             <Button label="Take photo now" variant="secondary" onPress={() => camera.current?.capture()} />
-          ) : null}
+          ) : (
+            // The crown always gets captured: auto-capture when the checks pass, or this timer.
+            <Button
+              label={countdown != null ? 'Cancel timer' : 'Take crown photo in 3 seconds'}
+              variant="secondary"
+              onPress={() => setTimer(countdown != null ? null : { view, left: 3 })}
+            />
+          )}
         </View>
       </SafeAreaView>
     </View>
@@ -164,6 +196,7 @@ function CloseButton() {
 }
 
 const styles = StyleSheet.create({
+  countdown: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   safe: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, padding: spacing.xl, gap: spacing.md, alignItems: 'center', justifyContent: 'center' },
   camera: { flex: 1, backgroundColor: '#000' },

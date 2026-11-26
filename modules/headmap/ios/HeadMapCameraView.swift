@@ -32,6 +32,10 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
   private var lastReport: QualityReport?
   private var lastFrameSize = CGSize.zero
   private var capturing = false
+  #if targetEnvironment(simulator)
+  /// Simulator only: a sample face fed through the real analysis, since there is no camera.
+  private var demo: DemoFeed?
+  #endif
   private let tick = UIImpactFeedbackGenerator(style: .soft)
   private let tap = UIImpactFeedbackGenerator(style: .rigid)
 
@@ -53,6 +57,9 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
   override func layoutSubviews() {
     super.layoutSubviews()
     previewLayer.frame = bounds
+    #if targetEnvironment(simulator)
+    layoutDemo()
+    #endif
   }
 
   override func removeFromSuperview() {
@@ -62,6 +69,9 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
 
   /// Take the photo now (manual shutter, or helper mode).
   func capture() {
+    #if targetEnvironment(simulator)
+    if demo != nil { captureDemo(); return }
+    #endif
     sessionQueue.async { [weak self] in
       guard let self, !self.capturing, self.session.isRunning else { return }
       self.capturing = true
@@ -91,6 +101,9 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
       guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
             let input = try? AVCaptureDeviceInput(device: device), self.session.canAddInput(input) else {
         self.session.commitConfiguration()
+        #if targetEnvironment(simulator)
+        if self.startDemoFeed() { return }
+        #endif
         self.emitError(NSError(domain: "HeadMap", code: 1, userInfo: [NSLocalizedDescriptionKey: "Camera unavailable"]))
         return
       }
@@ -206,3 +219,125 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
     onError(["message": error.localizedDescription])
   }
 }
+
+#if targetEnvironment(simulator)
+// MARK: - Simulator demo feed
+//
+// The iOS simulator has no camera. When the app was built with the demo face
+// (e2e/assets/demo_face.jpg, an illustration copied in by CI only), the simulator shows it and runs it
+// through the same MediaPipe analysis, quality checks, capture gate and capture events as a
+// real camera, so the whole scan can be walked through and recorded. Device builds never
+// compile this code.
+
+final class DemoFeed {
+  let source: UIImage
+  let imageView = UIImageView()
+  var frame: UIImage?
+  var timer: DispatchSourceTimer?
+  var engine: HeadMapEngine?
+
+  init(source: UIImage) {
+    self.source = source
+    imageView.contentMode = .scaleToFill
+    imageView.backgroundColor = .black
+  }
+
+  /// The photo fitted into a canvas with the view's aspect ratio, so normalised coordinates
+  /// from the analysis line up with the screen exactly.
+  static func compose(_ image: UIImage, canvas: CGSize) -> UIImage {
+    let size = CGSize(width: 720, height: 720 * canvas.height / max(canvas.width, 1))
+    let scale = max(size.width / image.size.width, size.height * 0.62 / image.size.height)
+    let w = image.size.width * scale
+    let h = image.size.height * scale
+    let rect = CGRect(x: (size.width - w) / 2, y: size.height * 0.45 - h * 0.48, width: w, height: h)
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    return UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+      UIColor.black.setFill()
+      ctx.fill(CGRect(origin: .zero, size: size))
+      image.draw(in: rect)
+    }
+  }
+
+  static func loadSource() -> UIImage? {
+    guard let path = try? HeadMapEngine.modelPath("demo_face", "jpg") else { return nil }
+    return UIImage(contentsOfFile: path)
+  }
+}
+
+extension HeadMapCameraView {
+  /// Returns false when the build has no demo face, so the normal "Camera unavailable" error shows.
+  fileprivate func startDemoFeed() -> Bool {
+    if demo != nil { return true }
+    guard let source = DemoFeed.loadSource() else { return false }
+    let feed = DemoFeed(source: source)
+    feed.engine = try? HeadMapEngine(mode: .image)
+    demo = feed
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      self.insertSubview(feed.imageView, at: 0)
+      self.layoutDemo()
+    }
+    let timer = DispatchSource.makeTimerSource(queue: analysisQueue)
+    timer.schedule(deadline: .now() + 0.3, repeating: 0.15)
+    timer.setEventHandler { [weak self] in self?.analyseDemoFrame() }
+    timer.resume()
+    feed.timer = timer
+    return true
+  }
+
+  fileprivate func layoutDemo() {
+    guard let demo, bounds.width > 0 else { return }
+    demo.imageView.frame = bounds
+    let composed = DemoFeed.compose(demo.source, canvas: bounds.size)
+    demo.imageView.image = composed
+    analysisQueue.async { demo.frame = composed }
+  }
+
+  private func analyseDemoFrame() {
+    guard active, !capturing, let demo, let frame = demo.frame, let engine = demo.engine else { return }
+    do {
+      let report = try engine.analyse(uiImage: frame, view: scanView, baselineFaceWidth: baselineFaceWidth)
+      lastReport = report
+      lastFrameSize = frame.size
+      for event in gate.update(allPassed: report.allPassed) {
+        switch event {
+        case .aligned: onAligned(["view": scanView.rawValue])
+        case .lost: break
+        // No auto-capture in the demo: a still photo would pass and skip views on its own,
+        // which makes recordings and E2E runs unpredictable. Shots are taken by hand.
+        case .capture: break
+        }
+      }
+      onQuality(report.toDictionary(frameWidth: frame.size.width, frameHeight: frame.size.height))
+    } catch {
+      emitError(error)
+    }
+  }
+
+  fileprivate func captureDemo() {
+    analysisQueue.async { [weak self] in
+      guard let self, !self.capturing, let demo = self.demo, let frame = demo.frame,
+            let data = frame.jpegData(compressionQuality: 0.85) else { return }
+      self.capturing = true
+      defer { self.capturing = false }
+      let view = self.scanView
+      let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("headmap-demo-\(view.rawValue)-\(UUID().uuidString).jpg")
+      do {
+        try data.write(to: url)
+      } catch {
+        self.emitError(error)
+        return
+      }
+      DispatchQueue.main.async { self.tap.impactOccurred() }
+      var payload: [String: Any] = ["uri": url.absoluteString, "view": view.rawValue]
+      if let report = try? demo.engine?.analyse(uiImage: frame, view: view, baselineFaceWidth: self.baselineFaceWidth) {
+        payload["report"] = report.toDictionary(frameWidth: frame.size.width, frameHeight: frame.size.height)
+      }
+      self.gate.reset()
+      self.onCapture(payload)
+    }
+  }
+}
+#endif

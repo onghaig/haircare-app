@@ -94,4 +94,36 @@ describe('Scan session with the native camera', () => {
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/reveal/analysing'));
     expect(await store.list()).toHaveLength(1);
   });
+
+  it('always captures the crown: a spoken 3-second self-timer, which can be cancelled', async () => {
+    jest.useFakeTimers();
+    try {
+      const Speech = jest.requireMock('expo-speech') as { speak: jest.Mock };
+      await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
+      for (const view of SCAN_ORDER.slice(0, -1)) {
+        await act(async () => mockCamera.props.onCapture({ nativeEvent: capture(view) }));
+      }
+      expect(screen.getByLabelText('View 5 of 5')).toBeOnTheScreen();
+      expect(screen.queryByRole('button', { name: 'Take photo now' })).toBeNull();
+
+      // Cancel first.
+      await fireEvent.press(screen.getByRole('button', { name: 'Take crown photo in 3 seconds' }));
+      await fireEvent.press(screen.getByRole('button', { name: 'Cancel timer' }));
+      await act(async () => jest.advanceTimersByTime(4000));
+      expect(mockCamera.capture).not.toHaveBeenCalled();
+
+      Speech.speak.mockClear();
+      await fireEvent.press(screen.getByRole('button', { name: 'Take crown photo in 3 seconds' }));
+      expect(screen.getByText('3')).toBeOnTheScreen();
+      await act(async () => jest.advanceTimersByTime(1000));
+      expect(screen.getByText('2')).toBeOnTheScreen();
+      await act(async () => jest.advanceTimersByTime(1000));
+      expect(screen.getByText('1')).toBeOnTheScreen();
+      await act(async () => jest.advanceTimersByTime(1000));
+      expect(mockCamera.capture).toHaveBeenCalledTimes(1);
+      expect(Speech.speak.mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(['3', '2', '1']));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

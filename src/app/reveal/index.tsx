@@ -136,7 +136,7 @@ export default function RevealScreen() {
         </Card>
       </ScrollView>
       <View style={styles.bottom}>
-        <Button label={low ? 'Unlock tracking and your plan' : 'Unlock your future look'} onPress={() => router.replace('/(tabs)')} />
+        <Button label={low ? 'Unlock tracking and your plan' : 'Unlock your future look'} onPress={() => router.dismissAll()} />
       </View>
     </SafeAreaView>
   );

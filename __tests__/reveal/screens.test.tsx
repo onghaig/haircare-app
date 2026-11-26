@@ -15,7 +15,7 @@ import { MemoryScanStore } from '@/scan/store';
 
 import { record } from '../../test-utils/scanFixtures';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissAll: jest.fn() } }));
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
   return { SafeAreaView: View, useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
@@ -93,7 +93,7 @@ describe('Reveal', () => {
 
     await waitFor(async () => expect((await profiles.load()).revealSeenAt).toBeDefined());
     await fireEvent.press(screen.getByRole('button', { name: 'Unlock your future look' }));
-    expect(router.replace).toHaveBeenCalled();
+    expect(router.dismissAll).toHaveBeenCalled();
   });
 
   it('never shows teens a future face, only the timeline', async () => {

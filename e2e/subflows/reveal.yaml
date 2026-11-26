@@ -1,8 +1,6 @@
-# Analysing and the reveal. The simulator can't finish a scan (no camera), so the flow opens the
-# analysing screen by deep link, exactly where the first finished scan leads.
+# Analysing and the reveal, straight after the first scan, then into the app.
 appId: com.onghaig.haircare
 ---
-- openLink: haircare://reveal/analysing
 - assertVisible: "Building your forecast"
 - takeScreenshot: e2e-20-analysing
 - extendedWaitUntil:
@@ -15,3 +13,6 @@ appId: com.onghaig.haircare
 - tapOn: "10 years"
 - assertVisible: "You in 10 years"
 - tapOn: "Unlock.*"
+- tapOn: "Scan"
+- assertVisible: "Next scan in 7 days"
+- takeScreenshot: e2e-22-scan-history

@@ -1,6 +1,6 @@
-# The guided scan from its checklist. The simulator has no camera, so this proves the flow and
-# the native module run without crashing and that a camera failure is shown, not swallowed.
-# Photo capture itself is only checked on a real phone.
+# The full guided scan. The simulator has no camera, so CI builds include an illustrated demo
+# face that runs through the real on-device analysis; the green hairline highlight animates on
+# every view. Shots are taken by hand ("Take photo now", the crown self-timer).
 appId: com.onghaig.haircare
 ---
 - assertVisible: "Before you scan"
@@ -8,13 +8,26 @@ appId: com.onghaig.haircare
 - tapOn: "Start scan"
 - assertVisible: "Front: hairline"
 - assertVisible: "View 1 of 5"
-- extendedWaitUntil:
-    visible: "Camera problem"
-    timeout: 10000
-- takeScreenshot: e2e-11-camera-hud
-# The shutter path that crashed on device must not take the app down.
+# Let the hairline highlight draw (and the demo face be analysed) for the recording.
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: e2e-11-front
 - tapOn: "Take photo now"
-- assertVisible: "Front: hairline"
-- tapOn: "Close scan"
-- assertVisible: "Start your first scan"
-- takeScreenshot: e2e-12-scan-tab
+- assertVisible: "Left temple"
+- takeScreenshot: e2e-12-left-temple
+- tapOn: "Take photo now"
+- assertVisible: "Right temple"
+- tapOn: "Take photo now"
+- assertVisible: "Top of head"
+- assertVisible: "View 4 of 5"
+- takeScreenshot: e2e-13-top-down
+- tapOn: "Take photo now"
+- assertVisible: "Crown"
+- assertVisible: "View 5 of 5"
+- tapOn: "Take crown photo in 3 seconds"
+- assertVisible: "Cancel timer"
+- takeScreenshot: e2e-14-crown-timer
+# The first finished scan leads into the forecast.
+- extendedWaitUntil:
+    visible: "Building your forecast"
+    timeout: 10000
