@@ -78,8 +78,9 @@ npx eas-cli@latest build --profile production --platform ios --auto-submit   # T
 Every PR runs lint, typecheck and Jest, plus the Swift core tests on Linux. When app or
 native code changes, a macOS runner also runs the Swift core tests, builds the full Release
 app with Xcode 26, and runs the end-to-end flows in `e2e/` with
-[Maestro](https://maestro.mobile.dev) on an iPhone simulator. The run is recorded: download the `demo-video` artifact to watch it,
-and the screenshots are in `e2e-results`. The simulator has no camera, so CI builds include an
+[Maestro](https://maestro.mobile.dev) on an iPhone simulator. The run is recorded: the latest video and screenshots for each PR branch are on the
+[`ci-demo`](../../tree/ci-demo) branch (`<branch>/demo.mp4`), and also attached to the run as the
+`demo-video` and `e2e-results` artifacts. The simulator has no camera, so CI builds include an
 illustrated demo face (`e2e/assets/demo_face.jpg`) that goes through the real on-device
 analysis. Device builds never include it, and real photo capture is only checked on a phone. When native iOS code changes, the sideload `.ipa` is rebuilt too.
 
