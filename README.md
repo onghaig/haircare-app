@@ -99,6 +99,7 @@ analysis. Device builds never include it, and real photo capture is only checked
 | `src/app/paywall.tsx`, `src/paywall/` | Paywall, plans and prices, the purchase interface (test purchases until StoreKit is connected) |
 | `src/app/(tabs)/index.tsx`, `src/app/massage.tsx`, `src/app/log.tsx`, `src/plan/` | Today: daily plan, streak and adherence, guided scalp massage, quick log, local reminders |
 | `src/app/(tabs)/progress.tsx`, `src/app/verdict.tsx`, `src/progress/` | Progress: baseline vs latest, hairline trend with the no-real-change band, plan consistency, the monthly verdict story |
+| `src/app/(tabs)/predict.tsx`, `src/app/share.tsx`, `src/predict/` | Predict: the look and the range year by year, treatment what-ifs for adults, and the share card (an illustration, never your photo) |
 | `src/profile/` | Hair profile: answers, on-device storage, onboarding rules, mapping to the forecast |
 | `src/components/head/`, `src/components/family/` | Drawn heads with tappable zones; the family tree and relative cards |
 | `modules/headmap/` | Native Swift scan module: camera, MediaPipe, measurement, quality checks ([README](modules/headmap/README.md)) |

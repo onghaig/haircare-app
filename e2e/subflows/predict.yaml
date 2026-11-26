@@ -1,0 +1,17 @@
+# Predict: the forecast year by year (unlocked by the test purchase earlier) and the share card.
+appId: com.onghaig.haircare
+---
+- tapOn: "Predict"
+- extendedWaitUntil:
+    visible: "Likely at \\d+: N.*"
+    timeout: 20000
+- takeScreenshot: e2e-60-predict
+- tapOn: "10 years"
+- assertVisible: "Likely at \\d+: N.*"
+- takeScreenshot: e2e-61-predict-10y
+- scrollUntilVisible:
+    element: "Share your forecast"
+- tapOn: "Share your forecast"
+- assertVisible: "Share image"
+- takeScreenshot: e2e-62-share-card
+- tapOn: "Close"

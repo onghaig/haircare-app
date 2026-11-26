@@ -12,3 +12,4 @@ appId: com.onghaig.haircare
 - runFlow: subflows/reveal.yaml
 - runFlow: subflows/today.yaml
 - runFlow: subflows/progress.yaml
+- runFlow: subflows/predict.yaml
