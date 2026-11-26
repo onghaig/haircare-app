@@ -24,9 +24,13 @@ appId: com.onghaig.haircare
 - tapOn: "Take photo now"
 - assertVisible: "Crown"
 - assertVisible: "View 5 of 5"
-- tapOn: "Take crown photo in 3 seconds"
-- assertVisible: "Cancel timer"
-- takeScreenshot: e2e-14-crown-timer
+- takeScreenshot: e2e-14-crown
+# The timer is 3 seconds and Maestro's settle wait on the animated screen can take longer, so
+# don't assert the countdown itself (it may already be over). One tap only: a retry would
+# cancel the timer. The forecast screen appearing proves the timer took the crown photo.
+- tapOn:
+    text: "Take crown photo in 3 seconds"
+    retryTapIfNoChange: false
 # The first finished scan leads into the forecast.
 - extendedWaitUntil:
     visible: "Building your forecast"
