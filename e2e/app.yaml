@@ -9,3 +9,4 @@ appId: com.onghaig.haircare
       camera: allow
 - runFlow: subflows/onboarding.yaml
 - runFlow: subflows/scan.yaml
+- runFlow: subflows/reveal.yaml

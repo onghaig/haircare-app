@@ -15,32 +15,43 @@ interface ProfileContextValue {
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
 export function ProfileProvider({ store, children }: { store?: ProfileStore; children: ReactNode }) {
+  // One load per provider. Every update is chained after it, so a change made before the file
+  // has loaded (for example by a screen's mount effect) applies on top of the saved profile
+  // instead of overwriting it with an empty one.
   const [s] = useState<ProfileStore>(() => store ?? new FileProfileStore());
+  const chain = useRef<Promise<Profile> | null>(null);
+  const after = useCallback(() => (chain.current ??= s.load().catch(() => emptyProfile())), [s]);
   const [profile, setProfile] = useState<Profile>(emptyProfile);
   const [loaded, setLoaded] = useState(false);
-  const current = useRef(profile);
 
   useEffect(() => {
     let live = true;
-    s.load().then((p) => {
+    void after().then((p) => {
       if (!live) return;
-      current.current = p;
       setProfile(p);
       setLoaded(true);
     });
     return () => {
       live = false;
     };
-  }, [s]);
+  }, [after]);
 
   const update = useCallback(
     async (change: (p: Profile) => Profile) => {
-      const next = change(current.current);
-      current.current = next;
-      setProfile(next);
-      await s.save(next);
+      const next = after().then(async (p) => {
+        const n = change(p);
+        setProfile(n);
+        try {
+          await s.save(n);
+        } catch {
+          // Keep the in-memory answer; the next change tries to save again.
+        }
+        return n;
+      });
+      chain.current = next;
+      await next;
     },
-    [s],
+    [after, s],
   );
 
   const keepPhoto = useCallback((member: FamilyMember, uri: string) => s.keepPhoto(member, uri), [s]);

@@ -1,0 +1,17 @@
+# Analysing and the reveal. The simulator can't finish a scan (no camera), so the flow opens the
+# analysing screen by deep link, exactly where the first finished scan leads.
+appId: com.onghaig.haircare
+---
+- openLink: haircare://reveal/analysing
+- assertVisible: "Building your forecast"
+- takeScreenshot: e2e-20-analysing
+- extendedWaitUntil:
+    visible: "Your Norwood timeline"
+    timeout: 20000
+- assertVisible: "Norwood today.*"
+- assertVisible: "You in 5 years"
+- assertVisible: "Illustration based on your forecast, not a medical prediction"
+- takeScreenshot: e2e-21-reveal
+- tapOn: "10 years"
+- assertVisible: "You in 10 years"
+- tapOn: "Unlock.*"

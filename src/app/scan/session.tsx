@@ -16,6 +16,7 @@ import { HeadGuide } from '@/components/scan/HeadGuide';
 import { PromptCard, StatusChips, ViewProgress } from '@/components/scan/ScanHud';
 import { Button, Text } from '@/components/ui';
 import { promptFor, statusChips } from '@/scan/guidance';
+import { useProfile } from '@/profile/ProfileProvider';
 import { useScans } from '@/scan/ScanProvider';
 import {
   buildScanRecord,
@@ -36,6 +37,8 @@ function newId() {
 /** The guided five-view scan. Camera and checks are native; this screen is the HUD. */
 export default function ScanSessionScreen() {
   const { baseline, records, save } = useScans();
+  const { profile } = useProfile();
+  const firstReveal = !profile.revealSeenAt;
   const [state, dispatch] = useReducer(scanReducer, initialScanState);
   const [permission, setPermission] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -49,8 +52,11 @@ export default function ScanSessionScreen() {
   useEffect(() => {
     if (state.phase !== 'done') return;
     const record = buildScanRecord(state, newId(), new Date());
-    save(record).then((saved) => router.replace({ pathname: '/scan/[id]', params: { id: saved.id } }));
-  }, [state, save]);
+    save(record).then((saved) =>
+      // The first finished scan leads into the forecast reveal; later scans show their result.
+      firstReveal ? router.replace('/reveal/analysing') : router.replace({ pathname: '/scan/[id]', params: { id: saved.id } }),
+    );
+  }, [state, save, firstReveal]);
 
   // Announce each new view; the crown is voice-guided because the user can't see the screen.
   useEffect(() => {

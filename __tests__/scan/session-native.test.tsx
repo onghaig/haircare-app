@@ -4,6 +4,9 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { router } from 'expo-router';
 
 import ScanSessionScreen from '@/app/scan/session';
+import { ProfileProvider } from '@/profile/ProfileProvider';
+import { MemoryProfileStore } from '@/profile/store';
+import { emptyProfile } from '@/profile/types';
 import { ScanProvider } from '@/scan/ScanProvider';
 import { SCAN_ORDER } from '@/scan/session';
 import { MemoryScanStore } from '@/scan/store';
@@ -37,11 +40,13 @@ jest.mock('@modules/headmap', () => {
   };
 });
 
-async function openCamera(store = new MemoryScanStore()) {
+async function openCamera(store = new MemoryScanStore(), revealSeenAt?: string) {
   await render(
-    <ScanProvider store={store}>
-      <ScanSessionScreen />
-    </ScanProvider>,
+    <ProfileProvider store={new MemoryProfileStore({ ...emptyProfile(), revealSeenAt })}>
+      <ScanProvider store={store}>
+        <ScanSessionScreen />
+      </ScanProvider>
+    </ProfileProvider>,
   );
   await fireEvent.press(await screen.findByRole('button', { name: 'Start scan' }));
   await screen.findByTestId('native-camera');
@@ -68,8 +73,8 @@ describe('Scan session with the native camera', () => {
     expect(mockCamera.capture).toHaveBeenCalledTimes(1);
   });
 
-  it('runs all five views to a saved scan and opens the result', async () => {
-    const store = await openCamera();
+  it('runs all five views to a saved scan and opens its result', async () => {
+    const store = await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
     await act(async () => mockCamera.props.onError({ nativeEvent: { message: 'Camera unavailable' } }));
     for (const view of SCAN_ORDER) {
       await act(async () => mockCamera.props.onCapture({ nativeEvent: capture(view) }));
@@ -79,5 +84,14 @@ describe('Scan session with the native camera', () => {
     expect(saved).toHaveLength(1);
     expect(Object.keys(saved[0].views).sort()).toEqual([...SCAN_ORDER].sort());
     expect(router.replace).toHaveBeenCalledWith({ pathname: '/scan/[id]', params: { id: saved[0].id } });
+  });
+
+  it('opens the forecast reveal after the very first finished scan', async () => {
+    const store = await openCamera();
+    for (const view of SCAN_ORDER) {
+      await act(async () => mockCamera.props.onCapture({ nativeEvent: capture(view) }));
+    }
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/reveal/analysing'));
+    expect(await store.list()).toHaveLength(1);
   });
 });

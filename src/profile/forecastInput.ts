@@ -1,6 +1,7 @@
-import type { Ancestry, Relation, RelativeReport, RelativeStatus, Treatment, UserInput } from '@/forecast';
+import type { Ancestry, Observation, Relation, RelativeReport, RelativeStatus, Treatment, UserInput } from '@/forecast';
 
 import type { AncestryChoice, FamilyMember, HairStatus, Profile, TreatmentChoice } from './types';
+
 
 /** Relatives the v0 model has a liability correlation for. Mothers and grandmothers are kept for later. */
 const RELATION: Partial<Record<FamilyMember, Relation>> = {
@@ -46,6 +47,11 @@ export function treatmentFor(choices: TreatmentChoice[]): Treatment {
   return 'none';
 }
 
+export function observationsFor(profile: Profile): Observation[] {
+  const stage = selfReportedStage(profile);
+  return stage != null && profile.age != null ? [{ age: profile.age, stage, source: 'self_report' }] : [];
+}
+
 export function relativesFor(profile: Profile): RelativeReport[] {
   const out: RelativeReport[] = [];
   for (const [member, r] of Object.entries(profile.family) as [FamilyMember, Profile['family'][FamilyMember]][]) {
@@ -59,6 +65,21 @@ export function relativesFor(profile: Profile): RelativeReport[] {
   return out;
 }
 
+/**
+ * A rough Norwood stage from where the user says they notice loss. Self-reports are weak evidence
+ * (the model treats them with a 0.8-stage error), and are replaced by scan grading once it exists.
+ */
+export function selfReportedStage(profile: Profile): number | null {
+  if (profile.worriedOnly) return 1;
+  const z = new Set(profile.zones);
+  if (z.size === 0) return null;
+  const front = z.has('temples') || z.has('hairline');
+  const back = z.has('crown') || z.has('top');
+  if (z.has('allOver') || (front && back)) return 3;
+  if (back) return 3; // vertex thinning reads as Norwood 3V
+  return 2;
+}
+
 /** Everything the forecast engine needs from onboarding. Returns null until age is known. */
 export function toForecastInput(profile: Profile): UserInput | null {
   if (profile.age == null) return null;
@@ -67,5 +88,6 @@ export function toForecastInput(profile: Profile): UserInput | null {
     ancestry: ancestryFor(profile.ancestry),
     relatives: relativesFor(profile),
     treatment: treatmentFor(profile.treatments),
+    observations: observationsFor(profile),
   };
 }

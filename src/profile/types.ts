@@ -72,6 +72,8 @@ export interface Profile {
   goal?: Goal;
   /** ISO time onboarding was finished. Unset means onboarding still to do. */
   completedAt?: string;
+  /** ISO time the first forecast reveal was shown. */
+  revealSeenAt?: string;
 }
 
 export const emptyProfile = (): Profile => ({

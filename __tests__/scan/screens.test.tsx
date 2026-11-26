@@ -5,6 +5,9 @@ import type { ReactNode } from 'react';
 import ScanTab from '@/app/(tabs)/scan';
 import ScanResultScreen from '@/app/scan/[id]';
 import ScanSessionScreen from '@/app/scan/session';
+import { ProfileProvider } from '@/profile/ProfileProvider';
+import { MemoryProfileStore } from '@/profile/store';
+import { emptyProfile } from '@/profile/types';
 import { ScanProvider } from '@/scan/ScanProvider';
 import { MemoryScanStore } from '@/scan/store';
 
@@ -20,7 +23,9 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 const withScans = (ui: ReactNode, seed = [] as ReturnType<typeof record>[]) => (
-  <ScanProvider store={new MemoryScanStore(seed)}>{ui}</ScanProvider>
+  <ProfileProvider store={new MemoryProfileStore({ ...emptyProfile(), revealSeenAt: '2026-11-01T00:00:00Z' })}>
+    <ScanProvider store={new MemoryScanStore(seed)}>{ui}</ScanProvider>
+  </ProfileProvider>
 );
 
 describe('Scan tab', () => {

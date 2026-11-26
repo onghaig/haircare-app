@@ -1,9 +1,10 @@
-import { DarkTheme, Stack, ThemeProvider } from "expo-router";
-import { StatusBar } from "expo-status-bar";
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
-import { ProfileProvider } from "@/profile/ProfileProvider";
-import { ScanProvider } from "@/scan/ScanProvider";
-import { colors } from "@/theme";
+import { ProfileProvider } from '@/profile/ProfileProvider';
+import { ForecastProvider } from '@/reveal/ForecastProvider';
+import { ScanProvider } from '@/scan/ScanProvider';
+import { colors } from '@/theme';
 
 const theme = {
   ...DarkTheme,
@@ -22,32 +23,29 @@ export default function RootLayout() {
     <ThemeProvider value={theme}>
       <StatusBar style="light" />
       <ProfileProvider>
-        <ScanProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.bg },
-            }}
-          >
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="onboarding/index"
-              options={{ gestureEnabled: false, animation: "fade" }}
-            />
-            <Stack.Screen name="onboarding/questions" />
-            <Stack.Screen
-              name="scan/session"
-              options={{
-                presentation: "fullScreenModal",
-                gestureEnabled: false,
-              }}
-            />
-            <Stack.Screen
-              name="scan/[id]"
-              options={{ presentation: "modal" }}
-            />
-          </Stack>
-        </ScanProvider>
+        <ForecastProvider>
+          <ScanProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.bg },
+              }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="onboarding/index" options={{ gestureEnabled: false, animation: 'fade' }} />
+              <Stack.Screen name="onboarding/questions" />
+              <Stack.Screen name="reveal/analysing" options={{ gestureEnabled: false, animation: 'fade' }} />
+              <Stack.Screen name="reveal/index" options={{ gestureEnabled: false, animation: 'fade' }} />
+              <Stack.Screen
+                name="scan/session"
+                options={{
+                  presentation: 'fullScreenModal',
+                  gestureEnabled: false,
+                }}
+              />
+              <Stack.Screen name="scan/[id]" options={{ presentation: 'modal' }} />
+            </Stack>
+          </ScanProvider>
+        </ForecastProvider>
       </ProfileProvider>
     </ThemeProvider>
   );
