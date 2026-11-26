@@ -1,0 +1,85 @@
+name: iOS sideload build
+
+# Builds an UNSIGNED .ipa on a macOS runner and uploads it as a workflow artifact, so the app
+# can be installed on an iPhone with a free Apple ID (Sideloadly or AltStore re-sign it).
+# No Mac and no paid Apple Developer account needed. See README > "Free: sideload the full app".
+#
+# Manual (Actions tab > iOS sideload build > Run workflow), plus PRs that change this file,
+# because macOS minutes are expensive.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ios-sideload.yml'
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'standalone = JS bundled in, runs anywhere. dev-client = loads JS live from your PC over Wi-Fi.'
+        type: choice
+        options: [standalone, dev-client]
+        default: standalone
+
+concurrency:
+  group: ios-sideload-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      VARIANT: ${{ inputs.variant || 'standalone' }}
+      CONFIGURATION: ${{ inputs.variant == 'dev-client' && 'Debug' || 'Release' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Download on-device models (fails the build if missing)
+        run: npm run models
+      - name: Generate the iOS project
+        run: npx expo prebuild --platform ios --no-install
+      - name: Install pods
+        working-directory: ios
+        run: pod install
+      - name: Build for iPhone, unsigned
+        working-directory: ios
+        run: |
+          set +e
+          xcodebuild -workspace Haircare.xcworkspace -scheme Haircare \
+            -configuration "$CONFIGURATION" -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build > build.log 2>&1
+          status=$?
+          echo "::group::Errors"
+          grep -nE "error:|fatal error|\*\* BUILD" build.log | head -150
+          echo "::endgroup::"
+          tail -40 build.log
+          exit $status
+      - name: Package the .ipa
+        working-directory: ios
+        run: |
+          APP="build/Build/Products/${CONFIGURATION}-iphoneos/Haircare.app"
+          test -d "$APP"
+          if [ "$CONFIGURATION" = "Release" ]; then
+            # A standalone build must carry its own JS bundle, or it opens to a red screen.
+            test -f "$APP/main.jsbundle" || { echo "main.jsbundle missing from $APP"; exit 1; }
+          fi
+          find "$APP" -name face_landmarker.task | grep -q . || { echo "scan models missing from $APP"; exit 1; }
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qr "Haircare-$VARIANT.ipa" Payload
+          ls -lh "Haircare-$VARIANT.ipa"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Haircare-${{ env.VARIANT }}-ipa
+          path: ios/Haircare-${{ env.VARIANT }}.ipa
+          retention-days: 14
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: ios/build.log

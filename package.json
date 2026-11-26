@@ -54,8 +54,8 @@
     "test": "jest",
     "test:ci": "jest --ci --coverage",
     "check": "npm run lint && npm run typecheck && npm test",
-    "models": "bash modules/headmap/scripts/download-models.sh",
-    "postinstall": "bash modules/headmap/scripts/download-models.sh || true",
+    "models": "node modules/headmap/scripts/download-models.mjs",
+    "postinstall": "node modules/headmap/scripts/download-models.mjs --soft",
     "test:swift": "cd modules/headmap/core && swift test"
   },
   "private": true,

@@ -42,7 +42,9 @@ Thresholds are starting points from the Python prototype; calibrate on real devi
 ```bash
 npm run models        # downloads the two .task/.tflite files (also runs on npm install)
 npm run test:swift    # Swift core tests (needs a Swift toolchain)
-npx expo run:ios      # development build
+npx expo run:ios      # development build (Mac only)
 ```
+
+No Mac: run the **iOS sideload build** workflow to get an unsigned `.ipa` (see the root README).
 
 The JS API (`index.ts`) falls back cleanly in Jest, Expo Go and web, where the native module is absent.

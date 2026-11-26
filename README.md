@@ -7,49 +7,77 @@ guided head scan, are native Swift modules (Kotlin for Android later).
 
 ## Run it locally
 
-### 1. Tests (any machine with Node 22)
+You don't need a Mac or a paid Apple Developer account. Everything that needs a Mac runs in
+GitHub Actions on macOS runners.
+
+### 1. Tests (Windows, macOS or Linux with Node 22)
 
 ```bash
 git clone https://github.com/onghaig/haircare-app && cd haircare-app
 npm install          # also downloads the two on-device scan models
 npm run check        # lint + typecheck + Jest tests
-npm run test:swift   # Swift scan-core tests (macOS with Xcode, or Linux with Swift 6)
 ```
 
-### 2. Quick look in Expo Go (no Mac needed)
+The Swift scan-core tests (`npm run test:swift`) need Swift 6 (macOS or Linux). On Windows,
+rely on CI, which runs them on Linux and macOS for every PR.
+
+### 2. Quick look in Expo Go (free, instant)
 
 ```bash
 npx expo start --go
 ```
 
-Scan the QR code with the Expo Go app on your iPhone. Tabs, theme and screens work; the
-scan camera shows a "needs a development build" notice because Expo Go cannot load the
-custom Swift module.
+Install Expo Go from the App Store and scan the QR code with the iPhone camera (phone and PC
+on the same Wi-Fi; add `--tunnel` if that doesn't connect). Tabs, theme and all other JS
+screens work, and edits reload instantly. The scan camera shows a "needs a
+development build" notice, because Expo Go can't load the custom Swift module.
 
-### 3. Full app with the Swift scan on your iPhone (Mac with Xcode 26)
+### 3. Free: sideload the full app, Swift scan included
 
-```bash
-npx expo run:ios --device
-```
+GitHub builds an unsigned `.ipa`; you sign it with your free Apple ID while installing it.
 
-Pick your plugged-in iPhone; Xcode signs with your Apple ID (Xcode > Settings > Accounts).
-Use a real phone: the simulator has no front camera. After the first build, `npx expo start`
-reloads JS changes instantly; rebuild only when native code changes.
+1. On GitHub: **Actions > iOS sideload build > Run workflow**. Pick a variant:
+   - `standalone`: the JS is bundled in, so the app runs on its own anywhere. Use this to try it.
+   - `dev-client`: the app loads JS live from your PC, so JS edits show up without a rebuild.
+2. After about 10 to 15 minutes, download the `Haircare-...-ipa` artifact from the run page
+   and unzip it to get the `.ipa`.
+3. Install it with [Sideloadly](https://sideloadly.io) (Windows: install iTunes and iCloud
+   from apple.com, not the Microsoft Store versions) or [AltStore](https://altstore.io).
+   Plug in the iPhone, drop in the `.ipa`, and sign in with a free Apple ID.
+4. On the iPhone: turn on **Settings > Privacy & Security > Developer Mode**, then trust your
+   Apple ID under **Settings > General > VPN & Device Management**.
 
-### 4. No Mac: cloud build with EAS
+For the `dev-client` variant, run `npx expo start --dev-client` on your PC, open the app, and
+pick your PC's server from the list (same Wi-Fi; allow Local Network access when asked).
+
+Free Apple ID limits: the app stops opening after **7 days**, so re-install it with
+Sideloadly, or let AltStore refresh it (it does that over Wi-Fi while AltServer runs on your
+PC). You can have at most 3 sideloaded apps at once. Push notifications and some other
+capabilities aren't available with a free account; nothing in the app needs them yet.
+
+Only rebuild the `.ipa` when native code changes (anything in `modules/`, or a new package
+with native code). For JS-only changes, use Expo Go or the `dev-client` variant.
+
+### Later, when you have a paid Apple Developer account ($99/year)
+
+You'll need one for TestFlight and the App Store. EAS builds and signs in the cloud, so you
+still don't need a Mac:
 
 ```bash
 npx eas-cli@latest login
-npx eas-cli@latest build --profile development --platform ios
+npx eas-cli@latest build --profile development --platform ios   # signed dev build, install link
+npx eas-cli@latest build --profile production --platform ios --auto-submit   # TestFlight
 ```
 
-Installing on a phone needs an Apple Developer account ($99/year); EAS registers your device
-and gives you an install link. The same account is used for TestFlight later.
+### With a Mac (optional)
+
+`npx expo run:ios --device` builds and installs on a plugged-in iPhone with Xcode 26.
 
 ### CI
 
 Every PR runs lint, typecheck and Jest, the Swift core tests on Linux, and (when native code
-changes) a full iOS simulator build on macOS with Xcode 26.
+changes) the Swift core tests on macOS plus a full iOS build with Xcode 26. The sideload
+`.ipa` build runs when you trigger it.
 
 ## Layout
 
