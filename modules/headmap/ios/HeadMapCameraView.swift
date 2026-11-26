@@ -67,7 +67,10 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
       self.capturing = true
       let codec: AVVideoCodecType = self.photoOutput.availablePhotoCodecTypes.contains(.hevc) ? .hevc : .jpeg
       let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: codec])
-      settings.photoQualityPrioritization = .quality
+      // Asking for more than the output's max throws an Objective-C exception (a crash Swift
+      // can't catch), and the max depends on the device, camera and preset. Clamp to it.
+      let level = PhotoQuality.clamped(.quality, maxRawValue: self.photoOutput.maxPhotoQualityPrioritization.rawValue)
+      settings.photoQualityPrioritization = AVCapturePhotoOutput.QualityPrioritization(rawValue: level.rawValue) ?? .speed
       self.photoOutput.capturePhoto(with: settings, delegate: self)
     }
   }
@@ -99,6 +102,9 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
         if self.session.canAddOutput(self.videoOutput) { self.session.addOutput(self.videoOutput) }
         if self.session.canAddOutput(self.photoOutput) { self.session.addOutput(self.photoOutput) }
       }
+      // Raise the ceiling so sharp, low-noise stills are allowed (it defaults to .balanced).
+      // Re-applied on every camera switch; capture() still clamps in case the device refuses.
+      self.photoOutput.maxPhotoQualityPrioritization = .quality
       for output in [self.videoOutput, self.photoOutput] as [AVCaptureOutput] {
         guard let conn = output.connection(with: .video) else { continue }
         if #available(iOS 17.0, *) {

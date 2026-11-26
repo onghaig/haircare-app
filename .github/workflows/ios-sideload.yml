@@ -4,11 +4,15 @@ name: iOS sideload build
 # can be installed on an iPhone with a free Apple ID (Sideloadly or AltStore re-sign it).
 # No Mac and no paid Apple Developer account needed. See README > "Free: sideload the full app".
 #
-# Manual (Actions tab > iOS sideload build > Run workflow), plus PRs that change this file,
-# because macOS minutes are expensive.
+# Manual (Actions tab > iOS sideload build > Run workflow), plus PRs that change native iOS
+# code or this file, so every native fix comes with a fresh .ipa. Not on JS-only changes,
+# because macOS minutes are expensive (use Expo Go or the dev-client .ipa for those).
 on:
   pull_request:
     paths:
+      - 'modules/**/ios/**'
+      - 'modules/**/core/Sources/**'
+      - 'app.json'
       - '.github/workflows/ios-sideload.yml'
   workflow_dispatch:
     inputs:
