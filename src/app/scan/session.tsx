@@ -40,6 +40,7 @@ export default function ScanSessionScreen() {
   const [permission, setPermission] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [voiceOn, setVoiceOn] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const camera = useRef<HeadMapCameraViewRef>(null);
   const coach = useMemo(() => new VoiceCoach((line) => Speech.speak(line, { rate: 0.95 })), []);
   const view = currentView(state);
@@ -86,7 +87,11 @@ export default function ScanSessionScreen() {
   }
 
   const live = state.live;
-  const prompt = live ? promptFor(live) : { title: 'Line up with the outline', tone: 'fix' as const, voice: '' };
+  const prompt = cameraError
+    ? { title: 'Camera problem', detail: cameraError, tone: 'fix' as const, voice: '' }
+    : live
+      ? promptFor(live)
+      : { title: 'Line up with the outline', tone: 'fix' as const, voice: '' };
   const ghost = baseline?.views[view]?.uri;
   const tip = state.tip ? TIPS[state.tip] : null;
 
@@ -102,7 +107,11 @@ export default function ScanSessionScreen() {
           dispatch({ type: 'quality', report: nativeEvent, now: Date.now() });
           coach.update(promptFor(nativeEvent).voice, Date.now(), view === 'crown' || voiceOn);
         }}
-        onCapture={({ nativeEvent }) => dispatch({ type: 'captured', result: nativeEvent })}
+        onCapture={({ nativeEvent }) => {
+          setCameraError(null);
+          dispatch({ type: 'captured', result: nativeEvent });
+        }}
+        onError={({ nativeEvent }) => setCameraError(nativeEvent.message)}
       />
       {ghost && view !== 'crown' ? (
         <Image source={{ uri: ghost }} style={[StyleSheet.absoluteFill, { opacity: 0.28 }]} contentFit="cover" pointerEvents="none" />

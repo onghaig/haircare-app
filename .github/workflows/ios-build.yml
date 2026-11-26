@@ -1,15 +1,17 @@
 name: iOS build
 
-# Compiles the full iOS app, including the Swift HeadMap module against MediaPipe and
-# ExpoModulesCore, on a simulator SDK. Runs only when native code or config changes,
-# because macOS minutes are expensive.
+# Compiles the full iOS app (Release, JS bundled in), including the Swift HeadMap module against
+# MediaPipe and ExpoModulesCore, then runs the Maestro end-to-end flows in e2e/ on a simulator.
+# Runs only when app code, native code, config or the flows change, because macOS minutes are expensive.
 on:
   pull_request:
     paths:
       - 'modules/**'
+      - 'src/**'
       - 'app.json'
       - 'package.json'
       - 'package-lock.json'
+      - 'e2e/**'
       - '.github/workflows/ios-build.yml'
   workflow_dispatch:
 
@@ -45,15 +47,44 @@ jobs:
         working-directory: ios
         run: |
           set +e
-          xcodebuild -workspace Haircare.xcworkspace -scheme Haircare -configuration Debug \
+          xcodebuild -workspace Haircare.xcworkspace -scheme Haircare -configuration Release \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO build > build.log 2>&1
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build > build.log 2>&1
           status=$?
           echo "::group::Errors"
           grep -nE "error:|fatal error|\*\* BUILD" build.log | head -150
           echo "::endgroup::"
           tail -80 build.log
           exit $status
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Boot a simulator and install the app
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r,l in sorted(d.items(), reverse=True) if 'iOS' in r for x in l if x['name'].startswith('iPhone')))")
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" ios/build/Build/Products/Release-iphonesimulator/Haircare.app
+      - name: End-to-end flows (Maestro)
+        run: |
+          mkdir -p e2e-results
+          maestro --device "$UDID" test e2e/ --format junit --output e2e-results/report.xml \
+            --test-output-dir e2e-results
+      - name: Upload e2e screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            e2e-results
+            *.png
+          if-no-files-found: ignore
       - name: Upload build log
         if: failure()
         uses: actions/upload-artifact@v4
