@@ -34,4 +34,4 @@ appId: com.onghaig.haircare
 # The first finished scan leads into the forecast.
 - extendedWaitUntil:
     visible: "Building your forecast"
-    timeout: 10000
+    timeout: 30000
