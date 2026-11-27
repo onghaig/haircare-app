@@ -4,7 +4,7 @@ import { useProfile } from '@/profile/ProfileProvider';
 import { useScans } from '@/scan/ScanProvider';
 
 import { useAiPreviewServices } from './AiPreviewProvider';
-import { aiKey, previewAvailability, previewPhoto, stageStep, type PreviewAvailability } from './preview';
+import { aiKey, countUse, previewAvailability, previewPhoto, stageStep, type PreviewAvailability } from './preview';
 import type { PreviewRequest } from './provider';
 
 export type AiPreviewState =
@@ -26,7 +26,7 @@ export interface AiJob {
  * null to ask for nothing (a screen that isn't showing it yet). Only what's on screen is made.
  */
 export function useAiImage(job: AiJob | null): AiPreviewState {
-  const { profile } = useProfile();
+  const { profile, update } = useProfile();
   const { records } = useScans();
   const { provider, store, prepare } = useAiPreviewServices();
   const photo = previewPhoto(records);
@@ -60,12 +60,19 @@ export function useAiImage(job: AiJob | null): AiPreviewState {
       if (cached) return cached;
       const imageBase64 = await prepare(photoUri);
       const out = await provider.generate({ ...req, imageBase64 } as PreviewRequest);
+      // Counted only when a new picture was made, not for one already on the phone.
+      await update((p) => countUse(p));
       return store.put(key, out.imageBase64, out.mimeType);
     })()
       .then((uri) => mounted.current && setResult({ key, uri }))
       .catch((e: unknown) => mounted.current && setResult({ key, error: e instanceof Error ? e.message : String(e) }));
-  }, [availability, key, photoUri, provider, store, prepare, requestJson, attempt]);
+  }, [availability, key, photoUri, provider, store, prepare, requestJson, attempt, update]);
 
+  if (availability === 'capped' && key) {
+    // Over this month's cap: pictures already on the phone still show, nothing new is made.
+    const saved = store.get(key);
+    if (saved) return { status: 'ready', uri: saved };
+  }
   if (availability !== 'ready' || !key) return { status: 'off', availability };
   const cached = result?.key === key ? result : null;
   if (cached?.uri) return { status: 'ready', uri: cached.uri };
@@ -99,6 +106,7 @@ export function useSavedAiImage(name: string): string | null {
   const { records } = useScans();
   const { provider, store } = useAiPreviewServices();
   const photo = previewPhoto(records);
-  if (!photo || previewAvailability(profile, !!provider, true) !== 'ready') return null;
+  const a = previewAvailability(profile, !!provider, true);
+  if (!photo || (a !== 'ready' && a !== 'capped')) return null;
   return store.get(aiKey(photo.scanId, name));
 }

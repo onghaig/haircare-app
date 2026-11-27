@@ -1,4 +1,5 @@
 import type { Profile } from '@/profile/types';
+import { isPremium } from '@/paywall/purchases';
 import { isMinor } from '@/profile/onboarding';
 import type { ScanRecord } from '@/scan/session';
 
@@ -33,15 +34,36 @@ export function previewPhoto(records: ScanRecord[]): { scanId: string; uri: stri
   return null;
 }
 
-export type PreviewAvailability = 'unavailable' | 'needs-consent' | 'declined' | 'ready';
+export type PreviewAvailability = 'unavailable' | 'locked' | 'needs-consent' | 'declined' | 'capped' | 'ready';
+
+/** AI pictures each user can make per calendar month. Each one costs us about $0.05. */
+export const MONTHLY_AI_CAP = 30;
+
+export const monthKey = (now: Date) => now.toISOString().slice(0, 7);
+
+/** Pictures made so far this month. */
+export function usedThisMonth(profile: Profile, now = new Date()): number {
+  const u = profile.aiPreview?.usage;
+  return u && u.month === monthKey(now) ? u.count : 0;
+}
+
+/** The profile after one more picture this month. */
+export function countUse(profile: Profile, now = new Date()): Profile {
+  const month = monthKey(now);
+  return { ...profile, aiPreview: { ...profile.aiPreview, usage: { month, count: usedThisMonth(profile, now) + 1 } } };
+}
 
 /**
- * Never for under-18s (no altered photos of minors), and only once a service is set up and
- * there's a front photo. Otherwise the drawn illustration stays.
+ * When an AI picture can be made. Never for under-18s (no altered photos of minors), and only
+ * with a service set up and a front photo. Only for paying users: everyone else sees the free
+ * preview made on the phone, so no money goes on people who never subscribe. Then consent,
+ * then the monthly cap.
  */
-export function previewAvailability(profile: Profile, hasProvider: boolean, hasPhoto: boolean): PreviewAvailability {
+export function previewAvailability(profile: Profile, hasProvider: boolean, hasPhoto: boolean, now = new Date()): PreviewAvailability {
   if (!hasProvider || !hasPhoto || isMinor(profile) || profile.age == null) return 'unavailable';
-  if (profile.aiPreview?.consentAt) return 'ready';
-  if (profile.aiPreview?.declinedAt) return 'declined';
-  return 'needs-consent';
+  if (!isPremium(profile)) return 'locked';
+  if (profile.aiPreview?.declinedAt && !profile.aiPreview?.consentAt) return 'declined';
+  if (!profile.aiPreview?.consentAt) return 'needs-consent';
+  if (usedThisMonth(profile, now) >= MONTHLY_AI_CAP) return 'capped';
+  return 'ready';
 }

@@ -12,3 +12,9 @@ simple = { limit = 6, period = 60 }
 
 [observability]
 enabled = false
+
+# Daily cap per caller (DAILY_CAP pictures a day, default 20). Create the namespace once with
+# `npx wrangler kv namespace create USAGE`, then uncomment this with the id it prints.
+# [[kv_namespaces]]
+# binding = "USAGE"
+# id = "<id from wrangler>"

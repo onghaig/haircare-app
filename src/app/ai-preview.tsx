@@ -30,14 +30,14 @@ export default function AiPreviewConsentScreen() {
   }
 
   async function agree() {
-    await update((p) => ({ ...p, aiPreview: { consentAt: new Date().toISOString() } }));
+    await update((p) => ({ ...p, aiPreview: { usage: p.aiPreview?.usage, consentAt: new Date().toISOString() } }));
     router.back();
   }
 
   async function decline() {
     // Turning it off also deletes every preview made so far.
     store.removeAll();
-    await update((p) => ({ ...p, aiPreview: { declinedAt: new Date().toISOString() } }));
+    await update((p) => ({ ...p, aiPreview: { usage: p.aiPreview?.usage, declinedAt: new Date().toISOString() } }));
     router.back();
   }
 

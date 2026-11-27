@@ -3,10 +3,11 @@ import * as WebBrowser from 'expo-web-browser';
 import { useRef, useState, type ComponentRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { LineKey, NoPhoto, PhotoLook } from '@/components/look/PhotoLook';
+import { LineKey, LockOver, NoPhoto, PhotoLook } from '@/components/look/PhotoLook';
 import { AiNote } from '@/components/styles/AiNote';
 import { BeforeAfter } from '@/components/styles/BeforeAfter';
 import { Button, Card, SubScreen, Text } from '@/components/ui';
+import { isPremium } from '@/paywall/purchases';
 import { isMinor } from '@/profile/onboarding';
 import { useProfile } from '@/profile/ProfileProvider';
 import { clinicReferralUrl, referralLink, restoredStage, TRANSPLANT_LABEL } from '@/referral/clinics';
@@ -44,7 +45,17 @@ export default function TransplantScreen() {
 
   const photo = ai.status === 'ready' ? ai.uri : null;
   const example = photo || own ? null : restorePhoto(stage);
-  const label = photo ? TRANSPLANT_LABEL : own ? 'Your photo, dashed line at a possible new hairline' : example != null ? REFERENCE_LABEL : TRANSPLANT_LABEL;
+  // Not subscribed: the free preview made on the phone, blurred, until the real AI picture.
+  const teaser = !photo && !!own && !isPremium(profile);
+  const label = photo
+    ? TRANSPLANT_LABEL
+    : teaser
+      ? 'Rough preview on your photo. Unlock for the AI picture'
+      : own
+        ? 'Rough preview on your photo, dashed line at a possible new hairline'
+        : example != null
+          ? REFERENCE_LABEL
+          : TRANSPLANT_LABEL;
 
   async function share() {
     setError(null);
@@ -70,7 +81,10 @@ export default function TransplantScreen() {
         ) : (
           <View style={styles.frame}>
             {own ? (
-              <PhotoLook photo={own} stageNow={stage} stageTo={restoredStage(stage)} testID="transplant-own-photo" />
+              <>
+                <PhotoLook photo={own} stageNow={stage} stageTo={restoredStage(stage)} paint="restore" blur={teaser} testID="transplant-own-photo" />
+                {teaser ? <LockOver line="Unlock to see it on you" /> : null}
+              </>
             ) : example != null ? (
               <Image source={example} style={StyleSheet.absoluteFill} contentFit="cover" testID="transplant-example" />
             ) : (
@@ -78,7 +92,7 @@ export default function TransplantScreen() {
             )}
           </View>
         )}
-        {!photo && own?.curve ? <LineKey projected="After a transplant" /> : null}
+        {!photo && !teaser && own?.curve ? <LineKey projected="After a transplant" /> : null}
         <Text variant="caption" color="textMuted" style={{ textAlign: 'center' }}>
           {label}
         </Text>

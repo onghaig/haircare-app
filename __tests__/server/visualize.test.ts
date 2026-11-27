@@ -99,4 +99,19 @@ describe('visualize worker', () => {
     expect(restorePrompt(2)).toMatch(/mature adult hairline/);
     expect((await handle(post({ image: 'UEhPVE8=', kind: 'restore' }), env, f)).status).toBe(400);
   });
+
+  it('caps each caller per day, counting only pictures that came back', async () => {
+    const kv = new Map<string, string>();
+    const USAGE = { get: async (k: string) => kv.get(k) ?? null, put: async (k: string, v: string) => void kv.set(k, v) };
+    const e = { ...env, USAGE, DAILY_CAP: '2' };
+    const ip = { 'cf-connecting-ip': '203.0.113.9' };
+    const ok1 = gemini([{ inlineData: { mimeType: 'image/png', data: 'T1VU' } }]);
+    expect((await handle(post(ok, ip), e, gemini([{ text: 'no' }]))).status).toBe(502);
+    expect((await handle(post(ok, ip), e, ok1)).status).toBe(200);
+    expect((await handle(post(ok, ip), e, ok1)).status).toBe(200);
+    const res = await handle(post(ok, ip), e, ok1);
+    expect(res.status).toBe(429);
+    expect(ok1).toHaveBeenCalledTimes(2);
+    expect((await handle(post(ok, { 'cf-connecting-ip': '198.51.100.1' }), e, ok1)).status).toBe(200);
+  });
 });

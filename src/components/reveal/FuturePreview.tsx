@@ -13,7 +13,7 @@ import { alpha, colors, radius, spacing } from '@/theme';
 import { AI_ILLUSTRATION_LABEL } from '@/visualize/preview';
 
 /** Shown on the user's own photo with the forecast hairline drawn on it. */
-export const ILLUSTRATION_LABEL = 'Your photo, dashed line at your likely hairline. Not a medical prediction';
+export const ILLUSTRATION_LABEL = 'Rough preview on your photo, dashed line at your likely hairline. Not a medical prediction';
 export const NO_PHOTO_LABEL = 'An estimate, not a medical prediction';
 
 /**
@@ -47,7 +47,8 @@ export function FuturePreview({
         // Locked: the blur is baked into the image too, because the Android overlay only dims it.
         <Image source={{ uri: photoUri }} style={styles.fill} contentFit="cover" blurRadius={locked ? 24 : undefined} testID="future-photo" />
       ) : own ? (
-        <PhotoLook photo={own} stageNow={stageNow} stageTo={stage} blur={locked} testID="future-own-photo" />
+        // The free preview: the change painted onto their photo on the phone, no AI and no cost.
+        <PhotoLook photo={own} stageNow={stageNow} stageTo={stage} paint={stage >= stageNow ? 'recede' : 'restore'} blur={locked} testID="future-own-photo" />
       ) : example ? (
         <Image source={example} style={styles.fill} contentFit="cover" blurRadius={locked ? 24 : undefined} testID="future-example" />
       ) : locked ? null : (

@@ -19,7 +19,9 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 const scans = [record('s1', '2026-11-20T09:00:00Z')];
-const adult = { age: 30, sex: 'male' as const, completedAt: '2026-11-01T00:00:00Z' };
+const free = { age: 30, sex: 'male' as const, completedAt: '2026-11-01T00:00:00Z' };
+// AI pictures are only made for subscribers.
+const adult = { ...free, subscription: { plan: 'annual' as const, startedAt: '2026-11-26T10:00:00Z', trialEndsAt: null, test: true } };
 const agreed = { ...adult, aiPreview: { consentAt: '2026-11-26T00:00:00Z' } };
 
 function fakeProvider(impl?: () => Promise<{ imageBase64: string; mimeType: string }>): PreviewProvider & { generate: jest.Mock } {
@@ -37,7 +39,7 @@ describe('Future look with the AI preview', () => {
     expect(await screen.findByTestId('future-own-photo')).toBeOnTheScreen();
     expect(screen.getByTestId('future-own-photo-projected')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: /AI/ })).toBeNull();
-    expect(screen.getByText('Your photo, dashed line at your likely hairline. Not a medical prediction')).toBeOnTheScreen();
+    expect(screen.getByText('Rough preview on your photo, dashed line at your likely hairline. Not a medical prediction')).toBeOnTheScreen();
   });
 
   it('never draws a face: with no scan it says so in words', async () => {

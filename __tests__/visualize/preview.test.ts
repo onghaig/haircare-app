@@ -1,10 +1,11 @@
 import { emptyProfile } from '@/profile/types';
-import { previewAvailability, previewKey, previewPhoto, stageStep } from '@/visualize/preview';
+import { countUse, MONTHLY_AI_CAP, previewAvailability, previewKey, previewPhoto, stageStep, usedThisMonth } from '@/visualize/preview';
 import { HttpPreviewProvider, createPreviewProvider } from '@/visualize/provider';
 
 import { record } from '../../test-utils/scanFixtures';
 
-const adult = { ...emptyProfile(), age: 30 };
+const free = { ...emptyProfile(), age: 30 };
+const adult = { ...free, subscription: { plan: 'annual' as const, startedAt: '2026-11-26T10:00:00Z', trialEndsAt: null, test: true } };
 
 describe('AI preview rules', () => {
   it('is never offered to under-18s, and needs a service and a front photo', () => {
@@ -12,6 +13,20 @@ describe('AI preview rules', () => {
     expect(previewAvailability(adult, false, true)).toBe('unavailable');
     expect(previewAvailability(adult, true, false)).toBe('unavailable');
     expect(previewAvailability({ ...emptyProfile() }, true, true)).toBe('unavailable');
+  });
+
+  it('makes nothing for people who haven’t subscribed', () => {
+    expect(previewAvailability({ ...free, aiPreview: { consentAt: 'x' } }, true, true)).toBe('locked');
+  });
+
+  it('stops at the monthly cap, and a new month starts again', () => {
+    const now = new Date('2026-11-27T12:00:00Z');
+    let p: typeof adult = { ...adult, aiPreview: { consentAt: 'x' } };
+    for (let i = 0; i < MONTHLY_AI_CAP; i++) p = countUse(p, now) as typeof adult;
+    expect(usedThisMonth(p, now)).toBe(MONTHLY_AI_CAP);
+    expect(previewAvailability(p, true, true, now)).toBe('capped');
+    expect(previewAvailability(p, true, true, new Date('2026-12-01T00:00:00Z'))).toBe('ready');
+    expect(p.aiPreview?.consentAt).toBe('x');
   });
 
   it('asks first, remembers a no, and runs once agreed', () => {
