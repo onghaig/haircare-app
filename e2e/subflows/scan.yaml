@@ -40,9 +40,22 @@ appId: com.onghaig.haircare
     notVisible: "Line up with the outline"
     timeout: 30000
 # Redo the photo just taken: back to the front view, then on again.
+# A tip appearing in the prompt card can move the link just as it is tapped, so tap once more if
+# the first tap missed (never twice: a second redo would go back another view).
 - tapOn:
     id: "redo-last-photo"
     retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "View 1 of 5"
+    timeout: 8000
+    optional: true
+- runFlow:
+    when:
+      visible: "View 2 of 5"
+    commands:
+      - tapOn:
+          id: "redo-last-photo"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 1 of 5"
     timeout: 30000
@@ -147,10 +160,12 @@ appId: com.onghaig.haircare
 # the result lists the weak views first, and we keep the scan and go on to the forecast. The
 # "Building your forecast" screen is brief: a slow run can be past it before it is checked, so
 # wait for either the weak-views result or the reveal itself (reveal.yaml checks the rest).
-- extendedWaitUntil:
-    visible: "Scan complete"
-    timeout: 30000
-- takeScreenshot: e2e-15-scan-finish
+# The finish moment is brief when the save is quick (seen on iOS), so capture it only if shown.
+- runFlow:
+    when:
+      visible: "Scan complete"
+    commands:
+      - takeScreenshot: e2e-15-scan-finish
 - extendedWaitUntil:
     visible: "(Your Norwood timeline|Keep it and see my forecast)"
     timeout: 60000

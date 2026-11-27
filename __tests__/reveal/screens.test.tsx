@@ -118,6 +118,7 @@ describe('Reveal', () => {
         sex: 'male',
         worriedOnly: true,
         family: { father: { status: 'full' }, maternalGrandfather: { status: 'full' }, paternalGrandfather: { status: 'full' } },
+        completedAt: '2026-11-26T10:00:00Z',
       }).tree,
     );
     expect(await screen.findByText(/looks stable as of right now/, {}, { timeout: 5000 })).toBeOnTheScreen();
