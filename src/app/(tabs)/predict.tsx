@@ -161,6 +161,7 @@ function PlanByRole({ plan, profile }: { plan: PlanEntry[]; profile: Profile }) 
         </Text>
         {!by.slows.length && showsRx(profile) ? <Link label="Options to discuss" onPress={() => router.push('/options')} align="left" /> : null}
       </View>
+      <Link label="Update what you use" onPress={() => router.push({ pathname: '/settings/[step]', params: { step: 'treatments' } })} align="left" />
     </Card>
   );
 }
@@ -267,6 +268,7 @@ function TeenOutlook({ forecast, profile, plan }: { forecast: Forecast; profile:
           </View>
         </View>
       </Card>
+      <Link label="Update what you use" onPress={() => router.push({ pathname: '/settings/[step]', params: { step: 'treatments' } })} align="left" />
       <Card style={{ gap: 4, borderColor: colors.info }}>
         <Text variant="headline">Worried about it?</Text>
         <Text color="textMuted">A doctor can check your scalp with a parent or guardian. Medicines aren’t shown under 18.</Text>
