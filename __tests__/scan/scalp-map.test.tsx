@@ -41,14 +41,22 @@ describe('scalp map layout', () => {
     expect(zone('front').box.y).toBeLessThan(zone('crown').box.y);
   });
 
-  it('fits each portrait photo to cover its zone, keeping the top for hairline photos', () => {
+  it('fills each zone with that zone’s part of the photo (the hair, not the face)', () => {
     for (const z of ZONES) {
       const p = photoPlacement(z);
-      expect(p.w).toBeGreaterThanOrEqual(z.box.w - 1e-9);
-      expect(p.h).toBeGreaterThanOrEqual(z.box.h - 1e-9);
       expect(p.w / p.h).toBeCloseTo(9 / 16);
+      // The roi, placed on the map, covers the zone's box.
+      const rx = p.x + z.roi.x * p.w;
+      const ry = p.y + z.roi.y * p.h;
+      expect(rx).toBeLessThanOrEqual(z.box.x + 1e-9);
+      expect(ry).toBeLessThanOrEqual(z.box.y + 1e-9);
+      expect(rx + z.roi.w * p.w).toBeGreaterThanOrEqual(z.box.x + z.box.w - 1e-9);
+      expect(ry + z.roi.h * p.h).toBeGreaterThanOrEqual(z.box.y + z.box.h - 1e-9);
     }
-    expect(photoPlacement(zone('front')).y).toBe(zone('front').box.y);
+    // A temple zone shows the top of its photo, not the middle where the face is.
+    const t = zone('leftTemple');
+    const p = photoPlacement(t);
+    expect((t.box.y + t.box.h - p.y) / p.h).toBeLessThanOrEqual(t.roi.y + t.roi.h + 1e-9);
   });
 
   it('places the hair grid on the photo and only keeps cells that can show', () => {

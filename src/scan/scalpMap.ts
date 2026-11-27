@@ -30,9 +30,10 @@ export interface Zone {
   path: string;
   /** Bounding box of the path: the photo is fitted into it. */
   box: Box;
-  /** Which part of the photo to keep: the top (hairline photos) or the middle (top and crown). */
-  align: 'top' | 'middle';
-  /** The part of the photo (fractions, 0 to 1) whose hair coverage counts for this zone. */
+  /**
+   * The part of the photo (fractions, 0 to 1) shown in this zone and whose hair coverage counts
+   * for it: the hair above the forehead or temple, or the middle of the top and crown photos.
+   */
   roi: Box;
   /** Where the zone label sits. */
   labelAt: [number, number];
@@ -48,7 +49,6 @@ export const ZONES: readonly Zone[] = [
     label: 'Front',
     path: 'M 30 62 C 40 22 160 22 170 62 L 140 70 C 120 58 80 58 60 70 Z',
     box: { x: 30, y: 26, w: 140, h: 44 },
-    align: 'top',
     roi: { x: 0.2, y: 0.05, w: 0.6, h: 0.35 },
     labelAt: [100, 22],
   },
@@ -57,7 +57,6 @@ export const ZONES: readonly Zone[] = [
     label: 'Left side',
     path: 'M 30 62 L 60 70 C 52 90 52 112 58 130 L 26 140 C 14 112 16 84 30 62 Z',
     box: { x: 16, y: 62, w: 44, h: 78 },
-    align: 'top',
     roi: { x: 0.15, y: 0.05, w: 0.7, h: 0.4 },
     labelAt: [10, 100],
   },
@@ -66,7 +65,6 @@ export const ZONES: readonly Zone[] = [
     label: 'Right side',
     path: 'M 170 62 L 140 70 C 148 90 148 112 142 130 L 174 140 C 186 112 184 84 170 62 Z',
     box: { x: 140, y: 62, w: 44, h: 78 },
-    align: 'top',
     roi: { x: 0.15, y: 0.05, w: 0.7, h: 0.4 },
     labelAt: [190, 100],
   },
@@ -75,7 +73,6 @@ export const ZONES: readonly Zone[] = [
     label: 'Top',
     path: 'M 60 70 C 80 58 120 58 140 70 C 148 90 148 112 142 130 C 120 122 80 122 58 130 C 52 112 52 90 60 70 Z',
     box: { x: 52, y: 60, w: 96, h: 70 },
-    align: 'middle',
     roi: { x: 0.2, y: 0.2, w: 0.6, h: 0.6 },
     labelAt: [100, 98],
   },
@@ -84,20 +81,23 @@ export const ZONES: readonly Zone[] = [
     label: 'Crown',
     path: 'M 26 140 L 58 130 C 80 122 120 122 142 130 L 174 140 C 160 182 40 182 26 140 Z',
     box: { x: 26, y: 124, w: 148, h: 50 },
-    align: 'middle',
     roi: { x: 0.2, y: 0.2, w: 0.6, h: 0.6 },
     labelAt: [100, 186],
   },
 ];
 
-/** Where a photo sits so it covers the zone's box (like "cover"), keeping the top or the middle. */
+/**
+ * Where a photo sits on the map: scaled so the zone's part of the photo (its roi) covers the
+ * zone's box, and centred on it. So a temple zone shows the hair above the temple, not the face.
+ */
 export function photoPlacement(zone: Zone, aspect = PHOTO_ASPECT): Box {
-  const { box } = zone;
-  const scale = Math.max(box.w / aspect, box.h);
+  const { box, roi } = zone;
+  // Photo height in map units; its width is aspect times that.
+  const scale = Math.max(box.w / (roi.w * aspect), box.h / roi.h);
   const w = aspect * scale;
   const h = scale;
-  const x = box.x + (box.w - w) / 2;
-  const y = zone.align === 'top' ? box.y : box.y + (box.h - h) / 2;
+  const x = box.x + (box.w - roi.w * w) / 2 - roi.x * w;
+  const y = box.y + (box.h - roi.h * h) / 2 - roi.y * h;
   return { x, y, w, h };
 }
 
