@@ -4,7 +4,7 @@ name = "haircare-visualize"
 main = "src/index.ts"
 compatibility_date = "2026-11-01"
 
-# Per-device limit, so a leaked endpoint URL can't run up the bill.
+# Per-caller (IP) limit, so a leaked endpoint URL can't run up the bill.
 [[ratelimits]]
 name = "LIMITER"
 namespace_id = "1001"

@@ -63,7 +63,8 @@ export class FileDraftStore implements DraftStore {
   async load(): Promise<ScanDraft | null> {
     if (!this.file.exists) return null;
     try {
-      return JSON.parse(await this.file.text()) as ScanDraft;
+      // Synchronous, like the other stores: async reads and writes sometimes never settle on iOS.
+      return JSON.parse(this.file.textSync()) as ScanDraft;
     } catch {
       return null;
     }
@@ -84,7 +85,7 @@ export class FileDraftStore implements DraftStore {
       }
       captures[view as ScanView] = { ...c, uri: dest.uri };
     }
-    await this.file.write(JSON.stringify({ ...d, captures }));
+    this.file.writeSync(JSON.stringify({ ...d, captures }));
   }
 
   async clear(): Promise<void> {

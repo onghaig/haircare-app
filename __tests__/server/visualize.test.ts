@@ -50,11 +50,11 @@ describe('visualize worker', () => {
     expect((await handle(post(ok), { GEMINI_API_KEY: '' })).status).toBe(503);
   });
 
-  it('rate-limits per device', async () => {
+  it('rate-limits per caller IP, ignoring client-sent ids', async () => {
     const limiter = { limit: jest.fn(async () => ({ success: false })) };
-    const res = await handle(post(ok, { 'x-device-id': 'd1' }), { ...env, LIMITER: limiter }, gemini([]));
+    const res = await handle(post(ok, { 'x-device-id': 'd1', 'cf-connecting-ip': '203.0.113.7' }), { ...env, LIMITER: limiter }, gemini([]));
     expect(res.status).toBe(429);
-    expect(limiter.limit).toHaveBeenCalledWith({ key: 'd1' });
+    expect(limiter.limit).toHaveBeenCalledWith({ key: '203.0.113.7' });
   });
 
   it('reports upstream failures by status only, never echoing the body', async () => {

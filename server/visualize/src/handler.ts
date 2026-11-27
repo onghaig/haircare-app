@@ -31,7 +31,9 @@ export async function handle(request: Request, env: Env, fetchImpl: Fetch = fetc
   if (!env.GEMINI_API_KEY) return json(503, { error: 'The preview service is not set up yet' });
 
   if (env.LIMITER) {
-    const key = request.headers.get('x-device-id') ?? request.headers.get('cf-connecting-ip') ?? 'anon';
+    // Keyed on the caller's IP, which Cloudflare sets. Not on a client header: a caller could send
+    // a new one each time and never hit the limit.
+    const key = request.headers.get('cf-connecting-ip') ?? 'anon';
     const { success } = await env.LIMITER.limit({ key });
     if (!success) return json(429, { error: 'Too many previews right now. Try again in a minute.' });
   }
