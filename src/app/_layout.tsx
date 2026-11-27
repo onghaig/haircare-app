@@ -57,6 +57,9 @@ export default function RootLayout() {
               <Stack.Screen name="options/how" />
               <Stack.Screen name="options/[id]" options={{ presentation: 'modal' }} />
               <Stack.Screen name="ai-preview" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="styles/index" />
+              <Stack.Screen name="styles/[id]" />
+              <Stack.Screen name="transplant" />
               <Stack.Screen
                 name="scan/session"
                 options={{

@@ -11,7 +11,15 @@ export function stageStep(stage: number): number {
 
 /** One image per photo, stage step and year, so a new scan or a changed forecast gets a new one. */
 export function previewKey(scanId: string, stage: number, years: number): string {
-  return `${scanId}-s${stageStep(stage).toFixed(1)}-y${years}`.replace(/[^A-Za-z0-9._-]/g, '_');
+  return aiKey(scanId, `s${stageStep(stage).toFixed(1)}-y${years}`);
+}
+
+/**
+ * Every AI image is filed under the scan its photo came from (so deleting a scan deletes them),
+ * then a name for what it shows.
+ */
+export function aiKey(scanId: string, name: string): string {
+  return `${scanId}-${name}`.replace(/[^A-Za-z0-9._-]/g, '_');
 }
 
 /** The photo the preview is made from: the latest scan's front view. */

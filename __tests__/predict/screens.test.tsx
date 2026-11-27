@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import * as Sharing from 'expo-sharing';
 import { router, useLocalSearchParams } from 'expo-router';
 import { captureRef } from 'react-native-view-shot';
@@ -47,7 +47,7 @@ describe('Predict tab', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'See what each option does for you' }));
     expect(router.push).toHaveBeenCalledWith('/paywall');
     await fireEvent.press(screen.getByRole('tab', { name: '10 years' }));
-    expect(screen.getByTestId('future-blur')).toBeOnTheScreen();
+    expect(within(screen.getByTestId('future-you')).getByTestId('future-blur')).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Share your forecast' }));
     expect(router.push).toHaveBeenCalledWith({ pathname: '/share', params: { years: '1' } });
   });

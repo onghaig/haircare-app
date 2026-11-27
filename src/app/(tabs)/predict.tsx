@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { MinePill, EvidencePill, RolePill, RxPill } from '@/components/options/Pills';
 import { ForecastFan } from '@/components/predict/ForecastFan';
 import { PlanOdds } from '@/components/predict/PlanOdds';
+import { TwoFutures } from '@/components/predict/TwoFutures';
 import { FutureLook } from '@/components/reveal/FutureLook';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import type { Forecast, YearForecast } from '@/forecast';
@@ -117,6 +118,8 @@ function AdultForecast({ forecast, profile, plan }: { forecast: Forecast; profil
       )}
 
       <FutureYou forecast={forecast} premium={premium} />
+      <TwoFutures forecast={forecast} premium={premium} />
+      <TryOn transplant />
 
       <Text variant="caption" color="textMuted">
         Confidence: {confidence}. {confidenceWhy(confidence, scanBasis(latest))} Based on {basedOn(profile).join(', ').toLowerCase() || 'your answers'}.
@@ -172,7 +175,7 @@ function FutureYou({ forecast, premium }: { forecast: Forecast; premium: boolean
   const range = (b: YearForecast) => (showPlan && b.plan ? b.withTreatment! : b.untreated);
 
   return (
-    <Card style={{ gap: spacing.sm }}>
+    <Card style={{ gap: spacing.sm }} testID="future-you">
       <Text variant="headline">Future you</Text>
       <View style={styles.years} accessibilityRole="tablist">
         {PREDICT_YEARS.map((n) => {
@@ -268,8 +271,20 @@ function TeenOutlook({ forecast, profile, plan }: { forecast: Forecast; profile:
         <Text variant="headline">Worried about it?</Text>
         <Text color="textMuted">A doctor can check your scalp with a parent or guardian. Medicines aren’t shown under 18.</Text>
       </Card>
+      <TryOn />
       <ShareButton years={1} />
     </Screen>
+  );
+}
+
+/** Hairstyles for everyone; the transplant preview for adults only. */
+function TryOn({ transplant }: { transplant?: boolean }) {
+  return (
+    <Card style={{ gap: 2, paddingVertical: spacing.sm }}>
+      <Text variant="headline">Try it on</Text>
+      <Link label="Try a hairstyle" onPress={() => router.push('/styles')} align="left" />
+      {transplant ? <Link label="Transplant preview" onPress={() => router.push('/transplant')} align="left" /> : null}
+    </Card>
   );
 }
 

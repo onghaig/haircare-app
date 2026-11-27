@@ -45,8 +45,11 @@ appId: com.onghaig.haircare
 # The floating tab bar covers the bottom of the screen, and Maestro counts what is behind it as
 # visible: tapping the year chips as soon as they scroll into view hit the Progress tab instead.
 # So scroll on to the headline under the picture first; the chips are then well above the bar.
+# Two futures and Try it on sit below it, so scroll in small steps or a swipe can carry it past.
 - scrollUntilVisible:
     element: "Likely at \\d+: N.*"
+    speed: 20
+    visibilityPercentage: 50
 - tapOn: "10 years"
 - extendedWaitUntil:
     visible: "Likely at \\d+: N.*"
@@ -54,7 +57,7 @@ appId: com.onghaig.haircare
 - takeScreenshot: e2e-64-future-you-10y
 - scrollUntilVisible:
     element: "Share your forecast"
-# It's the last thing on the page: scroll to the end so it clears the tab bar.
+# Scroll once more so it clears the floating tab bar before the tap.
 - scroll
 - tapOn: "Share your forecast"
 - assertVisible: "Share image"

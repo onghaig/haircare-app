@@ -42,5 +42,5 @@ export async function analyseScanHair(scan: ScanRecord): Promise<HairAnalysis | 
   if (!photos.length) return null;
   await yieldToUi();
   const a = hairAnalyser();
-  return a.analyseAsync ? a.analyseAsync(photos, scan.hairState, yieldToUi) : a.analyse(photos, scan.hairState);
+  return a.analyseAsync ? a.analyseAsync(photos, scan.hairState ?? null, yieldToUi) : a.analyse(photos, scan.hairState ?? null);
 }

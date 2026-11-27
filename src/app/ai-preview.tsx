@@ -48,22 +48,19 @@ export default function AiPreviewConsentScreen() {
           See it on your own photo
         </Text>
         <Text color="textMuted">
-          An AI model redraws your hair on your photo at your most likely stage for that year.
+          Instead of a drawing, an AI image model redraws your hair on your own photo: your forecast, a hairstyle you try, or a transplant
+          preview.
         </Text>
         <Card style={styles.points}>
           <Point title="Your photo leaves your phone for this">
-            Your latest front photo, shrunk to 768 pixels, goes to Google’s Gemini image model through our
-            server. Only your hair is changed.
+            Your latest front photo, shrunk to 768 pixels, goes to Google’s Gemini image model through our server. Only your hair is
+            changed.
           </Point>
-          <Point title="Nothing is kept on the server">
-            Used once and not stored. The result stays on this phone.
-          </Point>
+          <Point title="Nothing is kept on the server">Used once and not stored. The result stays on this phone.</Point>
           <Point title="It’s an illustration">
-            A picture of your most likely stage. Estimate only.
+            It shows what something could look like on you. Estimate only: not a medical prediction, a diagnosis or a promise of a result.
           </Point>
-          <Point title="You can turn it off">
-            Turning it off deletes every AI preview. Deleting a scan deletes its previews.
-          </Point>
+          <Point title="You can turn it off">Turning it off deletes every AI preview. Deleting a scan deletes its previews.</Point>
         </Card>
         {on ? (
           <Button label="Turn off AI previews" variant="secondary" onPress={decline} />

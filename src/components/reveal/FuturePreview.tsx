@@ -1,19 +1,26 @@
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { Platform, StyleSheet, View } from 'react-native';
-import Svg, { Defs, FeGaussianBlur, Filter, G, Path, Rect } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 
-import { Face } from '@/components/head/Face';
+import { NoPhoto, PhotoLook } from '@/components/look/PhotoLook';
 import { Text } from '@/components/ui';
-import { faceForStage } from '@/reveal/reveal';
+import { REFERENCE_LABEL, stagePhoto } from '@/look/references';
+import { useCurrentStage } from '@/look/useCurrentStage';
+import { useOwnPhoto } from '@/look/useOwnPhoto';
+import { stageLabel } from '@/reveal/reveal';
 import { alpha, colors, radius, spacing } from '@/theme';
 import { AI_ILLUSTRATION_LABEL } from '@/visualize/preview';
 
-export const ILLUSTRATION_LABEL = 'Illustration from your forecast. Estimate only.';
+/** Shown on the user's own photo with the forecast hairline drawn on it. */
+export const ILLUSTRATION_LABEL = 'Your photo, dashed line at your likely hairline. Not a medical prediction';
+export const NO_PHOTO_LABEL = 'An estimate, not a medical prediction';
 
 /**
- * The projected look at N years, kept blurred until unlocked. Drawn from the forecast's median
- * stage, so it is never worse than the model predicts. Always labelled as an illustration.
+ * The projected look at N years, kept blurred until unlocked. Always a real photo, never a
+ * drawing: the AI image of the user's photo when there is one, else their own photo with the
+ * forecast's hairline traced on it, else an example photo made ahead of time, else just words.
+ * Uses the forecast's median, so it is never worse than the model predicts.
  */
 export function FuturePreview({
   stage,
@@ -24,45 +31,27 @@ export function FuturePreview({
   stage: number;
   age: number;
   locked?: boolean;
-  /** The user's own photo, AI-restyled to this stage. Without it, the drawing shows. */
+  /** The user's own photo, AI-restyled to this stage. */
   photoUri?: string;
 }) {
-  const { recede, top } = faceForStage(stage);
-  const label = photoUri ? AI_ILLUSTRATION_LABEL : ILLUSTRATION_LABEL;
+  const own = useOwnPhoto();
+  const { stage: stageNow } = useCurrentStage();
+  const example = !photoUri && !own ? stagePhoto(stage) : null;
+  const label = photoUri ? AI_ILLUSTRATION_LABEL : own ? ILLUSTRATION_LABEL : example ? REFERENCE_LABEL : NO_PHOTO_LABEL;
   return (
     <View
       style={styles.wrap}
       accessible
       accessibilityLabel={`You at age ${age}, projected. ${locked ? 'Locked.' : ''} ${label}`}>
       {photoUri ? (
-        // Locked: the blur is baked into the image too, as for the drawing below, because the
-        // Android overlay only dims it.
-        <Image
-          source={{ uri: photoUri }}
-          style={styles.fill}
-          contentFit="cover"
-          blurRadius={locked ? 24 : undefined}
-          testID="future-photo"
-        />
-      ) : (
-        <Svg width="100%" height="100%" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
-          {locked ? (
-            // The blur is drawn into the picture itself, so it holds on every platform. A view-level
-            // blur alone shows the picture clearly on Android when no blur method is available.
-            <>
-              <Defs>
-                <Filter id="future-lock" x="-20%" y="-20%" width="140%" height="140%">
-                  <FeGaussianBlur stdDeviation={9} />
-                </Filter>
-              </Defs>
-              <G filter="url(#future-lock)" opacity={0.85}>
-                <Face id="future" recede={recede} top={top} shoulders />
-              </G>
-            </>
-          ) : (
-            <Face id="future" recede={recede} top={top} shoulders />
-          )}
-        </Svg>
+        // Locked: the blur is baked into the image too, because the Android overlay only dims it.
+        <Image source={{ uri: photoUri }} style={styles.fill} contentFit="cover" blurRadius={locked ? 24 : undefined} testID="future-photo" />
+      ) : own ? (
+        <PhotoLook photo={own} stageNow={stageNow} stageTo={stage} blur={locked} testID="future-own-photo" />
+      ) : example ? (
+        <Image source={example} style={styles.fill} contentFit="cover" blurRadius={locked ? 24 : undefined} testID="future-example" />
+      ) : locked ? null : (
+        <NoPhoto title={`${stageLabel(stage)} at ${age}`} line="Do a scan to see this on your own photo." />
       )}
       {locked ? (
         <>

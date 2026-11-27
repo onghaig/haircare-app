@@ -1,7 +1,11 @@
-import { editPrompt } from './prompt';
+import { editPrompt, restorePrompt, stylePrompt } from './prompt';
+import { STYLE_PROMPTS } from './styles';
 
 /**
- * POST { image: base64 JPEG, stage: 1..7, years: 1..15 } -> { image: base64, mimeType }.
+ * POST one of, -> { image: base64, mimeType }:
+ *   { image, stage: 1..7, years: 1..15 }            future you at the forecast's stage
+ *   { image, kind: 'style', style: id, stage? }      a hairstyle try-on, hairline kept as it is
+ *   { image, kind: 'restore', stage: 1..7 }          a hair transplant preview
  *
  * Privacy: the photo is held in memory only for this one request. Nothing is written to storage
  * and request bodies are never logged. The key stays in the Worker's secrets, never in the app.
@@ -38,25 +42,39 @@ export async function handle(request: Request, env: Env, fetchImpl: Fetch = fetc
     if (!success) return json(429, { error: 'Too many previews right now. Try again in a minute.' });
   }
 
-  let body: { image?: unknown; stage?: unknown; years?: unknown };
+  let body: { image?: unknown; stage?: unknown; years?: unknown; kind?: unknown; style?: unknown };
   try {
     body = await request.json();
   } catch {
     return json(400, { error: 'Send JSON' });
   }
-  const { image, stage, years } = body;
+  const { image, stage, years, kind = 'future', style } = body;
   if (typeof image !== 'string' || image.length === 0 || image.length > MAX_IMAGE_BASE64 || !/^[A-Za-z0-9+/=]+$/.test(image)) {
     return json(400, { error: 'Send one JPEG photo, base64-encoded, under 1.5 MB' });
   }
-  if (typeof stage !== 'number' || !(stage >= 1 && stage <= 7)) return json(400, { error: 'stage must be 1 to 7' });
-  if (typeof years !== 'number' || !(years >= 1 && years <= 15)) return json(400, { error: 'years must be 1 to 15' });
+  const validStage = (s: unknown): s is number => typeof s === 'number' && s >= 1 && s <= 7;
+  let prompt: string;
+  if (kind === 'style') {
+    if (typeof style !== 'string' || !Object.hasOwn(STYLE_PROMPTS, style)) return json(400, { error: 'Unknown style' });
+    if (stage != null && !validStage(stage)) return json(400, { error: 'stage must be 1 to 7' });
+    prompt = stylePrompt(style, stage ?? undefined);
+  } else if (kind === 'restore') {
+    if (!validStage(stage)) return json(400, { error: 'stage must be 1 to 7' });
+    prompt = restorePrompt(stage);
+  } else if (kind === 'future') {
+    if (!validStage(stage)) return json(400, { error: 'stage must be 1 to 7' });
+    if (typeof years !== 'number' || !(years >= 1 && years <= 15)) return json(400, { error: 'years must be 1 to 15' });
+    prompt = editPrompt(stage, years);
+  } else {
+    return json(400, { error: 'Unknown kind' });
+  }
 
   const model = env.GEMINI_IMAGE_MODEL || DEFAULT_MODEL;
   const upstream = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
     body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: editPrompt(stage, years) }, { inline_data: { mime_type: 'image/jpeg', data: image } }] }],
+      contents: [{ role: 'user', parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: image } }] }],
       generationConfig: { responseModalities: ['IMAGE'] },
     }),
   });
