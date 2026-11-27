@@ -65,7 +65,9 @@ export class FileScanStore implements ScanStore {
   async list(): Promise<ScanRecord[]> {
     if (!this.index.exists) return [];
     try {
-      return sortByDate(JSON.parse(await this.index.text()) as ScanRecord[]);
+      // Read synchronously: a small file, and one less native round trip that a busy finish
+      // screen can wait on.
+      return sortByDate(JSON.parse(this.index.textSync()) as ScanRecord[]);
     } catch {
       return [];
     }
