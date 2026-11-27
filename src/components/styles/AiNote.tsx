@@ -6,7 +6,7 @@ import { spacing } from '@/theme';
 import type { AiPreviewState } from '@/visualize/useAiPreview';
 
 /** The line under an AI picture: ask first, say it's working, or say what went wrong. */
-export function AiNote({ ai, offer = 'See it on your own photo (AI)' }: { ai: AiPreviewState; offer?: string }) {
+export function AiNote({ ai, offer = 'Show it on your photo with AI' }: { ai: AiPreviewState; offer?: string }) {
   if (ai.status === 'off' && ai.availability === 'needs-consent') return <Link label={offer} onPress={() => router.push('/ai-preview')} />;
   if (ai.status === 'off' && ai.availability === 'declined') return <Link label="AI preview is off. Turn it on" onPress={() => router.push('/ai-preview')} muted />;
   if (ai.status === 'loading') {

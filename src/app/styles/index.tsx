@@ -10,7 +10,7 @@ import { useProfile } from '@/profile/ProfileProvider';
 import { stageLabel } from '@/reveal/reveal';
 import { SHARE_FAILED, shareView } from '@/share/shareImage';
 import { rankedStyles } from '@/styles/catalog';
-import { useCurrentStage } from '@/styles/useCurrentStage';
+import { useCurrentStage } from '@/look/useCurrentStage';
 import { colors, radius, spacing } from '@/theme';
 import { useAiImage } from '@/visualize/useAiPreview';
 
@@ -53,7 +53,7 @@ export default function StyleGalleryScreen() {
             style={styles.tile}
             testID={`style-${style.id}`}>
             <View style={styles.thumb}>
-              <StyleThumb id={`g-${style.id}`} style={style} stage={stage} />
+              <StyleThumb id={`g-${style.id}`} style={style} stage={stage} nameless />
             </View>
             <Text style={{ fontWeight: '700' }}>{style.name}</Text>
             <VerdictPill verdict={fit.verdict} />
@@ -71,7 +71,7 @@ export default function StyleGalleryScreen() {
             {top4.map(({ style }, i) => (
               <View key={style.id} style={styles.voteCell}>
                 <View style={styles.voteThumb}>
-                  <StyleThumb id={`v-${style.id}`} style={style} stage={stage} />
+                  <StyleThumb id={`v-${style.id}`} style={style} stage={stage} nameless />
                 </View>
                 <Text variant="caption" style={{ fontWeight: '700' }}>{`${i + 1}. ${style.name}`}</Text>
               </View>

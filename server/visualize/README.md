@@ -36,3 +36,16 @@ and caches it, so a typical user costs a few images. Cloudflare's free plan cove
 
 To try another model, set `GEMINI_IMAGE_MODEL` in the Worker's settings. To use another provider,
 replace `handle` in `src/handler.ts`; the app only depends on the request and response shape.
+
+## Example photos (for people with no AI image)
+
+Without an AI image of their own photo, the app shows the user's own photo with the hairline
+traced on it. If there's no photo either, it shows bundled example photos of one fictional,
+AI-made man at each stage and in each style. Make them once the key is set (about 45 images,
+roughly $2), look through them, then commit `assets/reference/` and the generated map:
+
+```bash
+GEMINI_API_KEY=... npm run reference-photos
+```
+
+Until then those spots show plain words, never a drawn face.

@@ -2,22 +2,20 @@ import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { useRef, useState, type ComponentRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg from 'react-native-svg';
 
-import { Face } from '@/components/head/Face';
+import { LineKey, NoPhoto, PhotoLook } from '@/components/look/PhotoLook';
 import { AiNote } from '@/components/styles/AiNote';
 import { BeforeAfter } from '@/components/styles/BeforeAfter';
 import { Button, Card, SubScreen, Text } from '@/components/ui';
 import { isMinor } from '@/profile/onboarding';
 import { useProfile } from '@/profile/ProfileProvider';
 import { clinicReferralUrl, referralLink, restoredStage, TRANSPLANT_LABEL } from '@/referral/clinics';
-import { faceForStage } from '@/reveal/reveal';
-import { useScans } from '@/scan/ScanProvider';
+import { REFERENCE_LABEL, restorePhoto } from '@/look/references';
+import { useOwnPhoto } from '@/look/useOwnPhoto';
 import { SHARE_FAILED, shareView } from '@/share/shareImage';
 import { restoreJob } from '@/styles/jobs';
-import { useCurrentStage } from '@/styles/useCurrentStage';
+import { useCurrentStage } from '@/look/useCurrentStage';
 import { colors, radius, spacing } from '@/theme';
-import { previewPhoto } from '@/visualize/preview';
 import { useAiImage } from '@/visualize/useAiPreview';
 
 /**
@@ -27,7 +25,7 @@ import { useAiImage } from '@/visualize/useAiPreview';
  */
 export default function TransplantScreen() {
   const { profile } = useProfile();
-  const { records } = useScans();
+  const own = useOwnPhoto();
   const { stage } = useCurrentStage();
   const minor = isMinor(profile);
   const ai = useAiImage(minor ? null : restoreJob(stage));
@@ -45,9 +43,8 @@ export default function TransplantScreen() {
   }
 
   const photo = ai.status === 'ready' ? ai.uri : null;
-  const own = previewPhoto(records);
-  const now = faceForStage(stage);
-  const after = faceForStage(restoredStage(stage));
+  const example = photo || own ? null : restorePhoto(stage);
+  const label = photo ? TRANSPLANT_LABEL : own ? 'Your photo, dashed line at a possible new hairline' : example != null ? REFERENCE_LABEL : TRANSPLANT_LABEL;
 
   async function share() {
     setError(null);
@@ -61,32 +58,29 @@ export default function TransplantScreen() {
   return (
     <SubScreen title="Transplant preview">
       <View ref={card} collapsable={false} style={styles.card}>
-        <BeforeAfter
-          testID="transplant-compare"
-          leftLabel="Now"
-          rightLabel="After"
-          start={0.4}
-          left={
-            photo && own ? (
-              <Image source={{ uri: own.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        {photo && own ? (
+          <BeforeAfter
+            testID="transplant-compare"
+            leftLabel="Now"
+            rightLabel="After"
+            start={0.4}
+            left={<Image source={{ uri: own.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+            right={<Image source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" testID="transplant-photo" />}
+          />
+        ) : (
+          <View style={styles.frame}>
+            {own ? (
+              <PhotoLook photo={own} stageNow={stage} stageTo={restoredStage(stage)} testID="transplant-own-photo" />
+            ) : example != null ? (
+              <Image source={example} style={StyleSheet.absoluteFill} contentFit="cover" testID="transplant-example" />
             ) : (
-              <Svg width="100%" height="100%" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
-                <Face id="tx-now" recede={now.recede} top={now.top} shoulders />
-              </Svg>
-            )
-          }
-          right={
-            photo ? (
-              <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" testID="transplant-photo" />
-            ) : (
-              <Svg width="100%" height="100%" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
-                <Face id="tx-after" recede={after.recede} top={after.top} shoulders />
-              </Svg>
-            )
-          }
-        />
+              <NoPhoto title="Your new hairline" line="Do a scan to see a possible result on your own photo." />
+            )}
+          </View>
+        )}
+        {!photo && own?.curve ? <LineKey projected="After a transplant" /> : null}
         <Text variant="caption" color="textMuted" style={{ textAlign: 'center' }}>
-          {TRANSPLANT_LABEL}
+          {label}
         </Text>
       </View>
       <AiNote ai={ai} />
@@ -134,5 +128,6 @@ function Fact({ title, children }: { title: string; children: string }) {
 }
 
 const styles = StyleSheet.create({
+  frame: { height: 300, borderRadius: radius.lg, overflow: 'hidden' },
   card: { backgroundColor: colors.bg, borderRadius: radius.lg, gap: spacing.xs },
 });

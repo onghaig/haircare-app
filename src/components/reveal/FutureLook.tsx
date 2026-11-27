@@ -17,7 +17,7 @@ export function FutureLook({ stage, age, years, locked }: { stage: number; age: 
     <View style={{ gap: spacing.sm }}>
       <FuturePreview stage={stage} age={age} locked={locked} photoUri={ai.status === 'ready' ? ai.uri : undefined} />
       {ai.status === 'off' && ai.availability === 'needs-consent' ? (
-        <Link label="See it on your own photo (AI)" onPress={() => router.push('/ai-preview')} />
+        <Link label="Show the hair change with AI" onPress={() => router.push('/ai-preview')} />
       ) : null}
       {ai.status === 'off' && ai.availability === 'declined' ? (
         <Link label="AI preview is off. Turn it on" onPress={() => router.push('/ai-preview')} muted />

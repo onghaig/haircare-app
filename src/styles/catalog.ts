@@ -99,4 +99,3 @@ export function styleById(id: string): HairStyle | undefined {
 }
 
 export const STYLE_AI_LABEL = 'AI try-on. Your hairline is kept as it is.';
-export const STYLE_SKETCH_LABEL = 'Sketch at your stage';

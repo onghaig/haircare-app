@@ -64,7 +64,8 @@
     "models": "node modules/headmap/scripts/download-models.mjs",
     "postinstall": "node modules/headmap/scripts/download-models.mjs --soft",
     "test:swift": "cd modules/headmap/core && swift test",
-    "test:kotlin": "cd modules/headmap/kotlin-core && gradle test"
+    "test:kotlin": "cd modules/headmap/kotlin-core && gradle test",
+    "reference-photos": "node --import ./scripts/reference-photos/resolve.mjs scripts/reference-photos/make.mts"
   },
   "private": true,
   "jest": {

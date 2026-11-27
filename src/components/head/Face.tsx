@@ -14,8 +14,6 @@ export interface FaceProps {
   /** Draw the green hairline trace with temple and centre points. */
   trace?: boolean;
   shoulders?: boolean;
-  /** Leave the hair off (a style sketch draws its own). Eyebrows stay. */
-  noHair?: boolean;
 }
 
 /** The hairline curve for a given recession, in the 200 x 236 face box. */
@@ -36,7 +34,7 @@ export function hairlineGeometry(recede = 0, top = 0) {
  * A realistic front-view head, drawn in a 200 x 236 box (put it in an Svg with that viewBox).
  * Ported from the signed-off mockups.
  */
-export function Face({ id, recede = 0, top = 0, skin = il.skin, hair = il.hair, trace, shoulders, noHair }: FaceProps) {
+export function Face({ id, recede = 0, top = 0, skin = il.skin, hair = il.hair, trace, shoulders }: FaceProps) {
   const g = hairlineGeometry(recede, top);
   const { hy, ty, tx, mid, knee } = g;
   const bald = top > 0.9;
@@ -72,7 +70,7 @@ export function Face({ id, recede = 0, top = 0, skin = il.skin, hair = il.hair, 
       <Ellipse cx={157} cy={118} rx={9} ry={17} fill={`url(#sk${id})`} />
       <Path d="M100 26C62 26 46 60 46 104C46 146 62 184 100 194C138 184 154 146 154 104C154 60 138 26 100 26Z" fill={`url(#sk${id})`} />
       <Path d="M58 150Q70 186 100 194Q130 186 142 150Q132 176 100 182Q68 176 58 150Z" fill={alpha('#000000', 0.13)} />
-      {bald || noHair ? null : <Path d={hairShape} fill={`url(#hr${id})`} />}
+      {bald ? null : <Path d={hairShape} fill={`url(#hr${id})`} />}
       <Path d="M66 100q12-6 24-1M110 99q12-5 24 1" stroke={hair} strokeWidth={3.6} fill="none" strokeLinecap="round" />
       <Path d="M68 114q10-6 20 0q-10 5-20 0zM112 114q10-6 20 0q-10 5-20 0z" fill={il.eyeWhite} />
       <Circle cx={78} cy={114} r={3.4} fill={il.iris} />

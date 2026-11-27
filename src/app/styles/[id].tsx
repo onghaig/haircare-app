@@ -2,23 +2,20 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg from 'react-native-svg';
 
-import { Face } from '@/components/head/Face';
+import { NoPhoto } from '@/components/look/PhotoLook';
 import { AiNote } from '@/components/styles/AiNote';
 import { BeforeAfter } from '@/components/styles/BeforeAfter';
-import { StyleSketch } from '@/components/styles/StyleSketch';
 import { VerdictPill } from '@/components/styles/VerdictPill';
 import { Button, Card, SubScreen, Text } from '@/components/ui';
 import { useProfile } from '@/profile/ProfileProvider';
-import { faceForStage } from '@/reveal/reveal';
-import { useScans } from '@/scan/ScanProvider';
+import { REFERENCE_LABEL, stylePhoto } from '@/look/references';
+import { useOwnPhoto } from '@/look/useOwnPhoto';
 import { SHARE_FAILED, shareView } from '@/share/shareImage';
-import { rankedStyles, STYLE_AI_LABEL, STYLE_SKETCH_LABEL, styleById } from '@/styles/catalog';
+import { rankedStyles, STYLE_AI_LABEL, styleById } from '@/styles/catalog';
 import { styleJob } from '@/styles/jobs';
-import { useCurrentStage } from '@/styles/useCurrentStage';
+import { useCurrentStage } from '@/look/useCurrentStage';
 import { colors, radius, spacing } from '@/theme';
-import { previewPhoto } from '@/visualize/preview';
 import { useAiImage } from '@/visualize/useAiPreview';
 
 /** One style: drag between now and the new cut, why it suits you or not, and what to tell the barber. */
@@ -26,7 +23,7 @@ export default function StyleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const style = styleById(id ?? '');
   const { profile } = useProfile();
-  const { records } = useScans();
+  const own = useOwnPhoto();
   const { stage } = useCurrentStage();
   const ai = useAiImage(style ? styleJob(style.id, stage) : null);
   const card = useRef<ComponentRef<typeof View>>(null);
@@ -43,10 +40,8 @@ export default function StyleScreen() {
   const at = ranked.findIndex((r) => r.style.id === style.id);
   const { fit } = ranked[at];
   const next = ranked[(at + 1) % ranked.length].style;
-  const own = previewPhoto(records);
   const photo = ai.status === 'ready' ? ai.uri : null;
-  const now = photo && own ? own.uri : null;
-  const { recede, top } = faceForStage(stage);
+  const example = photo ? null : stylePhoto(style.id, stage);
 
   async function share() {
     setError(null);
@@ -60,31 +55,27 @@ export default function StyleScreen() {
   return (
     <SubScreen title={style.name}>
       <View ref={card} collapsable={false} style={styles.card} testID="style-card">
-        <BeforeAfter
-          testID="style-compare"
-          leftLabel="Now"
-          rightLabel={style.name}
-          start={0.35}
-          left={
-            now ? (
-              <Image source={{ uri: now }} style={StyleSheet.absoluteFill} contentFit="cover" testID="style-now-photo" />
+        {photo && own ? (
+          <BeforeAfter
+            testID="style-compare"
+            leftLabel="Now"
+            rightLabel={style.name}
+            start={0.35}
+            left={<Image source={{ uri: own.uri }} style={StyleSheet.absoluteFill} contentFit="cover" testID="style-now-photo" />}
+            right={<Image source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" testID="style-photo" />}
+          />
+        ) : (
+          <View style={styles.frame}>
+            {example != null ? (
+              <Image source={example} style={StyleSheet.absoluteFill} contentFit="cover" testID="style-example" />
             ) : (
-              <Svg width="100%" height="100%" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
-                <Face id="style-now" recede={recede} top={top} shoulders />
-              </Svg>
-            )
-          }
-          right={
-            photo ? (
-              <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" testID="style-photo" />
-            ) : (
-              <StyleSketch id="style-after" shape={style.sketch} stage={stage} />
-            )
-          }
-        />
+              <NoPhoto title={style.name} line={style.blurb} />
+            )}
+          </View>
+        )}
         <View style={styles.cardFoot}>
           <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-            {photo ? STYLE_AI_LABEL : STYLE_SKETCH_LABEL}
+            {photo ? STYLE_AI_LABEL : example != null ? REFERENCE_LABEL : 'Turn on AI to see it on your own photo'}
           </Text>
           <Text variant="caption" color="accent" style={{ fontWeight: '800' }}>
             Haircare
@@ -116,5 +107,6 @@ export default function StyleScreen() {
 
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.bg, borderRadius: radius.lg, gap: spacing.xs },
+  frame: { height: 300, borderRadius: radius.lg, overflow: 'hidden' },
   cardFoot: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xs },
 });

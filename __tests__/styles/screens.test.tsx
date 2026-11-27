@@ -60,7 +60,7 @@ describe('Hairstyle gallery', () => {
     jest.spyOn(Sharing, 'isAvailableAsync').mockResolvedValue(true);
     const { wrap } = makeProviders({ profile: adult, scans });
     await render(wrap(<StyleGalleryScreen />));
-    expect(await screen.findByTestId('vote-card')).toHaveTextContent(/WHICH ONE SHOULD I GET\?1\. .*4\. /);
+    expect(await screen.findByTestId('vote-card')).toHaveTextContent(/WHICH ONE SHOULD I GET\?.*1\. .*4\. /);
     await fireEvent.press(screen.getByRole('button', { name: 'Share the vote card' }));
     await waitFor(() => expect(Sharing.shareAsync).toHaveBeenCalled());
     expect(captureRef).toHaveBeenCalled();
@@ -68,13 +68,13 @@ describe('Hairstyle gallery', () => {
 });
 
 describe('One hairstyle', () => {
-  it('without a preview service: the sketch, the fit, and what to tell the barber', async () => {
+  it('without a preview service: no drawn face, the fit, and what to tell the barber', async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'crop' });
     const { wrap } = makeProviders({ profile: agreed, scans });
     await render(wrap(<StyleScreen />));
-    expect(await screen.findByText('Sketch at your stage')).toBeOnTheScreen();
+    expect(await screen.findByText('Turn on AI to see it on your own photo')).toBeOnTheScreen();
+    expect(screen.getByTestId('no-photo')).toHaveTextContent(/French crop/);
     expect(screen.getByTestId('barber-line')).toHaveTextContent(/blunt fringe/);
-    expect(screen.getByRole('adjustable', { name: 'Now or French crop' })).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: /^Next: / }));
     expect(router.replace).toHaveBeenCalledWith({ pathname: '/styles/[id]', params: expect.objectContaining({ id: expect.any(String) }) });
   });
@@ -87,6 +87,7 @@ describe('One hairstyle', () => {
     await render(wrap(<StyleScreen />));
     expect(await screen.findByTestId('style-photo')).toBeOnTheScreen();
     expect(screen.getByTestId('style-now-photo')).toBeOnTheScreen();
+    expect(screen.getByRole('adjustable', { name: 'Now or French crop' })).toBeOnTheScreen();
     expect(screen.getByText('AI try-on. Your hairline is kept as it is.')).toBeOnTheScreen();
     expect(provider.generate).toHaveBeenCalledWith(expect.objectContaining({ kind: 'style', style: 'crop', imageBase64: 'U01BTEw=' }));
     expect(store.files.has('s1-style-crop')).toBe(true);
@@ -97,7 +98,7 @@ describe('One hairstyle', () => {
     const provider = fakeProvider();
     const { wrap } = makeProviders({ profile: { ...agreed, age: 16 }, scans, ai: { provider } });
     await render(wrap(<StyleScreen />));
-    expect(await screen.findByText('Sketch at your stage')).toBeOnTheScreen();
+    expect(await screen.findByTestId('no-photo')).toBeOnTheScreen();
     expect(provider.generate).not.toHaveBeenCalled();
   });
 });
@@ -113,6 +114,21 @@ describe('Transplant preview', () => {
     expect(screen.getByText('It moves hair, it doesn’t stop loss')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Find a clinic' })).toBeDisabled();
     expect(screen.getByTestId('clinic-soon')).toHaveTextContent('Clinic search is coming soon.');
+  });
+
+  it('without AI: your own photo with today’s and a possible new hairline, never a drawing', async () => {
+    const withLine = [record('s1', '2026-11-20T09:00:00Z', { hairline: { centreMM: 80, curve: [[0.3, 0.3], [0.5, 0.26], [0.7, 0.3]] } })];
+    const { wrap } = makeProviders({ profile: { ...agreed, zones: ['temples', 'top'] }, scans: withLine });
+    await render(wrap(<TransplantScreen />));
+    expect(await screen.findByTestId('transplant-own-photo')).toBeOnTheScreen();
+    expect(screen.getByText('Your photo, dashed line at a possible new hairline')).toBeOnTheScreen();
+    expect(screen.getByText('After a transplant')).toBeOnTheScreen();
+  });
+
+  it('with no scan yet: words, not a face', async () => {
+    const { wrap } = makeProviders({ profile: agreed, scans: [] });
+    await render(wrap(<TransplantScreen />));
+    expect(await screen.findByTestId('no-photo')).toHaveTextContent(/Do a scan/);
   });
 
   it('is not offered under 18', async () => {
