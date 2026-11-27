@@ -16,6 +16,8 @@ export interface Subscription {
 export interface PurchaseService {
   readonly isTest: boolean;
   purchase(plan: PlanId, now: Date): Promise<Subscription>;
+  /** Restore a subscription bought on another device or before a reinstall. Null if none. */
+  restore(): Promise<Subscription | null>;
 }
 
 export class TestPurchaseService implements PurchaseService {
@@ -24,6 +26,11 @@ export class TestPurchaseService implements PurchaseService {
   async purchase(plan: PlanId, now: Date): Promise<Subscription> {
     const end = trialEnd(PLANS[plan], now);
     return { plan, startedAt: now.toISOString(), trialEndsAt: end ? end.toISOString() : null, test: true };
+  }
+
+  async restore(): Promise<Subscription | null> {
+    // Test purchases live only on this device, so there is never anything to restore.
+    return null;
   }
 }
 

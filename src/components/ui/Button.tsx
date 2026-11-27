@@ -7,7 +7,8 @@ import { Text } from './Text';
 
 export type ButtonProps = Omit<PressableProps, 'children'> & {
   label: string;
-  variant?: 'primary' | 'secondary';
+  /** `destructive` deletes something: a red label on the secondary surface. */
+  variant?: 'primary' | 'secondary' | 'destructive';
 };
 
 /** Primary action button. Fires a light haptic on press so taps feel physical. */
@@ -31,7 +32,9 @@ export function Button({ label, variant = 'primary', onPress, disabled, style, .
         typeof style === 'function' ? style(state) : style,
       ]}
       {...rest}>
-      <Text variant="headline" style={{ color: primary ? colors.onAccent : colors.text, fontWeight: '700' }}>
+      <Text
+        variant="headline"
+        style={{ color: primary ? colors.onAccent : variant === 'destructive' ? colors.danger : colors.text, fontWeight: '700' }}>
         {label}
       </Text>
     </Pressable>

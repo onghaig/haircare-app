@@ -21,6 +21,11 @@ describe('daily tasks', () => {
     expect(ids(dailyTasks(p({ age: 16, treatments: ['finasteride', 'minoxidil'] }), THU, []))).toEqual(['massage', 'quickLog', 'scan']);
   });
 
+  it('tracks oral minoxidil as a medication, adults only', () => {
+    expect(ids(dailyTasks(p({ treatments: ['oralMinoxidil'] }), THU, []))).toContain('oralMinoxidil');
+    expect(ids(dailyTasks(p({ age: 16, treatments: ['oralMinoxidil'] }), THU, []))).not.toContain('oralMinoxidil');
+  });
+
   it('puts ketoconazole on Mondays and Thursdays only', () => {
     expect(ids(dailyTasks(p({ treatments: ['ketoconazole'] }), THU, []))).toContain('ketoconazole');
     expect(ids(dailyTasks(p({ treatments: ['ketoconazole'] }), addDays(THU, 1), []))).not.toContain('ketoconazole');

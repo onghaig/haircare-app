@@ -1,0 +1,14 @@
+# One Cloudflare Worker: the AI "future you" preview. Free plan is enough (100k requests a day).
+# The Gemini key is a secret: `npx wrangler secret put GEMINI_API_KEY`. Never commit it.
+name = "haircare-visualize"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+
+# Per-caller (IP) limit, so a leaked endpoint URL can't run up the bill.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+simple = { limit = 6, period = 60 }
+
+[observability]
+enabled = false
