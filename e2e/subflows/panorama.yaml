@@ -7,15 +7,8 @@ appId: com.onghaig.haircare
 - tapOn: "See your hair from every angle"
 - assertVisible: "Your hair, all the way round"
 - takeScreenshot: e2e-70-panorama-front
-- swipe:
-    from:
-      id: "panorama-viewer"
-    direction: LEFT
-- takeScreenshot: e2e-71-panorama-turned
-# Tap thumbs by id: a label tap can land on the neighbouring thumb. Let the swipe settle first,
-# and wait for the turn rather than asserting at once.
-- waitForAnimationToEnd:
-    timeout: 2000
+# Jump with the thumbs (by id: a label tap can land on the neighbouring thumb), then drag. The
+# thumbs come first: on the iOS simulator a tap right after the synthetic drag doesn't register.
 - tapOn:
     id: "panorama-thumb-crown"
 - extendedWaitUntil:
@@ -26,4 +19,11 @@ appId: com.onghaig.haircare
 - tapOn:
     id: "panorama-thumb-top"
 - takeScreenshot: e2e-72-panorama-top
+- tapOn:
+    id: "panorama-thumb-front"
+- swipe:
+    from:
+      id: "panorama-viewer"
+    direction: LEFT
+- takeScreenshot: e2e-71-panorama-turned
 - tapOn: "Close"
