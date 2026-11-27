@@ -54,8 +54,8 @@ export function retakeSeconds(views: number): number {
 
 /** One sentence on why the confidence is what it is, said next to it. */
 export function confidenceWhy(c: Confidence, basis: ScanBasis): string {
-  if (basis === 'none') return 'It’s from your answers only until your first scan.';
-  if (basis === 'weak') return 'Your last scan couldn’t be measured, so it’s from your answers only.';
+  if (basis === 'none') return 'From your answers until your first scan.';
+  if (basis === 'weak') return 'Last scan couldn’t be measured, so answers only.';
   if (c === 'high') return 'Your scan and answers agree.';
-  return 'It rises as more scans agree with each other.';
+  return 'More scans raise it.';
 }

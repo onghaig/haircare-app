@@ -9,7 +9,7 @@ import { faceForStage } from '@/reveal/reveal';
 import { alpha, colors, radius, spacing } from '@/theme';
 import { AI_ILLUSTRATION_LABEL } from '@/visualize/preview';
 
-export const ILLUSTRATION_LABEL = 'Illustration based on your forecast, not a medical prediction';
+export const ILLUSTRATION_LABEL = 'Illustration from your forecast. Estimate only.';
 
 /**
  * The projected look at N years, kept blurred until unlocked. Drawn from the forecast's median

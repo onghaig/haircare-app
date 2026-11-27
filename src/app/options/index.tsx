@@ -64,8 +64,8 @@ export default function CompareOptionsScreen() {
     <SubScreen title="Compare options">
       <Text color="textMuted">
         {premium
-          ? `Chance of Norwood ${cmp?.reachStage ?? 3} or worse by ${ten?.age ?? (profile.age ?? 0) + HEADLINE_YEARS}, out of 10, if you stick with it. Faint band: doing nothing.`
-          : 'What each option does, and how strong the evidence is.'}
+          ? `Chance of Norwood ${cmp?.reachStage ?? 3} by ${ten?.age ?? (profile.age ?? 0) + HEADLINE_YEARS}. Faint band: no plan.`
+          : 'What each option does.'}
       </Text>
       {groupedOptions(profile).map((g) => (
         <View key={g.role} style={{ gap: spacing.xs }}>
@@ -82,7 +82,7 @@ export default function CompareOptionsScreen() {
       ))}
       {!premium ? <Button label="See what each option does for you" onPress={() => router.push('/paywall')} /> : null}
       <Text variant="caption" color="textMuted">
-        Not counted: {notCounted.map((o) => o.name.toLowerCase()).join(', ')}. Prescription options are for discussion with a clinician. Effect sizes are early estimates, not yet checked against trials.
+        Not counted: {notCounted.map((o) => o.name.toLowerCase()).join(', ')}. Prescriptions need a clinician. Effects are early estimates.
       </Text>
       <Pressable accessibilityRole="link" accessibilityLabel="How these work" onPress={() => router.push('/options/how')} style={styles.link}>
         <Text color="accent">How these work ›</Text>

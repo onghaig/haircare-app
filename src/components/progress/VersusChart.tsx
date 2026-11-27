@@ -23,7 +23,7 @@ export function VersusChart({ v }: { v: VersusPaths }) {
   const band = (at: (m: number) => number) => `M${x(0)},${y(at(0) - v.noiseMM)} L${x(end)},${y(at(end) - v.noiseMM)} L${x(end)},${y(at(end) + v.noiseMM)} L${x(0)},${y(at(0) + v.noiseMM)} Z`;
   const line = (at: (m: number) => number) => `M${x(0)},${y(at(0))} L${x(end)},${y(at(end))}`;
   return (
-    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} accessible testID="versus-chart" accessibilityLabel={`Your ${v.scans.length} scans against ${v.hasPlan ? 'your plan and doing nothing' : 'your forecast'}`}>
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} accessible testID="versus-chart" accessibilityLabel={`Your ${v.scans.length} scans against ${v.hasPlan ? 'with and without your plan' : 'your forecast'}`}>
       <Svg width={w} height={H}>
         <Path d={band(v.untreatedAt)} fill={alpha(colors.text, 0.07)} />
         <Path d={line(v.untreatedAt)} stroke={colors.textMuted} strokeDasharray="5 5" strokeWidth={1.4} fill="none" />
@@ -37,7 +37,7 @@ export function VersusChart({ v }: { v: VersusPaths }) {
           </>
         ) : null}
         <SvgText x={x(end) + 4} y={y(v.untreatedAt(end)) + 12} fill={colors.textMuted} fontSize={10.5}>
-          Do nothing
+          No plan
         </SvgText>
         {v.scans.map((s, i) => (
           <G key={i}>

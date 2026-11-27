@@ -15,7 +15,7 @@ describe('trust', () => {
     expect(confidenceHint(good)).toBeNull();
     expect(confidenceHint(undefined)?.text).toBe('Your first scan will confirm or correct this.');
     expect(confidenceHint(weak)?.retake).toEqual(['front', 'leftTemple', 'rightTemple', 'top', 'crown']);
-    expect(confidenceWhy('low', 'none')).toMatch(/answers only/);
+    expect(confidenceWhy('low', 'none')).toMatch(/answers until/);
     expect(retakeSeconds(1)).toBe(20);
     expect(retakeSeconds(3)).toBe(60);
   });

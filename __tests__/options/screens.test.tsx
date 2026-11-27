@@ -27,7 +27,7 @@ describe('Compare options', () => {
   it('Premium: every option on the 10-year scale, grouped by what it does', async () => {
     const { wrap } = makeProviders({ profile: { ...premium, treatments: ['minoxidil'] } });
     await render(wrap(<CompareOptionsScreen />));
-    expect(await screen.findByRole('button', { name: /^Oral finasteride: .*in 10$/ }, wait)).toBeOnTheScreen();
+    expect(await screen.findByRole('button', { name: /^Oral finasteride: .*%$/ }, wait)).toBeOnTheScreen();
     expect(screen.getByText('SLOWS LOSS')).toBeOnTheScreen();
     expect(screen.getByText('GROWS HAIR')).toBeOnTheScreen();
     expect(screen.getByText('SLOWS LOSS AND GROWS HAIR')).toBeOnTheScreen();
@@ -42,7 +42,7 @@ describe('Compare options', () => {
     const { wrap } = makeProviders({ profile: adult });
     await render(wrap(<CompareOptionsScreen />));
     expect(await screen.findByRole('button', { name: 'Oral finasteride' })).toBeOnTheScreen();
-    expect(screen.queryByText(/in 10/)).toBeNull();
+    expect(screen.queryByText(/%/)).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'See what each option does for you' }));
     expect(router.push).toHaveBeenCalledWith('/paywall');
   });
@@ -60,7 +60,7 @@ describe('Option detail', () => {
     jest.mocked(useLocalSearchParams).mockReturnValue({ id: 'finasteride' });
     const { wrap, stores } = makeProviders({ profile: premium });
     await render(wrap(<OptionDetailScreen />));
-    expect(await screen.findAllByText(/in 10$/, {}, wait)).toHaveLength(2);
+    expect(await screen.findAllByText(/%$/, {}, wait)).toHaveLength(2);
     expect(screen.getByText('Trade-offs')).toBeOnTheScreen();
     expect(screen.getByLabelText('Prescription only')).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Talk to a licensed provider' }));
@@ -82,7 +82,7 @@ describe('Option detail', () => {
     jest.mocked(useLocalSearchParams).mockReturnValue({ id: 'minoxidil' });
     const { wrap } = makeProviders({ profile: adult });
     await render(wrap(<OptionDetailScreen />));
-    expect(await screen.findByText('Your personal numbers are part of Premium.')).toBeOnTheScreen();
+    expect(await screen.findByText('Your numbers are in Premium.')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'I already use this' })).toBeOnTheScreen();
   });
 });

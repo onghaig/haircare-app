@@ -2,7 +2,7 @@ import type { Profile } from '@/profile/types';
 import { isMinor } from '@/profile/onboarding';
 import type { ScanRecord } from '@/scan/session';
 
-export const AI_ILLUSTRATION_LABEL = 'AI illustration based on your forecast, not a medical prediction';
+export const AI_ILLUSTRATION_LABEL = 'AI illustration from your forecast. Estimate only.';
 
 /** Stages are cached to the half step: finer changes in the forecast don't need a new image. */
 export function stageStep(stage: number): number {

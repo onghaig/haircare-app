@@ -72,7 +72,7 @@ describe('Today', () => {
   it('shows the forecast card once the forecast is ready', async () => {
     const { wrap } = makeProviders({ profile: adult, scans: [record('s', new Date().toISOString())] });
     await render(wrap(<TodayScreen />));
-    expect(await screen.findByText(/^Likely at 29: N.* on your plan$/, {}, { timeout: 5000 })).toBeOnTheScreen();
+    expect(await screen.findByText(/^At 29: N.* with plan$/, {}, { timeout: 5000 })).toBeOnTheScreen();
   });
 
   it('says what each task does for the forecast', async () => {
@@ -83,7 +83,7 @@ describe('Today', () => {
     expect(screen.getByText('○ Explains shedding. Not in your forecast')).toBeOnTheScreen();
   });
 
-  it('Premium: plan vs doing nothing, and the week strip for the costliest gap', async () => {
+  it('Premium: Your Plan before and with the plan, and the week strip for the costliest gap', async () => {
     let log = {};
     for (let i = 0; i < 7; i++) log = answer(log, dayKey(addDays(new Date(), -i)), 'minoxidil', i === 1 || i === 4 ? 'skipped' : 'done');
     const sub = { plan: 'annual' as const, startedAt: '2026-11-26T10:00:00Z', trialEndsAt: null, test: true };
@@ -91,8 +91,8 @@ describe('Today', () => {
     await render(wrap(<TodayScreen />));
     expect(await screen.findByTestId('week-strip')).toHaveTextContent(/Minoxidil this week5 of 7/);
     expect(screen.getByLabelText('5 of the last 7 days done')).toBeOnTheScreen();
-    expect(await screen.findByText(/^Norwood \d by 38: .* in 10 vs .* in 10$/, {}, { timeout: 5000 })).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole('button', { name: 'Your plan vs doing nothing' }));
+    expect(await screen.findByLabelText(/^Your Plan\. Chance of Norwood \d by 38: .*% before your plan, .*% with it\.$/, {}, { timeout: 5000 })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Your Plan' }));
     expect(router.push).toHaveBeenCalledWith('/predict');
   });
 });

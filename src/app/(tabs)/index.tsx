@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Ring } from '@/components/onboarding/Controls';
+import { PlanOdds } from '@/components/predict/PlanOdds';
 import { ResumeScanCard } from '@/components/scan/ResumeScanCard';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { answer, missedYesterday, progress, streak, type Answer } from '@/plan/log';
@@ -11,7 +12,7 @@ import { biggestNudge, weekStrip } from '@/options/plan';
 import { applyReminders, DEFAULT_REMINDERS, reminderPlan, requestReminderPermission } from '@/plan/reminders';
 import { dailyTasks, dayKey, type Task, type TaskId } from '@/plan/tasks';
 import { TASK_WHY } from '@/plan/why';
-import { chanceRangeLabel, HEADLINE_YEARS } from '@/predict/predict';
+import { HEADLINE_YEARS } from '@/predict/predict';
 import { useProfile } from '@/profile/ProfileProvider';
 import { useForecast } from '@/reveal/ForecastProvider';
 import { goalCopy } from '@/reveal/goal';
@@ -137,38 +138,37 @@ export default function TodayScreen() {
             ))}
           </View>
           <Text variant="caption">
-            {nudge.entry.role === 'grows'
-              ? 'The regrowth fades within a few months of stopping, so steady days matter more than any one day.'
-              : 'Slowing loss works best taken every day.'}{' '}
-            Your forecast uses your real routine.
+            {nudge.entry.role === 'grows' ? 'Gains fade if you stop.' : 'Works best every day.'}
           </Text>
         </Card>
       ) : null}
 
-      <Pressable accessibilityRole="button" accessibilityLabel="Your plan vs doing nothing" onPress={() => router.push('/predict')}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Your Plan" onPress={() => router.push('/predict')}>
         <Card style={{ gap: 4 }}>
-          <View style={styles.spread}>
-            <Text variant="caption" color="textMuted">
-              {ten?.plan ? 'Your plan vs doing nothing' : 'Your forecast'}
+          {days > 0 ? (
+            <Text variant="caption" color="accent" style={{ alignSelf: 'flex-end' }}>
+              {days}-day streak
             </Text>
-            {days > 0 ? (
-              <Text variant="caption" color="accent">
-                {days}-day streak
+          ) : null}
+          {!ten || !one ? (
+            <Text variant="headline" testID="today-forecast">
+              Finish your first scan to see your forecast.
+            </Text>
+          ) : !premium ? (
+            <>
+              <Text variant="headline">Your Plan</Text>
+              <Text variant="headline" testID="today-forecast">
+                {`At ${one.age}: ${rangeLabel(one.plan?.band ?? one.untreated)}${one.plan ? ' with plan' : ''}`}
               </Text>
-            ) : null}
-          </View>
-          <Text variant="headline" testID="today-forecast">
-            {!ten || !one
-              ? 'Finish your first scan to see your forecast.'
-              : !premium
-                ? `Likely at ${one.age}: ${rangeLabel(one.plan?.band ?? one.untreated)}${one.plan ? ' on your plan' : ''}`
-                : ten.plan
-                ? `Norwood ${forecast!.reachStage} by ${ten.age}: ${chanceRangeLabel(ten.plan.pReach).toLowerCase()} vs ${chanceRangeLabel(ten.pReach).toLowerCase()}`
-                : `Norwood ${forecast!.reachStage} by ${ten.age}: ${chanceRangeLabel(ten.pReach).toLowerCase()} doing nothing`}
-          </Text>
-          <Text variant="caption" color="textMuted">
-            {goal.today ?? 'Your monthly verdict checks your scans against both lines.'}
-          </Text>
+            </>
+          ) : (
+            <PlanOdds stage={forecast!.reachStage} age={ten.age} before={ten.pReach} withPlan={ten.plan?.pReach} />
+          )}
+          {goal.today ? (
+            <Text variant="caption" color="textMuted">
+              {goal.today}
+            </Text>
+          ) : null}
         </Card>
       </Pressable>
 
@@ -176,7 +176,7 @@ export default function TodayScreen() {
         <Card style={{ gap: spacing.sm }}>
           <Text variant="headline">Reminders</Text>
           <Text variant="caption" color="textMuted">
-            A morning and an evening nudge, and your weekly scan. They never name a medication on the lock screen.
+            Morning, evening and weekly scan. The lock screen never names a medicine.
           </Text>
           <Button label="Turn on reminders" variant="secondary" onPress={() => void turnOnReminders()} />
         </Card>

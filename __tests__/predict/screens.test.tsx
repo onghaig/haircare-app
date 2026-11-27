@@ -39,7 +39,7 @@ describe('Predict tab', () => {
   it('free: year 1 of both bands, the options list with evidence, 10-year numbers locked', async () => {
     const { wrap } = makeProviders({ profile: { ...adult, treatments: ['minoxidil'] }, scans });
     await render(wrap(<PredictScreen />));
-    expect(await screen.findByTestId('predict-headline', {}, wait)).toHaveTextContent(/^Your plan: N.* at 29\. Doing nothing: N.*\.$/);
+    expect(await screen.findByTestId('predict-headline', {}, wait)).toHaveTextContent(/^At 29:N.*N.*$/);
     expect(screen.getByLabelText(/Years after 1 locked/)).toBeOnTheScreen();
     expect(screen.queryByText(/Chance of Norwood/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Oral finasteride' })).toBeOnTheScreen();
@@ -52,19 +52,19 @@ describe('Predict tab', () => {
     expect(router.push).toHaveBeenCalledWith({ pathname: '/share', params: { years: '1' } });
   });
 
-  it('Premium: the 10-year chance on your plan and doing nothing, split by what the plan does', async () => {
+  it('Premium: Your Plan shows the chance before (red) and with the plan (green), split by what the plan does', async () => {
     const { wrap } = makeProviders({ profile: { ...premium, treatments: ['minoxidil'] }, scans });
     await render(wrap(<PredictScreen />));
-    expect(await screen.findByTestId('predict-headline', {}, wait)).toHaveTextContent(/in 10on your plan$/);
-    expect(screen.getByTestId('predict-untreated')).toHaveTextContent(/in 10doing nothing$/);
-    expect(screen.getByText(/^Chance of Norwood \d or worse by 38$/)).toBeOnTheScreen();
+    expect(await screen.findByTestId('plan-odds', {}, wait)).toHaveTextContent(/^Your PlanNorwood \d:.*%.*%By age 38\./);
+    expect(screen.getByTestId('plan-odds-before')).toHaveTextContent(/%$/);
+    expect(screen.getByTestId('plan-odds-with')).toHaveTextContent(/%$/);
     const byRole = screen.getByTestId('plan-by-role');
     expect(byRole).toHaveTextContent(/Grows hair.*Minoxidil/);
     expect(byRole).toHaveTextContent(/Slows loss.*Nothing in your plan/);
     await fireEvent.press(screen.getByRole('link', { name: 'Options to discuss' }));
     expect(router.push).toHaveBeenCalledWith('/options');
-    await fireEvent.press(screen.getByRole('tab', { name: 'Do nothing' }));
-    expect(screen.getByTestId('future-headline')).toHaveTextContent(/doing nothing$/);
+    await fireEvent.press(screen.getByRole('tab', { name: 'Without plan' }));
+    expect(screen.getByTestId('future-headline')).toHaveTextContent(/without plan$/);
     expect(screen.queryByText(/recommended/i)).toBeNull();
   });
 
@@ -84,7 +84,7 @@ describe('Predict tab', () => {
     expect(screen.getByText('Your outlook')).toBeOnTheScreen();
     expect(screen.getByText('Scalp massage')).toBeOnTheScreen();
     expect(screen.queryByText(/finasteride|minoxidil|Rx/i)).toBeNull();
-    expect(screen.queryByText(/in 10/)).toBeNull();
+    expect(screen.queryByText(/%/)).toBeNull();
     expect(screen.queryByTestId('future-blur')).toBeNull();
   });
 });

@@ -64,7 +64,7 @@ export default function ProgressScreen() {
             ? 'Your last scan was low confidence. Your next good scan sets your baseline.'
             : verdict
               ? `Compared with your baseline from ${shortDate(new Date(baseline.takenAt))}.`
-              : 'Scan weekly and we will compare every scan with this one.'}
+              : 'Scan weekly to compare.'}
         </Text>
         {!baseline ? (
           <Button label="Retake your scan" onPress={() => router.push('/scan/session')} style={{ marginTop: spacing.sm }} />
@@ -93,7 +93,7 @@ export default function ProgressScreen() {
         <View style={{ flex: 1 }}>
           <Text variant="headline">{keep.label}</Text>
           <Text variant="caption" color="textMuted">
-            Last 30 days. Sticking with the plan matters more than anything else you can do.
+            Last 30 days.
           </Text>
         </View>
       </Card>
@@ -112,7 +112,7 @@ export default function ProgressScreen() {
             Your {schedule.due ? 'next' : 'first'} verdict arrives on {shortDate(schedule.next)}
           </Text>
           <Text variant="caption" color="textMuted">
-            Hair changes slowly, so we wait eight weeks before calling it. Keep scanning weekly.
+            First verdict after 8 weeks. Keep scanning weekly.
           </Text>
         </Card>
       ) : null}

@@ -18,12 +18,12 @@ export function yearLabel(years: number): string {
   return years === 1 ? '1 year' : `${years} years`;
 }
 
-/** Chances as rough fractions, never as a precise percentage. */
+/** A chance rounded to the nearest 10%, never more precise. */
 export function chanceLabel(p: number): string {
-  if (p < 0.05) return 'Less than 1 in 20';
-  if (p > 0.95) return 'More than 19 in 20';
+  if (p < 0.05) return 'Under 5%';
+  if (p > 0.95) return 'Over 95%';
   const tenths = Math.max(1, Math.min(9, Math.round(p * 10)));
-  return `About ${tenths} in 10`;
+  return `About ${tenths * 10}%`;
 }
 
 /** The headline compares paths at this horizon: the chance of Norwood 3 or worse in 10 years. */
@@ -40,14 +40,14 @@ export function chanceTenths(c: ChanceRange | number): { lo: number; hi: number 
   return { lo: t(best - CHANCE_MARGIN), hi: t(worst + CHANCE_MARGIN) };
 }
 
-/** "4 to 6 in 10", "About 3 in 10", "Less than 1 in 10". Never a percentage. */
+/** "40–60%", "About 30%", "Under 10%": a range in steps of 10%, never a precise number. */
 export function chanceRangeLabel(c: ChanceRange | number): string {
   const { lo, hi } = chanceTenths(c);
-  if (hi === 0) return 'Less than 1 in 10';
-  if (lo === 10) return 'More than 9 in 10';
-  if (lo === hi) return `About ${lo} in 10`;
-  if (lo === 0) return `Up to ${hi} in 10`;
-  return `${lo} to ${hi} in 10`;
+  if (hi === 0) return 'Under 10%';
+  if (lo === 10) return 'Over 90%';
+  if (lo === hi) return `About ${lo * 10}%`;
+  if (lo === 0) return `Up to ${hi * 10}%`;
+  return `${lo * 10}–${hi * 10}%`;
 }
 
 export interface Scenario {
@@ -98,5 +98,5 @@ export function basedOn(profile: Profile): string[] {
  */
 export function shareMessage(f: Forecast, years: number): string {
   const y = f.byYear.find((b) => b.years === years) ?? f.byYear[0];
-  return `My hairline forecast for age ${y.age}: ${rangeLabel(likelyRange(y))} on the Norwood scale. An estimate, not a diagnosis.`;
+  return `My hairline forecast for age ${y.age}: ${rangeLabel(likelyRange(y))} on the Norwood scale. Estimate only.`;
 }

@@ -74,7 +74,7 @@ export function ShareCard({
         {`${chanceLabel(year.pNorwood3Plus)} chance of Norwood 3 or more by ${year.age}`}
       </Text>
       <Text variant="caption" color="textMuted" style={{ textAlign: 'center' }}>
-        An estimate, not a diagnosis.
+        Estimate only.
       </Text>
       <Text variant="caption" color="textMuted" style={styles.mark} testID="share-watermark">
         Haircare · forecast from my answers and scan

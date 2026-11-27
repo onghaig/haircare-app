@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { MinePill, EvidencePill, RolePill, RxPill } from '@/components/options/Pills';
 import { ForecastFan } from '@/components/predict/ForecastFan';
+import { PlanOdds } from '@/components/predict/PlanOdds';
 import { FutureLook } from '@/components/reveal/FutureLook';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import type { Forecast, YearForecast } from '@/forecast';
@@ -11,7 +12,7 @@ import { inPlan, showsRx, visibleOptions } from '@/options/catalog';
 import { biggestNudge, planByRole, planItems, type PlanEntry } from '@/options/plan';
 import { isPremium } from '@/paywall/purchases';
 import { usePlan } from '@/plan/PlanProvider';
-import { basedOn, chanceRangeLabel, HEADLINE_YEARS, isYearFree, PREDICT_YEARS, yearLabel, type PredictYear } from '@/predict/predict';
+import { basedOn, HEADLINE_YEARS, isYearFree, PREDICT_YEARS, yearLabel, type PredictYear } from '@/predict/predict';
 import { isMinor } from '@/profile/onboarding';
 import { useProfile } from '@/profile/ProfileProvider';
 import type { Profile } from '@/profile/types';
@@ -23,8 +24,8 @@ import { estimateStage } from '@/scan/stageEstimate';
 import { colors, minTouchTarget, radius, spacing } from '@/theme';
 
 /**
- * Where am I heading, and what would change it? One forecast that splits into "do nothing" and
- * "your plan", the plan split by what each part does, and the one nudge that matters most.
+ * Where am I heading, and what would change it? The chance before and with the plan, what each
+ * part of the plan does, and the one nudge that matters most.
  */
 export default function PredictScreen() {
   const { profile } = useProfile();
@@ -66,22 +67,8 @@ function AdultForecast({ forecast, profile, plan }: { forecast: Forecast; profil
 
       {premium ? (
         <>
-          <Card style={{ gap: 4 }}>
-            <Text color="textMuted">
-              Chance of Norwood {forecast.reachStage} or worse by {ten.age}
-            </Text>
-            {ten.plan ? (
-              <View style={styles.baseline} testID="predict-headline">
-                <Text variant="title" color="accent">
-                  {chanceRangeLabel(ten.plan.pReach)}
-                </Text>
-                <Text color="textMuted">on your plan</Text>
-              </View>
-            ) : null}
-            <View style={styles.baseline} testID={ten.plan ? 'predict-untreated' : 'predict-headline'}>
-              <Text variant={ten.plan ? 'headline' : 'title'}>{chanceRangeLabel(ten.pReach)}</Text>
-              <Text color="textMuted">doing nothing</Text>
-            </View>
+          <Card>
+            <PlanOdds stage={forecast.reachStage} age={ten.age} before={ten.pReach} withPlan={ten.plan?.pReach} />
           </Card>
           <PlanByRole plan={plan} profile={profile} />
           {nudge ? (
@@ -94,12 +81,20 @@ function AdultForecast({ forecast, profile, plan }: { forecast: Forecast; profil
       ) : (
         <>
           <Card style={{ gap: 4 }}>
-            <Text color="textMuted">Next 12 months</Text>
-            <Text variant="headline" testID="predict-headline">
-              {one.plan ? `Your plan: ${rangeLabel(one.plan.band)} at ${one.age}. Doing nothing: ${rangeLabel(one.untreated)}.` : `Likely at ${one.age}: ${rangeLabel(one.untreated)}.`}
-            </Text>
+            <Text variant="headline">Your Plan</Text>
+            <View style={styles.baseline} testID="predict-headline">
+              <Text variant="title">At {one.age}:</Text>
+              <Text variant="title" color={one.plan ? 'danger' : 'text'}>
+                {rangeLabel(one.untreated)}
+              </Text>
+              {one.plan ? (
+                <Text variant="title" color="accent">
+                  {rangeLabel(one.plan.band)}
+                </Text>
+              ) : null}
+            </View>
             <Text variant="caption" color="textMuted">
-              Paths usually split after year 1.
+              {one.plan ? 'Red: before plan. Green: with plan. ' : ''}Paths split after year 1.
             </Text>
           </Card>
           <Card style={{ paddingVertical: 2 }}>
@@ -124,7 +119,7 @@ function AdultForecast({ forecast, profile, plan }: { forecast: Forecast; profil
       <FutureYou forecast={forecast} premium={premium} />
 
       <Text variant="caption" color="textMuted">
-        Confidence: {confidence}. {confidenceWhy(confidence, scanBasis(latest))} Based on {basedOn(profile).join(', ').toLowerCase() || 'your answers'}. Treatment effects are early estimates, not yet checked against trials.
+        Confidence: {confidence}. {confidenceWhy(confidence, scanBasis(latest))} Based on {basedOn(profile).join(', ').toLowerCase() || 'your answers'}.
       </Text>
     </Screen>
   );
@@ -137,7 +132,7 @@ function PlanByRole({ plan, profile }: { plan: PlanEntry[]; profile: Profile }) 
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   return (
     <Card style={{ gap: spacing.sm }} testID="plan-by-role">
-      <Text variant="headline">Your plan, by what it does</Text>
+      <Text variant="headline">What your plan does</Text>
       <View style={styles.roleRow}>
         <View style={styles.spread}>
           <RolePill role="grows" />
@@ -146,7 +141,7 @@ function PlanByRole({ plan, profile }: { plan: PlanEntry[]; profile: Profile }) 
           </Text>
         </View>
         <Text variant="caption" color="textMuted">
-          {by.grows.length ? 'Likely some regrowth on top and crown by 6 to 12 months, while you keep it up.' : 'Minoxidil and massage add density while you use them.'}
+          {by.grows.length ? 'Some regrowth by 6 to 12 months.' : 'Minoxidil or massage can add hair.'}
         </Text>
       </View>
       <View style={styles.roleRow}>
@@ -157,7 +152,7 @@ function PlanByRole({ plan, profile }: { plan: PlanEntry[]; profile: Profile }) 
           </Text>
         </View>
         <Text variant="caption" color="textMuted">
-          This is what changes your 10-year odds most.
+          Biggest effect on your odds.
         </Text>
         {!by.slows.length && showsRx(profile) ? <Link label="Options to discuss" onPress={() => router.push('/options')} align="left" /> : null}
       </View>
@@ -203,11 +198,11 @@ function FutureYou({ forecast, premium }: { forecast: Forecast; premium: boolean
               key={k}
               accessibilityRole="tab"
               accessibilityState={{ selected: path === k }}
-              accessibilityLabel={k === 'plan' ? 'Your plan' : 'Do nothing'}
+              accessibilityLabel={k === 'plan' ? 'With plan' : 'Without plan'}
               onPress={() => setPath(k)}
               style={[styles.year, path === k && styles.segOn]}>
               <Text variant="caption" style={{ fontWeight: '700', color: path === k ? colors.bg : colors.textMuted }}>
-                {k === 'plan' ? 'Your plan' : 'Do nothing'}
+                {k === 'plan' ? 'With plan' : 'Without plan'}
               </Text>
             </Pressable>
           ))}
@@ -219,7 +214,7 @@ function FutureYou({ forecast, premium }: { forecast: Forecast; premium: boolean
       ) : (
         <Text testID="future-headline">
           Likely at {y.age}: {rangeLabel(range(y))}
-          {hasPlan ? (showPlan ? ' on your plan' : ' doing nothing') : ''}
+          {hasPlan ? (showPlan ? ' with plan' : ' without plan') : ''}
         </Text>
       )}
       <ShareButton years={locked ? 1 : years} />
