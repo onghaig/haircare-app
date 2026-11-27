@@ -1,11 +1,13 @@
 import { BlurView } from 'expo-blur';
-import { StyleSheet, View } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import { Image } from 'expo-image';
+import { Platform, StyleSheet, View } from 'react-native';
+import Svg, { Defs, FeGaussianBlur, Filter, G, Path, Rect } from 'react-native-svg';
 
 import { Face } from '@/components/head/Face';
 import { Text } from '@/components/ui';
 import { faceForStage } from '@/reveal/reveal';
 import { alpha, colors, radius, spacing } from '@/theme';
+import { AI_ILLUSTRATION_LABEL } from '@/visualize/preview';
 
 export const ILLUSTRATION_LABEL = 'Illustration based on your forecast, not a medical prediction';
 
@@ -13,19 +15,62 @@ export const ILLUSTRATION_LABEL = 'Illustration based on your forecast, not a me
  * The projected look at N years, kept blurred until unlocked. Drawn from the forecast's median
  * stage, so it is never worse than the model predicts. Always labelled as an illustration.
  */
-export function FuturePreview({ stage, age, locked = true }: { stage: number; age: number; locked?: boolean }) {
+export function FuturePreview({
+  stage,
+  age,
+  locked = true,
+  photoUri,
+}: {
+  stage: number;
+  age: number;
+  locked?: boolean;
+  /** The user's own photo, AI-restyled to this stage. Without it, the drawing shows. */
+  photoUri?: string;
+}) {
   const { recede, top } = faceForStage(stage);
+  const label = photoUri ? AI_ILLUSTRATION_LABEL : ILLUSTRATION_LABEL;
   return (
     <View
       style={styles.wrap}
       accessible
-      accessibilityLabel={`You at age ${age}, projected. ${locked ? 'Locked.' : ''} ${ILLUSTRATION_LABEL}`}>
-      <Svg width="100%" height="100%" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
-        <Face id="future" recede={recede} top={top} shoulders />
-      </Svg>
+      accessibilityLabel={`You at age ${age}, projected. ${locked ? 'Locked.' : ''} ${label}`}>
+      {photoUri ? (
+        // Locked: the blur is baked into the image too, as for the drawing below, because the
+        // Android overlay only dims it.
+        <Image
+          source={{ uri: photoUri }}
+          style={styles.fill}
+          contentFit="cover"
+          blurRadius={locked ? 24 : undefined}
+          testID="future-photo"
+        />
+      ) : (
+        <Svg width="100%" height="100%" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
+          {locked ? (
+            // The blur is drawn into the picture itself, so it holds on every platform. A view-level
+            // blur alone shows the picture clearly on Android when no blur method is available.
+            <>
+              <Defs>
+                <Filter id="future-lock" x="-20%" y="-20%" width="140%" height="140%">
+                  <FeGaussianBlur stdDeviation={9} />
+                </Filter>
+              </Defs>
+              <G filter="url(#future-lock)" opacity={0.85}>
+                <Face id="future" recede={recede} top={top} shoulders />
+              </G>
+            </>
+          ) : (
+            <Face id="future" recede={recede} top={top} shoulders />
+          )}
+        </Svg>
+      )}
       {locked ? (
         <>
-          <BlurView intensity={55} tint="dark" style={styles.fill} testID="future-blur" />
+          {Platform.OS === 'ios' ? (
+            <BlurView intensity={55} tint="dark" style={styles.fill} testID="future-blur" />
+          ) : (
+            <View style={[styles.fill, { backgroundColor: alpha(colors.bg, 0.45) }]} testID="future-blur" />
+          )}
           <View style={[styles.fill, styles.center]}>
             <View style={styles.lockBadge}>
               <Svg width={22} height={22} viewBox="0 0 24 24">
@@ -40,7 +85,7 @@ export function FuturePreview({ stage, age, locked = true }: { stage: number; ag
         </>
       ) : null}
       <Text variant="caption" style={[styles.label, styles.shadow]}>
-        {ILLUSTRATION_LABEL}
+        {label}
       </Text>
     </View>
   );

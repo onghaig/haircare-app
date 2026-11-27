@@ -8,7 +8,7 @@ describe('plans', () => {
   });
 
   it('states the trial plainly, with its end date', () => {
-    expect(planLine(PLANS.annual)).toBe('3 days free, then $49.99 a year');
+    expect(planLine(PLANS.annual)).toBe('3 days free, then billed yearly');
     expect(planLine(PLANS.weekly)).toBe('No trial');
     const end = trialEnd(PLANS.annual, new Date('2026-11-26T12:00:00Z'))!;
     expect(shortDate(end)).toBe('29 Nov');
@@ -16,7 +16,7 @@ describe('plans', () => {
   });
 
   it('names the button after what happens', () => {
-    expect(ctaLabel(PLANS.annual)).toBe('Start free trial');
+    expect(ctaLabel(PLANS.annual)).toBe('Start 3-day free trial');
     expect(ctaLabel(PLANS.weekly)).toBe('Subscribe for $6.99 a week');
   });
 

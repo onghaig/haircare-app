@@ -3,23 +3,29 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Ring } from '@/components/onboarding/Controls';
+import { ResumeScanCard } from '@/components/scan/ResumeScanCard';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { answer, missedYesterday, progress, streak, type Answer } from '@/plan/log';
 import { usePlan } from '@/plan/PlanProvider';
+import { biggestNudge, weekStrip } from '@/options/plan';
 import { applyReminders, DEFAULT_REMINDERS, reminderPlan, requestReminderPermission } from '@/plan/reminders';
 import { dailyTasks, dayKey, type Task, type TaskId } from '@/plan/tasks';
+import { TASK_WHY } from '@/plan/why';
+import { chanceRangeLabel, HEADLINE_YEARS } from '@/predict/predict';
 import { useProfile } from '@/profile/ProfileProvider';
 import { useForecast } from '@/reveal/ForecastProvider';
-import { rangeLabel, yearOf } from '@/reveal/reveal';
+import { goalCopy } from '@/reveal/goal';
+import { isLowRisk, rangeLabel, yearOf } from '@/reveal/reveal';
+import { isPremium } from '@/paywall/purchases';
 import { useScans } from '@/scan/ScanProvider';
 import { colors, minTouchTarget, radius, spacing } from '@/theme';
 
 /** One daily ring, one big next action, the forecast as a small card. Under 60 seconds a day. */
 export default function TodayScreen() {
   const { profile, update } = useProfile();
-  const { records } = useScans();
+  const { records, draft } = useScans();
   const { book, change } = usePlan();
-  const { forecast } = useForecast();
+  const { forecast, plan } = useForecast();
   const now = useMemo(() => new Date(), []);
   const today = dayKey(now);
   const tasks = dailyTasks(profile, now, records);
@@ -29,8 +35,13 @@ export default function TodayScreen() {
   const days = streak(book, now);
   const answers = book[today]?.answers ?? {};
   const scanDue = tasks.some((t) => t.id === 'scan');
-  const fiveYears = forecast ? yearOf(forecast, 5) : undefined;
+  const ten = forecast ? yearOf(forecast, HEADLINE_YEARS) : undefined;
+  const one = forecast ? yearOf(forecast, 1) : undefined;
+  const premium = isPremium(profile);
+  const nudge = biggestNudge(plan, book, now);
+  const strip = nudge ? weekStrip(book, now, nudge.entry.task) : null;
   const remindersOn = profile.reminders?.enabled ?? false;
+  const goal = goalCopy(profile.goal, forecast ? isLowRisk(forecast) : false);
 
   const set = (id: TaskId, a: Answer | undefined) => void change((b) => answer(b, today, id, a));
 
@@ -56,7 +67,9 @@ export default function TodayScreen() {
         </View>
       </View>
 
-      {scanDue ? (
+      {draft ? (
+        <ResumeScanCard firstScan={records.length === 0} />
+      ) : scanDue ? (
         <Card style={styles.hero}>
           <Text variant="caption" color="accent">
             {records.length === 0 ? 'Your first scan sets your baseline' : 'Weekly scan due today'}
@@ -83,6 +96,7 @@ export default function TodayScreen() {
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: a === 'done' }}
                   accessibilityLabel={t.title}
+                  accessibilityHint={TASK_WHY[t.id].text.slice(2)}
                   onPress={() => (t.answer === 'open' && a !== 'done' ? open(t) : set(t.id, a === 'done' ? undefined : 'done'))}
                   style={styles.tap}>
                   <View style={[styles.box, a === 'done' && styles.boxOn]} />
@@ -90,6 +104,9 @@ export default function TodayScreen() {
                     <Text style={{ fontWeight: '600' }}>{t.title}</Text>
                     <Text variant="caption" color="textMuted">
                       {a === 'skipped' ? 'Skipped today' : t.detail}
+                    </Text>
+                    <Text variant="caption" color={TASK_WHY[t.id].counts && t.kind === 'medication' ? 'accent' : 'textMuted'} style={{ marginTop: 2 }}>
+                      {TASK_WHY[t.id].text}
                     </Text>
                   </View>
                 </Pressable>
@@ -105,22 +122,55 @@ export default function TodayScreen() {
           })}
       </Card>
 
-      <Card style={{ gap: 4 }}>
-        <View style={styles.spread}>
-          <Text variant="headline">Your forecast</Text>
-          {days > 0 ? (
-            <Text variant="caption" color="accent">
-              {days}-day streak
+      {nudge && strip ? (
+        <Card style={{ gap: spacing.sm }} testID="week-strip">
+          <View style={styles.spread}>
+            <Text variant="headline">{nudge.entry.name} this week</Text>
+            <Text>
+              <Text style={{ fontWeight: '700' }}>{nudge.done}</Text>
+              <Text color="textMuted"> of 7</Text>
             </Text>
-          ) : null}
-        </View>
-        <Text color="textMuted">
-          {fiveYears ? `Likely at ${fiveYears.age}: ${rangeLabel(fiveYears.untreated)}` : 'Finish your first scan to see your forecast.'}
-        </Text>
-        <Text variant="caption" color="textMuted">
-          You vs your forecast starts with your first monthly verdict.
-        </Text>
-      </Card>
+          </View>
+          <View style={styles.strip} accessible accessibilityLabel={`${nudge.done} of the last 7 days done`}>
+            {strip.map((d, i) => (
+              <View key={i} style={[styles.day, d && styles.dayOn]} />
+            ))}
+          </View>
+          <Text variant="caption">
+            {nudge.entry.role === 'grows'
+              ? 'The regrowth fades within a few months of stopping, so steady days matter more than any one day.'
+              : 'Slowing loss works best taken every day.'}{' '}
+            Your forecast uses your real routine.
+          </Text>
+        </Card>
+      ) : null}
+
+      <Pressable accessibilityRole="button" accessibilityLabel="Your plan vs doing nothing" onPress={() => router.push('/predict')}>
+        <Card style={{ gap: 4 }}>
+          <View style={styles.spread}>
+            <Text variant="caption" color="textMuted">
+              {ten?.plan ? 'Your plan vs doing nothing' : 'Your forecast'}
+            </Text>
+            {days > 0 ? (
+              <Text variant="caption" color="accent">
+                {days}-day streak
+              </Text>
+            ) : null}
+          </View>
+          <Text variant="headline" testID="today-forecast">
+            {!ten || !one
+              ? 'Finish your first scan to see your forecast.'
+              : !premium
+                ? `Likely at ${one.age}: ${rangeLabel(one.plan?.band ?? one.untreated)}${one.plan ? ' on your plan' : ''}`
+                : ten.plan
+                ? `Norwood ${forecast!.reachStage} by ${ten.age}: ${chanceRangeLabel(ten.plan.pReach).toLowerCase()} vs ${chanceRangeLabel(ten.pReach).toLowerCase()}`
+                : `Norwood ${forecast!.reachStage} by ${ten.age}: ${chanceRangeLabel(ten.pReach).toLowerCase()} doing nothing`}
+          </Text>
+          <Text variant="caption" color="textMuted">
+            {goal.today ?? 'Your monthly verdict checks your scans against both lines.'}
+          </Text>
+        </Card>
+      </Pressable>
 
       {!remindersOn ? (
         <Card style={{ gap: spacing.sm }}>
@@ -145,4 +195,7 @@ const styles = StyleSheet.create({
   boxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   skip: { minHeight: minTouchTarget, minWidth: minTouchTarget, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
   spread: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  strip: { flexDirection: 'row', gap: 5 },
+  day: { flex: 1, height: 26, borderRadius: 7, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.line },
+  dayOn: { backgroundColor: colors.accent, borderColor: colors.accent },
 });

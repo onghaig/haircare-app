@@ -25,8 +25,9 @@ export function bezier(p0: Pt, p1: Pt, p2: Pt, p3: Pt, steps = 16): Pt[] {
 const FRONT: Pt[] = [...bezier([46, 76], [54, 52], [76, 40], [100, 40]), ...bezier([100, 40], [124, 40], [146, 52], [154, 76]).slice(1)];
 
 /**
- * Temple corners. The front camera preview is mirrored, so the user's left temple is on the
- * left of the screen, as in a mirror.
+ * Temple corners. The preview is mirrored (like a mirror), so the user's own left temple is on the
+ * left of the screen: the left temple view highlights the screen-left corner, the right temple view
+ * the screen-right one. Once the native module finds the real temple hairline, it replaces these.
  */
 const LEFT_TEMPLE: Pt[] = bezier([42, 100], [44, 80], [52, 62], [72, 48]);
 const RIGHT_TEMPLE: Pt[] = LEFT_TEMPLE.map(([x, y]) => [200 - x, y] as Pt);

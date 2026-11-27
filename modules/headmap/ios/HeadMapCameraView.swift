@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreImage
 import ExpoModulesCore
 import UIKit
 
@@ -38,6 +39,11 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
   #endif
   private let tick = UIImpactFeedbackGenerator(style: .soft)
   private let tap = UIImpactFeedbackGenerator(style: .rigid)
+  /// Crown burst: until `until`, every analysed frame is ranked and the best one is kept.
+  /// Only touched on the analysis queue.
+  private var burst: (id: Int, until: Date, best: UIImage?, report: QualityReport?, size: CGSize)?
+  private var burstCount = 0
+  private let ciContext = CIContext()
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -83,6 +89,59 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
       settings.photoQualityPrioritization = AVCapturePhotoOutput.QualityPrioritization(rawValue: level.rawValue) ?? .speed
       self.photoOutput.capturePhoto(with: settings, delegate: self)
     }
+  }
+
+  /// Crown, on your own: watch the frames for `durationMs` and save the best one (hair in frame,
+  /// then score, then sharpness), instead of trusting one shutter press you can't see.
+  func startBurst(durationMs: Int) {
+    analysisQueue.async { [weak self] in
+      guard let self else { return }
+      self.burstCount += 1
+      let id = self.burstCount
+      self.burst = (id, Date().addingTimeInterval(Double(max(200, durationMs)) / 1000), nil, nil, .zero)
+      let deadline = DispatchTime.now() + .milliseconds(max(200, durationMs) + 400)
+      // Safety net: if no frames arrive (camera stalled), finish this burst anyway.
+      self.analysisQueue.asyncAfter(deadline: deadline) { [weak self] in
+        guard let self, self.burst?.id == id else { return }
+        self.finishBurst(force: true)
+      }
+    }
+  }
+
+  /// Analysis queue only. Keeps this frame if it beats the best so far.
+  private func offerBurstFrame(_ report: QualityReport, size: CGSize, image: () -> UIImage?) {
+    guard var b = burst else { return }
+    if b.report == nil || report.burstRank > b.report!.burstRank, let img = image() {
+      b.best = img
+      b.report = report
+      b.size = size
+    }
+    burst = b
+    if Date() >= b.until { finishBurst(force: false) }
+  }
+
+  private func finishBurst(force: Bool) {
+    guard let b = burst, force || Date() >= b.until else { return }
+    burst = nil
+    gate.reset()
+    guard let best = b.best, let data = best.jpegData(compressionQuality: 0.9) else {
+      // No frame made it in: fall back to a normal photo.
+      DispatchQueue.main.async { self.capture() }
+      return
+    }
+    let view = scanView
+    let url = FileManager.default.temporaryDirectory
+      .appendingPathComponent("headmap-burst-\(view.rawValue)-\(UUID().uuidString).jpg")
+    do {
+      try data.write(to: url, options: .completeFileProtection)
+    } catch {
+      emitError(error)
+      return
+    }
+    DispatchQueue.main.async { self.tap.impactOccurred(); self.tap.prepare() }
+    var payload: [String: Any] = ["uri": url.absoluteString, "view": view.rawValue, "burst": true]
+    if let r = b.report { payload["report"] = r.toDictionary(frameWidth: b.size.width, frameHeight: b.size.height) }
+    onCapture(payload)
   }
 
   func resetCapture() {
@@ -162,6 +221,13 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
     do {
       let report = try engine.analyse(pixelBuffer: pb, timestampMs: ts, view: scanView, baselineFaceWidth: baselineFaceWidth)
       lastReport = report
+      if burst != nil {
+        offerBurstFrame(report, size: size) {
+          let ci = CIImage(cvPixelBuffer: pb)
+          return ciContext.createCGImage(ci, from: ci.extent).map { UIImage(cgImage: $0) }
+        }
+        return
+      }
       for event in gate.update(allPassed: report.allPassed) {
         switch event {
         case .aligned:
@@ -318,6 +384,10 @@ extension HeadMapCameraView {
       let report = try engine.analyse(uiImage: frame, view: scanView, baselineFaceWidth: baselineFaceWidth)
       lastReport = report
       lastFrameSize = frame.size
+      if burst != nil {
+        offerBurstFrame(report, size: frame.size) { frame }
+        return
+      }
       for event in gate.update(allPassed: report.allPassed) {
         switch event {
         case .aligned: onAligned(["view": scanView.rawValue])
