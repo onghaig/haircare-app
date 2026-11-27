@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { HeadPanorama } from '@/components/scan/HeadPanorama';
 import { ScalpMap } from '@/components/scan/ScalpMap';
 import { CloseButton, Text } from '@/components/ui';
 import { availableViews, DEG_PER_POINT, layersAt, nearestView, RING, stepAngle, TOP, wrap } from '@/scan/panorama';
@@ -21,7 +22,8 @@ export default function PanoramaScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { records, latest, baseline } = useScans();
   const scan = (id ? records.find((r) => r.id === id) : undefined) ?? latest;
-  const [mode, setMode] = useState<'map' | 'turn'>('map');
+  const [mode, setMode] = useState<'map' | 'head' | 'turn'>('map');
+  const { width } = useWindowDimensions();
 
   if (!scan) {
     return (
@@ -35,24 +37,42 @@ export default function PanoramaScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text variant="headline" accessibilityRole="header" style={{ flex: 1 }}>
-          {mode === 'map' ? 'Your scalp map' : 'Your hair, all the way round'}
+          {mode === 'map' ? 'Your scalp map' : mode === 'head' ? 'Your whole head' : 'Your hair, all the way round'}
         </Text>
         <CloseButton />
       </View>
       <Segments
         options={[
           { key: 'map', label: 'Map' },
+          // Scans with the whole-head panorama can be seen unrolled all the way round.
+          ...(scan.panorama?.length ? [{ key: 'head', label: 'Whole head' }] : []),
           { key: 'turn', label: 'Turn around' },
         ]}
         value={mode}
-        onChange={(k) => setMode(k as 'map' | 'turn')}
+        onChange={(k) => setMode(k as 'map' | 'head' | 'turn')}
       />
-      {mode === 'map' ? <MapView scan={scan} baseline={baseline} previous={previousGoodScan(records, scan)} /> : <TurnAround scan={scan} />}
+      {mode === 'map' ? (
+        <MapView scan={scan} baseline={baseline} previous={previousGoodScan(records, scan)} />
+      ) : mode === 'head' ? (
+        <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
+          <HeadPanorama scan={scan} width={width - spacing.lg * 2} />
+        </ScrollView>
+      ) : (
+        <TurnAround scan={scan} />
+      )}
     </SafeAreaView>
   );
 }
 
-function Segments({ options, value, onChange }: { options: { key: string; label: string }[]; value: string; onChange: (k: string) => void }) {
+function Segments({
+  options,
+  value,
+  onChange,
+}: {
+  options: { key: string; label: string }[];
+  value: string;
+  onChange: (k: string) => void;
+}) {
   return (
     <View style={styles.segments} accessibilityRole="tablist">
       {options.map((o) => (
@@ -94,8 +114,8 @@ function MapView({ scan, baseline, previous }: { scan: ScanRecord; baseline?: Sc
         onChange={(k) => setLayer(k as 'photos' | 'hair' | 'both')}
       />
       <Text variant="caption" color="textMuted" style={{ textAlign: 'center' }}>
-        Your five photos mapped onto a model head and seen from above, forehead at the top. Green is the hair the camera picked out.
-        It depends on light and angle, so it is an estimate to compare with your own scans, not a medical measurement.
+        Your photos mapped onto a model head and seen from above, forehead at the top. Green is the hair the camera picked out. It depends
+        on light and angle, so it is an estimate to compare with your own scans, not a medical measurement.
       </Text>
       <View style={styles.zoneList}>
         {MAP_ZONES.map((z) => (

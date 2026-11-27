@@ -147,6 +147,28 @@ appId: com.onghaig.haircare
 - tapOn:
     text: "Keep this photo"
     retryTapIfNoChange: false
+# The whole-head panorama. The demo face can't turn, so the face sweep stalls and offers
+# "Next: the back of my head"; the back part then stalls too and offers "Finish now".
+- extendedWaitUntil:
+    visible: "Front and sides"
+    timeout: 30000
+- takeScreenshot: e2e-14c-panorama-face
+- extendedWaitUntil:
+    visible: "Next: the back of my head"
+    timeout: 60000
+- tapOn:
+    text: "Next: the back of my head"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "Back and top"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: "Finish now.*|Finish"
+    timeout: 60000
+- takeScreenshot: e2e-14d-panorama-back
+- tapOn:
+    text: "Finish now.*|Finish"
+    retryTapIfNoChange: false
 # The finish moment, then the forecast. Hand-taken demo shots can score too low to count; then
 # the result lists the weak views first, and we keep the scan and go on to the forecast. The
 # "Building your forecast" screen is brief: a slow run can be past it before it is checked, so

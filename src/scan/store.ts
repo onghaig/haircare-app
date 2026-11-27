@@ -86,7 +86,14 @@ export class FileScanStore implements ScanStore {
       if (src.exists && src.uri !== dest.uri) src.moveSync(dest);
       views[view as keyof ScanRecord['views']] = { ...v, uri: dest.uri };
     }
-    const saved = { ...record, views };
+    // The panorama's frames move in with the photos (a redo carries the old scan's over).
+    const panorama = record.panorama?.map((f) => {
+      const src = new File(f.uri);
+      const dest = new File(dir, `pano-${f.cell}.jpg`);
+      if (src.exists && src.uri !== dest.uri) src.moveSync(dest);
+      return { ...f, uri: dest.uri };
+    });
+    const saved = { ...record, views, ...(panorama ? { panorama } : {}) };
     const all = (await this.list()).filter((r) => r.id !== record.id);
     // Synchronous on purpose: the async write sometimes never settled on the simulator right
     // after a capture, leaving the finish screen on "Saving your scan".

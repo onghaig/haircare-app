@@ -181,7 +181,31 @@ const HEAD_SAMPLES: { p: Vec3; n: Vec3; hair: boolean; area: number }[] = (() =>
  * Null when the photo shows little hair.
  */
 export function fitBackCamera(view: 'top' | 'crown', grid: HairGrid, width: number, height: number): Camera | null {
-  const { m, toCamera } = backCameraAxes(view);
+  return fitCameraFromHair(backCameraAxes(view), grid, width, height);
+}
+
+/**
+ * Axes of a back-camera (not mirrored) panorama frame looking at the head from a direction:
+ * azimuth 0 is the front, growing towards your left; elevation 0 is level with the hairline
+ * band, 90 straight down from above.
+ */
+export function panoramaCameraAxes(azimuthDeg: number, elevationDeg: number): { m: [Vec3, Vec3]; toCamera: Vec3 } {
+  const a = (azimuthDeg * Math.PI) / 180;
+  const e = (Math.min(89, Math.max(0, elevationDeg)) * Math.PI) / 180;
+  const toCamera: Vec3 = [Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)];
+  // Image right: horizontal, perpendicular to the view (a rear camera from behind: your right).
+  const right: Vec3 = [Math.cos(a), 0, -Math.sin(a)];
+  const up = norm(cross(toCamera, right));
+  return { m: [right, [-up[0], -up[1], -up[2]]], toCamera };
+}
+
+/** Places a back-camera panorama frame from its direction and the hair in it. */
+export function fitPanoramaCamera(azimuthDeg: number, elevationDeg: number, grid: HairGrid, width: number, height: number): Camera | null {
+  return fitCameraFromHair(panoramaCameraAxes(azimuthDeg, elevationDeg), grid, width, height);
+}
+
+function fitCameraFromHair(axes: { m: [Vec3, Vec3]; toCamera: Vec3 }, grid: HairGrid, width: number, height: number): Camera | null {
+  const { m, toCamera } = axes;
   // The outline of the hair in the photo: each row filled from its leftmost to its rightmost
   // hair, so thinning or a bald patch inside the outline doesn't move the camera.
   let w = 0;
@@ -256,9 +280,29 @@ export function fitBackCamera(view: 'top' | 'crown', grid: HairGrid, width: numb
 
 /** What the map needs from one photo of a scan. */
 export interface MapSource {
+  /** The scan view this photo belongs to (panorama frames: the view nearest its region). */
   view: ScanView;
+  /** Which photo: the view name, or `pano-<region>` for a panorama frame. */
+  key: string;
   camera: Camera;
   hairGrid?: HairGrid;
+}
+
+/** A saved panorama frame, as far as the map needs it. */
+export interface SavedPanoramaFrame extends SavedView {
+  cell: number;
+  azimuth: number;
+  elevation: number;
+  mode: 'face' | 'back';
+}
+
+/** The scan view a panorama direction is nearest to, for zone colouring. */
+export function viewForDirection(azimuthDeg: number, elevationDeg: number): ScanView {
+  if (elevationDeg >= 60) return 'top';
+  const a = ((azimuthDeg % 360) + 360) % 360;
+  if (a <= 35 || a >= 325) return 'front';
+  if (a > 110 && a < 250) return 'crown';
+  return a < 180 ? 'leftTemple' : 'rightTemple';
 }
 
 export interface SavedView {
@@ -283,7 +327,29 @@ export function mapSources(views: Partial<Record<ScanView, SavedView>>, minScore
         : v.anchors
           ? fitFaceCamera(v.anchors, w, h)
           : null;
-    if (camera) out.push({ view, camera, hairGrid: v.hairGrid });
+    if (camera) out.push({ view, key: view, camera, hairGrid: v.hairGrid });
+  }
+  return out;
+}
+
+/**
+ * Cameras for a scan's panorama frames. Face-sweep frames are placed from their face points,
+ * like the temple photos; back-of-head frames from the phone's direction and the hair in them.
+ */
+export function panoramaSources(frames: readonly SavedPanoramaFrame[] | undefined, minScore = 0): MapSource[] {
+  const out: MapSource[] = [];
+  for (const f of frames ?? []) {
+    if (f.score < minScore || !f.frameSize) continue;
+    const [w, h] = f.frameSize;
+    const camera =
+      f.mode === 'face'
+        ? f.anchors
+          ? fitFaceCamera(f.anchors, w, h)
+          : null
+        : f.hairGrid
+          ? fitPanoramaCamera(f.azimuth, f.elevation, f.hairGrid, w, h)
+          : null;
+    if (camera) out.push({ view: viewForDirection(f.azimuth, f.elevation), key: `pano-${f.cell}`, camera, hairGrid: f.hairGrid });
   }
   return out;
 }
@@ -436,13 +502,13 @@ function sampleRgb(img: Rgb, u: number, v: number, out: number[]) {
  */
 export function renderScalp(
   sources: MapSource[],
-  photos: Partial<Record<ScanView, Rgb>>,
+  photos: Partial<Record<string, Rgb>>,
   size: number,
   background: [number, number, number] = [23, 30, 28],
 ): Rgb {
   const data = new Uint8Array(size * size * 3);
   const px = [0, 0, 0];
-  const used = sources.filter((s) => photos[s.view]);
+  const used = sources.filter((s) => photos[s.key]);
   for (let j = 0; j < size; j++) {
     for (let i = 0; i < size; i++) {
       const o = (j * size + i) * 3;
@@ -455,7 +521,7 @@ export function renderScalp(
         for (const src of used) {
           const vw = viewWeight(src.camera, s.p, s.n);
           if (!vw) continue;
-          const img = photos[src.view]!;
+          const img = photos[src.key]!;
           sampleRgb(img, (vw.u / src.camera.width) * img.width, (vw.v / src.camera.height) * img.height, px);
           r += vw.w * px[0];
           g += vw.w * px[1];
@@ -510,4 +576,66 @@ export function mapXY(thetaDeg: number, phiDeg: number): [number, number] {
   const r = (thetaDeg * Math.PI) / 180 / MAP_THETA_MAX;
   const f = (phiDeg * Math.PI) / 180;
   return [-r * Math.sin(f), -r * Math.cos(f)];
+}
+
+/** A point on the scalp by angle from the top (theta) and direction round the head (phi, 0 = front, + = your left). */
+export function headPoint(theta: number, phi: number): { p: Vec3; n: Vec3 } {
+  const st = Math.sin(theta);
+  const [cx, cy, cz] = HEAD.centre;
+  const [a, b, c] = HEAD.radii;
+  const local: Vec3 = [a * st * Math.sin(phi), b * Math.cos(theta), c * st * Math.cos(phi)];
+  return { p: [cx + local[0], cy + local[1], cz + local[2]], n: norm([local[0] / (a * a), local[1] / (b * b), local[2] / (c * c)]) };
+}
+
+/**
+ * The whole head unrolled like a phone panorama: across is all the way round the head (the back
+ * at both edges, your face in the middle, your left side on the right as in a photo of you), down is
+ * from the top of the head to just below the hairline. Every pixel takes its colour from the
+ * photos that face that point, as in `renderScalp`. Also returns which share of the head was seen.
+ */
+export function renderHeadPanorama(
+  sources: MapSource[],
+  photos: Partial<Record<string, Rgb>>,
+  width: number,
+  height: number,
+  background: [number, number, number] = [23, 30, 28],
+): Rgb & { seen: number } {
+  const data = new Uint8Array(width * height * 3);
+  const px = [0, 0, 0];
+  const used = sources.filter((s) => photos[s.key]);
+  let seen = 0;
+  for (let j = 0; j < height; j++) {
+    const theta = ((j + 0.5) / height) * MAP_THETA_MAX;
+    for (let i = 0; i < width; i++) {
+      // Column 0 is the back seen past your right side, the middle the front, the right edge the back past your left.
+      const phi = (((i + 0.5) / width) * 2 - 1) * Math.PI;
+      const { p, n } = headPoint(theta, phi);
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let w = 0;
+      for (const src of used) {
+        const vw = viewWeight(src.camera, p, n);
+        if (!vw) continue;
+        const img = photos[src.key]!;
+        sampleRgb(img, (vw.u / src.camera.width) * img.width, (vw.v / src.camera.height) * img.height, px);
+        r += vw.w * px[0];
+        g += vw.w * px[1];
+        b += vw.w * px[2];
+        w += vw.w;
+      }
+      const o = (j * width + i) * 3;
+      if (w > 0) {
+        seen++;
+        data[o] = r / w;
+        data[o + 1] = g / w;
+        data[o + 2] = b / w;
+      } else {
+        data[o] = background[0];
+        data[o + 1] = background[1];
+        data[o + 2] = background[2];
+      }
+    }
+  }
+  return { width, height, data, seen: seen / (width * height) };
 }

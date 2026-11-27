@@ -6,6 +6,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.RectF
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Build
 import android.os.SystemClock
 import android.util.Size
@@ -24,6 +28,10 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import expo.modules.headmap.core.CaptureGate
+import expo.modules.headmap.core.PanoramaAngles
+import expo.modules.headmap.core.PanoramaCells
+import expo.modules.headmap.core.PanoramaCollector
+import expo.modules.headmap.core.PanoramaMode
 import expo.modules.headmap.core.QualityReport
 import expo.modules.headmap.core.ScanView
 import expo.modules.kotlin.AppContext
@@ -36,6 +44,8 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import kotlin.math.asin
+import kotlin.math.atan2
 import kotlin.math.max
 
 /**
@@ -53,6 +63,8 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
   val onAligned by EventDispatcher<Map<String, Any?>>()
   val onCapture by EventDispatcher<Map<String, Any?>>()
   val onError by EventDispatcher<Map<String, Any?>>()
+  val onPanorama by EventDispatcher<Map<String, Any?>>()
+  val onPanoramaDone by EventDispatcher<Map<String, Any?>>()
 
   var scanView: ScanView = ScanView.FRONT
     set(value) {
@@ -63,6 +75,13 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
     }
   @Volatile var baselineFaceWidth: Double? = null
   @Volatile var autoCapture = true
+  /** Whole-head panorama: off, the face sweep (front camera) or the back of the head (back camera). */
+  var panoramaMode: PanoramaMode = PanoramaMode.OFF
+    set(value) {
+      if (field == value) return
+      field = value
+      panoramaModeChanged()
+    }
   var active = true
     set(value) {
       if (field == value) return
@@ -97,6 +116,22 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
   }
   private var burst: Burst? = null
   private var burstCount = 0
+
+  /** Panorama: best JPEG per head region, with its report. Analysis thread only. */
+  private class PanoramaFrame(val jpeg: ByteArray, val report: QualityReport, val width: Int, val height: Int)
+  private val panorama = PanoramaCollector<PanoramaFrame>()
+  private var panoramaStartHeading: Double? = null
+  private var lastPanoramaEmit = 0L
+  private val sensors = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+  @Volatile private var rotation: FloatArray? = null
+  private val rotationListener = object : SensorEventListener {
+    override fun onSensorChanged(event: SensorEvent) {
+      val m = FloatArray(9)
+      SensorManager.getRotationMatrixFromVector(m, event.values)
+      rotation = m
+    }
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+  }
 
   init {
     setBackgroundColor(Color.BLACK)
@@ -137,6 +172,7 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
 
   override fun onDetachedFromWindow() {
     super.onDetachedFromWindow()
+    sensors?.unregisterListener(rotationListener)
     unbindCamera()
     demo?.stop()
   }
@@ -153,7 +189,7 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
       try {
         val p = future.get()
         provider = p
-        val front = scanView != ScanView.CROWN
+        val front = scanView != ScanView.CROWN && panoramaMode != PanoramaMode.BACK
         val selector = if (front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
         if (!p.hasCamera(selector)) {
           emitError(IllegalStateException("Camera unavailable"))
@@ -204,6 +240,12 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
   /** Runs on the analysis thread. */
   private fun analyseFrame(frame: Bitmap, autoCaptureAllowed: Boolean) {
     val engine = engine ?: return
+    val mode = panoramaMode
+    if (mode != PanoramaMode.OFF) {
+      val report = engine.analyse(frame, if (mode == PanoramaMode.FACE) ScanView.FRONT else ScanView.CROWN, null)
+      offerPanoramaFrame(report, mode, frame)
+      return
+    }
     val view = scanView
     val report = engine.analyse(frame, view, baselineFaceWidth)
     lastReport = report
@@ -275,6 +317,117 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
 
   fun resetCapture() {
     analysis.execute { gate.reset() }
+  }
+
+  // MARK: - Whole-head panorama
+
+  private fun panoramaModeChanged() {
+    val mode = panoramaMode
+    val sm = sensors
+    if (sm != null) {
+      sm.unregisterListener(rotationListener)
+      rotation = null
+      if (mode == PanoramaMode.BACK) {
+        // The rotation vector needs no permission.
+        sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.let { sm.registerListener(rotationListener, it, SensorManager.SENSOR_DELAY_GAME) }
+      }
+    }
+    analysis.execute { panoramaStartHeading = null }
+    if (demo == null) bindCamera()
+  }
+
+  /** Where the back camera points: heading round the vertical and how far down, in degrees. */
+  private fun backCameraDirection(): Pair<Double, Double>? {
+    val m = rotation ?: return null
+    // Device to world (Z up). The back camera looks along the device's -Z axis.
+    val fx = -m[2].toDouble()
+    val fy = -m[5].toDouble()
+    val fz = -m[8].toDouble()
+    val deg = 180.0 / Math.PI
+    return Pair(atan2(fy, fx) * deg, asin((-fz).coerceIn(-1.0, 1.0)) * deg)
+  }
+
+  /** Analysis thread. Files the frame under its head region if it beats what is there. */
+  private fun offerPanoramaFrame(report: QualityReport, mode: PanoramaMode, frame: Bitmap) {
+    val angles: PanoramaAngles? = when (mode) {
+      PanoramaMode.FACE -> report.pose?.let { PanoramaCells.faceAngles(it.yaw, it.pitch) }
+      PanoramaMode.BACK -> {
+        val d = backCameraDirection()
+        if (d != null) {
+          val start = panoramaStartHeading ?: d.first.also { panoramaStartHeading = it }
+          PanoramaCells.backAngles(d.first, start, d.second)
+        } else {
+          PanoramaCells.backAngles(0.0, 0.0, 10.0)
+        }
+      }
+      PanoramaMode.OFF -> null
+    }
+    val ok = PanoramaCells.accepts(report, mode)
+    var cell: Int? = null
+    var isNew = false
+    if (angles != null) {
+      val c = PanoramaCells.cell(angles.azimuth, angles.elevation)
+      cell = c
+      val rank = PanoramaCells.rank(report)
+      if (ok && panorama.wants(c, rank)) {
+        val bytes = java.io.ByteArrayOutputStream().use { out ->
+          frame.compress(Bitmap.CompressFormat.JPEG, 82, out)
+          out.toByteArray()
+        }
+        isNew = panorama.offer(c, rank, PanoramaFrame(bytes, report, frame.width, frame.height), angles.azimuth, angles.elevation, mode)
+      }
+    }
+    if (isNew) post { performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
+    val now = SystemClock.elapsedRealtime()
+    if (!isNew && now - lastPanoramaEmit <= 120) return
+    lastPanoramaEmit = now
+    val payload = mutableMapOf<String, Any?>("mode" to mode.raw, "filled" to panorama.filled, "ok" to ok)
+    if (cell != null) payload["cell"] = cell
+    if (angles != null) {
+      payload["azimuth"] = angles.azimuth
+      payload["elevation"] = angles.elevation
+    }
+    report.pose?.let {
+      payload["yaw"] = it.yaw
+      payload["pitch"] = it.pitch
+    }
+    post { onPanorama(payload) }
+  }
+
+  /** Saves the best frame of every region and sends them to JS in one event. */
+  fun finishPanorama() {
+    analysis.execute {
+      val frames = mutableListOf<Map<String, Any?>>()
+      for ((cell, e) in panorama.entries) {
+        val file = File(context.cacheDir, "headmap-pano-$cell-${UUID.randomUUID()}.jpg")
+        try {
+          file.writeBytes(e.frame.jpeg)
+        } catch (err: Throwable) {
+          return@execute emitError(err)
+        }
+        frames.add(
+          mapOf(
+            "uri" to "file://${file.absolutePath}",
+            "cell" to cell,
+            "azimuth" to e.azimuth,
+            "elevation" to e.elevation,
+            "mode" to e.mode.raw,
+            "report" to e.frame.report.toMap(e.frame.width.toDouble(), e.frame.height.toDouble()),
+          ),
+        )
+      }
+      post {
+        performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+        onPanoramaDone(mapOf("frames" to frames))
+      }
+    }
+  }
+
+  fun resetPanorama() {
+    analysis.execute {
+      panorama.reset()
+      panoramaStartHeading = null
+    }
   }
 
   /**

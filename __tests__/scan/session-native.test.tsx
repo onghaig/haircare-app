@@ -11,6 +11,7 @@ import { MemoryDraftStore } from '@/scan/draft';
 import { FINISH_MS } from '@/components/scan/ScanFinish';
 import { MANUAL_AFTER_MS } from '@/scan/guidance';
 import { ScanProvider } from '@/scan/ScanProvider';
+import { CELL_COUNT, FACE_CELLS, PANO_STALL_MS } from '@/scan/headCoverage';
 import { SCAN_ORDER, SHOW_CAPTURED_MS } from '@/scan/session';
 import { MemoryScanStore } from '@/scan/store';
 
@@ -26,7 +27,12 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockCamera: { props: any; capture: jest.Mock; startBurst: jest.Mock } = { props: null, capture: jest.fn(), startBurst: jest.fn() };
+const mockCamera: { props: any; capture: jest.Mock; startBurst: jest.Mock; finishPanorama: jest.Mock } = {
+  props: null,
+  capture: jest.fn(),
+  startBurst: jest.fn(),
+  finishPanorama: jest.fn(),
+};
 
 jest.mock('@modules/headmap', () => {
   const { View } = jest.requireActual('react-native');
@@ -39,7 +45,13 @@ jest.mock('@modules/headmap', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     HeadMapCameraView: React.forwardRef(function FakeCamera(props: any, ref: any) {
       mockCamera.props = props;
-      React.useImperativeHandle(ref, () => ({ capture: mockCamera.capture, resetCapture: jest.fn(), startBurst: mockCamera.startBurst }));
+      React.useImperativeHandle(ref, () => ({
+        capture: mockCamera.capture,
+        resetCapture: jest.fn(),
+        startBurst: mockCamera.startBurst,
+        finishPanorama: mockCamera.finishPanorama,
+        resetPanorama: jest.fn(async () => {}),
+      }));
       return React.createElement(View, { testID: 'native-camera' });
     }),
   };
@@ -66,10 +78,28 @@ async function shot(view: (typeof SCAN_ORDER)[number]) {
     await fireEvent.press(screen.getByRole('button', { name: 'Someone’s helping: take photo now' }));
     await act(async () => mockCamera.props.onCapture({ nativeEvent: { ...capture('crown'), burst: true } }));
     await fireEvent.press(screen.getByRole('button', { name: 'Keep this photo' }));
+    await wholeHead();
     return;
   }
   await act(async () => mockCamera.props.onCapture({ nativeEvent: capture(view) }));
   await act(async () => jest.advanceTimersByTime(SHOW_CAPTURED_MS));
+}
+
+const ALL_CELLS = Array.from({ length: CELL_COUNT }, (_, c) => c);
+
+/** The whole-head panorama: the face sweep fills the front and sides, the back camera the rest. */
+async function wholeHead() {
+  await screen.findByTestId('panorama-face');
+  await act(async () => mockCamera.props.onPanorama({ nativeEvent: { mode: 'face', filled: [...FACE_CELLS], ok: true } }));
+  expect(screen.getByTestId('panorama-back')).toBeOnTheScreen();
+  expect(mockCamera.props.panorama).toBe('back');
+  await act(async () => mockCamera.props.onPanorama({ nativeEvent: { mode: 'back', filled: ALL_CELLS, ok: true } }));
+  expect(mockCamera.finishPanorama).toHaveBeenCalled();
+  await act(async () =>
+    mockCamera.props.onPanoramaDone({
+      nativeEvent: { frames: [{ uri: 'file:///pano-18.jpg', cell: 18, azimuth: 195, elevation: 50, mode: 'back', report: report('crown') }] },
+    }),
+  );
 }
 
 beforeEach(() => {
@@ -77,6 +107,7 @@ beforeEach(() => {
   mockCamera.props = null;
   mockCamera.capture.mockClear();
   mockCamera.startBurst.mockClear();
+  mockCamera.finishPanorama.mockClear();
   jest.mocked(router.replace).mockClear();
 });
 afterEach(() => jest.useRealTimers());
@@ -111,6 +142,7 @@ describe('Scan session with the native camera', () => {
     const saved = await store.list();
     expect(saved).toHaveLength(1);
     expect(Object.keys(saved[0].views).sort()).toEqual([...SCAN_ORDER].sort());
+    expect(saved[0].panorama?.map((f) => f.cell)).toEqual([18]);
     expect(router.replace).toHaveBeenCalledWith({ pathname: '/scan/[id]', params: { id: saved[0].id } });
   });
 
@@ -201,10 +233,51 @@ describe('Scan session with the native camera', () => {
     expect(screen.getByTestId('crown-estimate')).toHaveTextContent(/thinning|scalp/);
     expect(screen.getByTestId('crown-estimate')).toHaveTextContent(/not a diagnosis/);
     await fireEvent.press(screen.getByRole('button', { name: 'Keep this photo' }));
+    await wholeHead();
     // The finish moment holds for a beat before moving on.
     expect(await screen.findByTestId('scan-finish')).toBeOnTheScreen();
     await act(async () => jest.advanceTimersByTime(FINISH_MS));
     await waitFor(() => expect(router.replace).toHaveBeenCalled());
+  });
+
+  it('whole head: talks you round your head, shows what is covered, and never traps you', async () => {
+    const Speech = jest.requireMock('expo-speech') as { speak: jest.Mock };
+    const store = await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
+    for (const view of SCAN_ORDER.slice(0, -1)) await shot(view);
+    Speech.speak.mockClear();
+    await fireEvent.press(screen.getByRole('button', { name: 'Someone’s helping: take photo now' }));
+    await act(async () => mockCamera.props.onCapture({ nativeEvent: { ...capture('crown'), burst: true } }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Keep this photo' }));
+
+    // The face sweep: front camera, the coverage picture, and a spoken start.
+    expect(await screen.findByTestId('panorama-face')).toBeOnTheScreen();
+    expect(mockCamera.props.panorama).toBe('face');
+    expect(mockCamera.props.view).toBe('front');
+    expect(mockCamera.props.autoCapture).toBe(false);
+    expect(screen.getByTestId('head-coverage')).toBeOnTheScreen();
+    expect(Speech.speak.mock.calls.map((c) => c[0]).some((l: string) => /whole head/.test(l))).toBe(true);
+    // Half the front filled: the hint says which way to turn.
+    await act(async () => mockCamera.props.onPanorama({ nativeEvent: { mode: 'face', filled: [0, 1, 2], ok: true } }));
+    expect(screen.getByTestId('panorama-hint')).toHaveTextContent(/left shoulder/);
+    expect(screen.getByTestId('panorama-count')).toHaveTextContent(/^3 of 25 areas/);
+    // Stuck: a way on appears instead of a dead end.
+    expect(screen.queryByRole('button', { name: 'Next: the back of my head' })).toBeNull();
+    await act(async () => jest.advanceTimersByTime(PANO_STALL_MS + 1000));
+    await fireEvent.press(screen.getByRole('button', { name: 'Next: the back of my head' }));
+
+    // The back: back camera, helper instructions, and finishing with gaps if it has to.
+    expect(screen.getByTestId('panorama-back')).toBeOnTheScreen();
+    expect(mockCamera.props.panorama).toBe('back');
+    expect(Speech.speak.mock.calls.map((c) => c[0]).some((l: string) => /someone helps/.test(l))).toBe(true);
+    await act(async () => mockCamera.props.onPanorama({ nativeEvent: { mode: 'back', filled: [0, 1, 2, 6], azimuth: 180, ok: true } }));
+    await act(async () => jest.advanceTimersByTime(PANO_STALL_MS + 1000));
+    await fireEvent.press(screen.getByRole('button', { name: 'Finish now (21 areas missing)' }));
+    expect(mockCamera.finishPanorama).toHaveBeenCalledTimes(1);
+    await act(async () => mockCamera.props.onPanoramaDone({ nativeEvent: { frames: [] } }));
+    expect(await screen.findByTestId('scan-finish')).toBeOnTheScreen();
+    await act(async () => jest.advanceTimersByTime(FINISH_MS));
+    await waitFor(() => expect(router.replace).toHaveBeenCalled());
+    expect(await store.list()).toHaveLength(1);
   });
 
   it('temples take the photo as soon as the hairline is clear, without waiting for the line to draw', async () => {
