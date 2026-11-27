@@ -23,7 +23,9 @@ jobs:
   build:
     # Expo SDK 58 / React Native 0.88 need Xcode 26; macos-15 ships Xcode 16.
     runs-on: macos-26
-    timeout-minutes: 60
+    # The simulator build alone can take 35 minutes when the runners are busy, which left the
+    # end-to-end flows too little of a 60-minute budget.
+    timeout-minutes: 100
     permissions:
       contents: write # only for the ci-demo branch below
     steps:
@@ -76,15 +78,25 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" ios/build/Build/Products/Release-iphonesimulator/Haircare.app
       - name: End-to-end flows (Maestro), recorded as a demo video
+        env:
+          # The XCUITest driver can take minutes to start on a busy runner (default is 2 minutes).
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: '360000'
         run: |
           mkdir -p e2e-results
           xcrun simctl io "$UDID" recordVideo --codec h264 --force e2e-results/demo.mp4 &
           REC=$!
           sleep 2
           set +e
-          maestro --device "$UDID" test e2e/app.yaml --format junit --output e2e-results/report.xml \
-            --test-output-dir e2e-results
-          status=$?
+          # The XCUITest driver sometimes never comes up on a runner. That is not an app failure,
+          # so try once more (only for that error).
+          for attempt in 1 2; do
+            maestro --device "$UDID" test e2e/app.yaml --format junit --output e2e-results/report.xml \
+              --test-output-dir e2e-results 2>&1 | tee e2e-results/maestro.log
+            status=${PIPESTATUS[0]}
+            [ $status -eq 0 ] && break
+            grep -q "iOS driver not ready in time" e2e-results/maestro.log || break
+            echo "Maestro's iOS driver did not start (attempt $attempt); retrying"
+          done
           sleep 2
           kill -INT $REC
           wait $REC

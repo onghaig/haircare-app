@@ -1,14 +1,14 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Chips, type Option } from '@/components/onboarding/Controls';
-import { Button, Text } from '@/components/ui';
+import { Button, CloseButton, Text } from '@/components/ui';
 import { logQuick, type Shedding } from '@/plan/log';
 import { usePlan } from '@/plan/PlanProvider';
 import { dayKey } from '@/plan/tasks';
-import { colors, minTouchTarget, spacing } from '@/theme';
+import { colors, spacing } from '@/theme';
 
 const SHEDDING: Option<Shedding>[] = [
   { value: 'less', label: 'Less than usual' },
@@ -50,9 +50,7 @@ export default function QuickLogScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.top}>
         <Text variant="headline">Quick log</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={styles.close}>
-          <Text variant="headline">×</Text>
-        </Pressable>
+        <CloseButton />
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Text variant="headline">Shedding today</Text>
@@ -72,7 +70,6 @@ export default function QuickLogScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  close: { width: minTouchTarget, height: minTouchTarget, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.lg, gap: spacing.md },
   bottom: { padding: spacing.lg },
 });

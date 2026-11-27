@@ -66,6 +66,9 @@ export default function ProgressScreen() {
               ? `Compared with your baseline from ${shortDate(new Date(baseline.takenAt))}.`
               : 'Scan weekly and we will compare every scan with this one.'}
         </Text>
+        {!baseline ? (
+          <Button label="Retake your scan" onPress={() => router.push('/scan/session')} style={{ marginTop: spacing.sm }} />
+        ) : null}
         {baseline ? (
           <View style={styles.photos}>
             <Photo scan={baseline} label="Baseline" />

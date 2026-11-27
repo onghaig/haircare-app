@@ -21,7 +21,7 @@ final class PoseTests: XCTestCase {
 
   func testMaxDeviation() {
     let p = PoseAngles(yaw: 44, pitch: 3, roll: -6)
-    XCTAssertEqual(p.maxDeviation(from: ScanView.leftTemple.targetPose), 6, accuracy: 1e-9)
+    XCTAssertEqual(p.maxDeviation(from: ScanView.rightTemple.targetPose), 6, accuracy: 1e-9)
   }
 }
 
@@ -102,11 +102,25 @@ final class QualityScorerTests: XCTestCase {
   }
 
   func testTempleViewExpectsA45DegreeTurnAndNoHairline() {
-    let r = frame(yaw: 44, view: .leftTemple)
+    let r = frame(yaw: 44, view: .rightTemple)
+    XCTAssertTrue(frame(yaw: -44, view: .leftTemple).passed.contains(.pose))
     XCTAssertFalse(r.failed.contains(.pose))
-    XCTAssertNil(r.hairline)
+    XCTAssertNil(r.hairline?.centreMM)
     XCTAssertFalse(r.failed.contains(.foreheadVisible))
     XCTAssertFalse(r.failed.contains(.hairlineFound))
+  }
+
+  func testTempleViewsTraceOnlyTheirOwnSideOfTheHairline() throws {
+    // Fixture landmarks are unmirrored: the subject's left eye (263) is on the image right.
+    let left = try XCTUnwrap(frame(yaw: -44, view: .leftTemple).hairline)
+    XCTAssertGreaterThan(left.curve.count, 10)
+    XCTAssertTrue(left.curve.allSatisfy { $0.x > centre.x }, "left temple traces the subject's left")
+    let right = try XCTUnwrap(frame(yaw: 44, view: .rightTemple).hairline)
+    XCTAssertTrue(right.curve.allSatisfy { $0.x < centre.x })
+    // No distances from a turned head, and the forehead check stays front-only.
+    XCTAssertNil(left.centreMM)
+    XCTAssertNil(left.leftTempleMM)
+    XCTAssertFalse(frame(yaw: -44, view: .leftTemple).failed.contains(.foreheadVisible))
   }
 
   func testDarkFrameFailsExposure() {
@@ -159,6 +173,83 @@ final class QualityScorerTests: XCTestCase {
     let dark = Fixture.gray(width: 300, height: 400, faceMin: Point(0, 0), faceMax: Point(300, 400), face: 20, background: 20, textured: false)
     let d = scorer.evaluateWithoutFace(view: .crown, gray: dark)
     XCTAssertEqual(d.failed, [.exposure, .sharpness])
+  }
+
+  func testTopAndCrownNeedHairInFrame() {
+    XCTAssertFalse(ScanView.top.usesFaceTracking)
+    XCTAssertFalse(ScanView.crown.usesFaceTracking)
+    XCTAssertTrue(ScanView.leftTemple.usesFaceTracking)
+    let g = Fixture.gray(width: 300, height: 400, faceMin: Point(0, 0), faceMax: Point(300, 400))
+    let hair = HairMask(width: 30, height: 40, values: [Float](repeating: 0.9, count: 1200), imageWidth: 300, imageHeight: 400)!
+    let r = scorer.evaluateWithoutFace(view: .top, gray: g, hair: hair)
+    XCTAssertTrue(r.allPassed, "failed: \(r.failed)")
+    XCTAssertEqual(r.score, 100)
+    let wall = HairMask(width: 30, height: 40, values: [Float](repeating: 0.05, count: 1200), imageWidth: 300, imageHeight: 400)!
+    let w = scorer.evaluateWithoutFace(view: .crown, gray: g, hair: wall)
+    XCTAssertEqual(w.topIssue, .hairInFrame)
+    XCTAssertLessThanOrEqual(w.score, 40)
+  }
+
+  func testHairCoverageCountsTheCentre() {
+    // Hair only in the left half of the frame: half the centre region.
+    var v = [Float](repeating: 0, count: 100)
+    for y in 0..<10 { for x in 0..<5 { v[y * 10 + x] = 1 } }
+    let m = HairMask(width: 10, height: 10, values: v, imageWidth: 10, imageHeight: 10)!
+    XCTAssertEqual(m.coverage(x: 0...1, y: 0...1), 0.5, accuracy: 1e-9)
+    XCTAssertEqual(m.coverage(x: 0.0...0.5, y: 0...1), 1, accuracy: 1e-9)
+  }
+
+  /// Hair in a w x h mask covering columns x0..<x1 and rows y0..<y1.
+  private func block(_ x0: Int, _ x1: Int, _ y0: Int, _ y1: Int, w: Int = 20, h: Int = 20) -> HairMask {
+    var v = [Float](repeating: 0, count: w * h)
+    for y in y0..<y1 { for x in x0..<x1 { v[y * w + x] = 1 } }
+    return HairMask(width: w, height: h, values: v, imageWidth: Double(w), imageHeight: Double(h))!
+  }
+
+  func testHairGridAveragesEachCell() {
+    let g = block(0, 10, 0, 20).grid(cols: 2, rows: 2)
+    XCTAssertEqual(g.values, [1, 0, 1, 0])
+    XCTAssertEqual(block(0, 5, 0, 20).grid(cols: 2, rows: 1).values, [0.5, 0])
+  }
+
+  func testCentroidAndShare() throws {
+    let c = try XCTUnwrap(block(0, 10, 0, 10).centroid())
+    XCTAssertEqual(c.centre.x, 0.25, accuracy: 1e-9)
+    XCTAssertEqual(c.centre.y, 0.25, accuracy: 1e-9)
+    XCTAssertEqual(c.share, 0.25, accuracy: 1e-9)
+    XCTAssertNil(block(0, 0, 0, 0).centroid())
+  }
+
+  func testAimPointsThePhoneTowardTheHair() {
+    XCTAssertEqual(scorer.aim(hair: block(0, 0, 0, 0)).hint, .noHair)
+    XCTAssertEqual(scorer.aim(hair: block(0, 8, 4, 16)).hint, .moveLeft)
+    XCTAssertEqual(scorer.aim(hair: block(12, 20, 4, 16)).hint, .moveRight)
+    XCTAssertEqual(scorer.aim(hair: block(4, 16, 0, 8)).hint, .moveUp)
+    XCTAssertEqual(scorer.aim(hair: block(4, 16, 12, 20)).hint, .moveDown)
+    XCTAssertEqual(scorer.aim(hair: block(6, 14, 6, 14)).hint, .moveCloser)
+    XCTAssertEqual(scorer.aim(hair: block(2, 18, 2, 18)).hint, .ok)
+  }
+
+  func testCrownReportsCarryAimAndGrid() throws {
+    let g = Fixture.gray(width: 20, height: 20, faceMin: Point(0, 0), faceMax: Point(20, 20))
+    let r = scorer.evaluateWithoutFace(view: .crown, gray: g, hair: block(2, 18, 2, 18))
+    XCTAssertEqual(r.aim?.hint, .ok)
+    XCTAssertEqual(try XCTUnwrap(r.hairGrid).values.count, 24 * 32)
+  }
+
+  func testBurstPrefersHairThenScoreThenSharpness() {
+    let g = Fixture.gray(width: 20, height: 20, faceMin: Point(0, 0), faceMax: Point(20, 20))
+    let hair = scorer.evaluateWithoutFace(view: .crown, gray: g, hair: block(0, 20, 0, 20))
+    let wall = scorer.evaluateWithoutFace(view: .crown, gray: g, hair: block(0, 0, 0, 0))
+    XCTAssertGreaterThan(hair.burstRank, wall.burstRank)
+    var blurrier = hair
+    blurrier.stats?.sharpness = 1
+    XCTAssertGreaterThan(hair.burstRank, blurrier.burstRank)
+  }
+
+  func testFaceReportsCarryMapAnchors() throws {
+    let r = frame()
+    XCTAssertEqual(Set(try XCTUnwrap(r.anchors).keys), Set(LandmarkID.mapAnchors))
   }
 
   func testWeightsAddUpTo100() {
