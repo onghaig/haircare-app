@@ -73,7 +73,8 @@ appId: com.onghaig.haircare
 - tapOn:
     text: "Take crown photo in 3 seconds"
     retryTapIfNoChange: false
-# The first finished scan leads into the forecast.
+# The first finished scan saves, then leads into the forecast (reveal.yaml checks it). The
+# "Building your forecast" screen is brief: a slow run can be past it before it is checked.
 - extendedWaitUntil:
-    visible: "Building your forecast"
+    notVisible: "Saving your scan"
     timeout: 30000
