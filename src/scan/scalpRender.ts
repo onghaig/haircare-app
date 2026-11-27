@@ -17,7 +17,8 @@ export const RENDER_VERSION = 1;
 async function loadRgb(uri: string): Promise<Rgb> {
   const ref = await ImageManipulator.manipulate(uri).resize({ width: PHOTO_PX }).renderAsync();
   const saved = await ref.saveAsync({ format: SaveFormat.JPEG, compress: 0.9 });
-  const bytes = await new File(saved.uri).bytes();
+  // Sync read: the async File calls can hang on the iOS simulator (see store.ts).
+  const bytes = new File(saved.uri).bytesSync();
   const img = decode(bytes, { useTArray: true, formatAsRGBA: false });
   return { width: img.width, height: img.height, data: img.data };
 }
