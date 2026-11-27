@@ -2,7 +2,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { decode } from 'jpeg-js';
 
-import type { ScanView } from '@modules/headmap';
+import { shrinkImageSync, type ScanView } from '@modules/headmap';
 
 import { MIN_TREND_QUALITY } from './change';
 import { encodeBmp, mapSources, renderScalp, type Rgb } from './headModel';
@@ -14,11 +14,24 @@ const PHOTO_PX = 400;
 /** Bump when the head model or rendering changes, so old cached maps are redrawn. */
 export const RENDER_VERSION = 1;
 
-async function loadRgb(uri: string): Promise<Rgb> {
+async function shrink(uri: string): Promise<string> {
+  // Native and synchronous where available: the async image and file calls can stall on the
+  // iOS simulator. The image manipulator is the fallback.
+  const native = shrinkImageSync(uri, PHOTO_PX);
+  if (native) return native;
   const ref = await ImageManipulator.manipulate(uri).resize({ width: PHOTO_PX }).renderAsync();
   const saved = await ref.saveAsync({ format: SaveFormat.JPEG, compress: 0.9 });
-  // Sync read: the async File calls can hang on the iOS simulator (see store.ts).
-  const bytes = new File(saved.uri).bytesSync();
+  return saved.uri;
+}
+
+async function loadRgb(uri: string): Promise<Rgb> {
+  const small = new File(await shrink(uri));
+  const bytes = small.bytesSync();
+  try {
+    small.delete();
+  } catch {
+    // A leftover temp file is harmless.
+  }
   const img = decode(bytes, { useTArray: true, formatAsRGBA: false });
   return { width: img.width, height: img.height, data: img.data };
 }
