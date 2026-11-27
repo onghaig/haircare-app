@@ -3,11 +3,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { NoPhoto } from '@/components/look/PhotoLook';
+import { LockOver, NoPhoto, PhotoLook } from '@/components/look/PhotoLook';
 import { AiNote } from '@/components/styles/AiNote';
 import { BeforeAfter } from '@/components/styles/BeforeAfter';
 import { VerdictPill } from '@/components/styles/VerdictPill';
 import { Button, Card, SubScreen, Text } from '@/components/ui';
+import { isPremium } from '@/paywall/purchases';
+import { isMinor } from '@/profile/onboarding';
 import { useProfile } from '@/profile/ProfileProvider';
 import { REFERENCE_LABEL, stylePhoto } from '@/look/references';
 import { useOwnPhoto } from '@/look/useOwnPhoto';
@@ -41,7 +43,21 @@ export default function StyleScreen() {
   const { fit } = ranked[at];
   const next = ranked[(at + 1) % ranked.length].style;
   const photo = ai.status === 'ready' ? ai.uri : null;
-  const example = photo ? null : stylePhoto(style.id, stage);
+  // Not subscribed: a blurred preview made on the phone, so no AI money goes on people who
+  // never pay. The real AI picture replaces it once they unlock.
+  const teaser = !photo && own && !isPremium(profile) && !isMinor(profile) ? own : null;
+  const rough = !photo && !teaser && own?.curve && (style.sketch === 'bare' || style.sketch === 'stubble') ? own : null;
+  const example = photo || teaser || rough ? null : stylePhoto(style.id, stage);
+  const paint = style.sketch === 'bare' || style.sketch === 'stubble' ? style.sketch : undefined;
+  const caption = photo
+    ? STYLE_AI_LABEL
+    : teaser
+      ? 'Rough preview on your photo. Unlock for the AI picture'
+      : rough
+        ? 'Rough preview on your photo'
+        : example != null
+          ? REFERENCE_LABEL
+          : 'Turn on AI to see it on your own photo';
 
   async function share() {
     setError(null);
@@ -66,7 +82,14 @@ export default function StyleScreen() {
           />
         ) : (
           <View style={styles.frame}>
-            {example != null ? (
+            {teaser ? (
+              <>
+                <PhotoLook photo={teaser} paint={paint} blur testID="style-teaser" />
+                <LockOver line="Unlock to try it on you" />
+              </>
+            ) : rough ? (
+              <PhotoLook photo={rough} paint={paint} showToday={false} testID="style-rough" />
+            ) : example != null ? (
               <Image source={example} style={StyleSheet.absoluteFill} contentFit="cover" testID="style-example" />
             ) : (
               <NoPhoto title={style.name} line={style.blurb} />
@@ -75,7 +98,7 @@ export default function StyleScreen() {
         )}
         <View style={styles.cardFoot}>
           <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-            {photo ? STYLE_AI_LABEL : example != null ? REFERENCE_LABEL : 'Turn on AI to see it on your own photo'}
+            {caption}
           </Text>
           <Text variant="caption" color="accent" style={{ fontWeight: '800' }}>
             Haircare

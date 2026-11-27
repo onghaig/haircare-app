@@ -93,7 +93,12 @@ export interface Profile {
    * The AI "future you" preview sends one front photo to the preview service. Set when the user
    * agrees (consentAt) or says no (declinedAt). Never offered to under-18s.
    */
-  aiPreview?: { consentAt?: string; declinedAt?: string };
+  aiPreview?: {
+    consentAt?: string;
+    declinedAt?: string;
+    /** AI pictures made this calendar month (YYYY-MM), for the monthly cap. */
+    usage?: { month: string; count: number };
+  };
   /** The pack each supply was last restocked with, for the stock-out alert. */
   supplies?: Partial<Record<SupplyId, Supply>>;
   /** When the user says they started a treatment, "2026-11-26". Else the first logged dose counts. */

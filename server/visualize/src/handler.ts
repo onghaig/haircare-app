@@ -16,7 +16,13 @@ export interface Env {
   GEMINI_IMAGE_MODEL?: string;
   /** Workers rate limiting binding (per device), optional. */
   LIMITER?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
+  /** Workers KV namespace for the daily cap per caller, optional. */
+  USAGE?: { get(key: string): Promise<string | null>; put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void> };
+  /** Pictures per caller per day (default 20). The app also caps each user at 30 a month. */
+  DAILY_CAP?: string;
 }
+
+export const DEFAULT_DAILY_CAP = 20;
 
 export const DEFAULT_MODEL = 'gemini-3.1-flash-image';
 /** About 1.5 MB of JPEG; the app sends a 768 px photo, well under this. */
@@ -41,6 +47,13 @@ export async function handle(request: Request, env: Env, fetchImpl: Fetch = fetc
     const { success } = await env.LIMITER.limit({ key });
     if (!success) return json(429, { error: 'Too many previews right now. Try again in a minute.' });
   }
+
+  // Daily cap per caller, so one leaked URL or one heavy user can't run up the bill.
+  const ip = request.headers.get('cf-connecting-ip') ?? 'anon';
+  const dayKey = `day:${new Date().toISOString().slice(0, 10)}:${ip}`;
+  const cap = Number(env.DAILY_CAP) > 0 ? Number(env.DAILY_CAP) : DEFAULT_DAILY_CAP;
+  const usedToday = env.USAGE ? Number((await env.USAGE.get(dayKey)) ?? 0) : 0;
+  if (env.USAGE && usedToday >= cap) return json(429, { error: 'That’s today’s limit for AI pictures. Try again tomorrow.' });
 
   let body: { image?: unknown; stage?: unknown; years?: unknown; kind?: unknown; style?: unknown };
   try {
@@ -87,7 +100,11 @@ export async function handle(request: Request, env: Env, fetchImpl: Fetch = fetc
   };
   for (const part of out.candidates?.[0]?.content?.parts ?? []) {
     const data = part.inlineData?.data ?? part.inline_data?.data;
-    if (data) return json(200, { image: data, mimeType: part.inlineData?.mimeType ?? part.inline_data?.mime_type ?? 'image/png' });
+    if (data) {
+      // Counted only when a picture came back.
+      if (env.USAGE) await env.USAGE.put(dayKey, String(usedToday + 1), { expirationTtl: 2 * 86400 });
+      return json(200, { image: data, mimeType: part.inlineData?.mimeType ?? part.inline_data?.mime_type ?? 'image/png' });
+    }
   }
   return json(502, { error: 'The image model returned no image' });
 }

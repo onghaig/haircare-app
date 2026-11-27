@@ -37,6 +37,16 @@ and caches it, so a typical user costs a few images. Cloudflare's free plan cove
 To try another model, set `GEMINI_IMAGE_MODEL` in the Worker's settings. To use another provider,
 replace `handle` in `src/handler.ts`; the app only depends on the request and response shape.
 
+## Spending limits
+
+- The app only asks for AI pictures for subscribers. Everyone else sees a free preview made on the
+  phone (their own photo with the change roughly painted in, blurred), so nothing is spent on
+  people who never pay.
+- Each user can make 30 pictures a month (`MONTHLY_AI_CAP` in `src/visualize/preview.ts`).
+  Pictures already made are cached on the phone and cost nothing to show again.
+- The Worker caps each caller at 6 a minute, and at 20 a day once the `USAGE` KV namespace is
+  bound (see `wrangler.toml`).
+
 ## Example photos (for people with no AI image)
 
 Without an AI image of their own photo, the app shows the user's own photo with the hairline

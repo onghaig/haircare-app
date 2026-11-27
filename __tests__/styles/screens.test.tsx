@@ -23,8 +23,9 @@ jest.mock('react-native-safe-area-context', () => {
 
 const scans = [record('s1', '2026-11-20T09:00:00Z')];
 const adult = { age: 25, sex: 'male' as const, zones: ['temples' as const], family: { father: { status: 'bald' as const } }, completedAt: '2026-11-01T00:00:00Z' };
-const agreed = { ...adult, aiPreview: { consentAt: '2026-11-26T00:00:00Z' } };
 const premium = { subscription: { plan: 'annual' as const, startedAt: '2026-11-26T10:00:00Z', trialEndsAt: null, test: true } };
+// AI pictures are only made for subscribers.
+const agreed = { ...adult, ...premium, aiPreview: { consentAt: '2026-11-26T00:00:00Z' } };
 const wait = { timeout: 8000 };
 
 function fakeProvider(): PreviewProvider & { generate: jest.Mock } {
@@ -50,7 +51,7 @@ describe('Hairstyle gallery', () => {
   });
 
   it('offers AI on your own photo, asking first', async () => {
-    const { wrap } = makeProviders({ profile: adult, scans, ai: { provider: fakeProvider() } });
+    const { wrap } = makeProviders({ profile: { ...adult, ...premium }, scans, ai: { provider: fakeProvider() } });
     await render(wrap(<StyleGalleryScreen />));
     await fireEvent.press(await screen.findByRole('button', { name: 'Try them on your own photo (AI)' }));
     expect(router.push).toHaveBeenCalledWith('/ai-preview');
@@ -93,6 +94,20 @@ describe('One hairstyle', () => {
     expect(store.files.has('s1-style-crop')).toBe(true);
   });
 
+  it('not subscribed: a blurred preview made on the phone, and no AI money spent', async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'buzz' });
+    const provider = fakeProvider();
+    const withLine = [record('s1', '2026-11-20T09:00:00Z', { hairline: { centreMM: 68, curve: [[0.3, 0.3], [0.5, 0.26], [0.7, 0.3]] } })];
+    const { wrap } = makeProviders({ profile: { ...adult, aiPreview: agreed.aiPreview }, scans: withLine, ai: { provider } });
+    await render(wrap(<StyleScreen />));
+    expect(await screen.findByTestId('style-teaser')).toBeOnTheScreen();
+    expect(screen.getByTestId('style-teaser-paint')).toBeOnTheScreen();
+    expect(screen.getByText('Unlock to try it on you')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Unlock to see the real AI picture' }));
+    expect(router.push).toHaveBeenCalledWith('/paywall');
+    expect(provider.generate).not.toHaveBeenCalled();
+  });
+
   it('never makes one for under-18s', async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'buzz' });
     const provider = fakeProvider();
@@ -121,7 +136,7 @@ describe('Transplant preview', () => {
     const { wrap } = makeProviders({ profile: { ...agreed, zones: ['temples', 'top'] }, scans: withLine });
     await render(wrap(<TransplantScreen />));
     expect(await screen.findByTestId('transplant-own-photo')).toBeOnTheScreen();
-    expect(screen.getByText('Your photo, dashed line at a possible new hairline')).toBeOnTheScreen();
+    expect(screen.getByText('Rough preview on your photo, dashed line at a possible new hairline')).toBeOnTheScreen();
     expect(screen.getByText('After a transplant')).toBeOnTheScreen();
   });
 
@@ -156,12 +171,13 @@ describe('Two futures on Predict', () => {
 
   it('free: locked, and makes nothing', async () => {
     const provider = fakeProvider();
-    const { wrap } = makeProviders({ profile: { ...agreed, treatments: ['finasteride'] }, scans, ai: { provider } });
+    const { wrap } = makeProviders({ profile: { ...adult, aiPreview: agreed.aiPreview, treatments: ['finasteride'] }, scans, ai: { provider } });
     await render(wrap(<PredictScreen />));
     await fireEvent.press(await screen.findByRole('button', { name: 'Unlock two futures' }, wait));
     expect(router.push).toHaveBeenCalledWith('/paywall');
     await act(async () => {});
-    expect(provider.generate.mock.calls.every(([r]) => r.years === 1)).toBe(true);
+    // Not subscribed: no AI pictures at all, only the free preview made on the phone.
+    expect(provider.generate).not.toHaveBeenCalled();
   });
 
   it('links to the try-ons', async () => {
