@@ -40,7 +40,7 @@ export class FileProfileStore implements ProfileStore {
   async load(): Promise<Profile> {
     if (!this.file.exists) return emptyProfile();
     try {
-      return { ...emptyProfile(), ...(JSON.parse(await this.file.text()) as Partial<Profile>) };
+      return { ...emptyProfile(), ...(JSON.parse(this.file.textSync()) as Partial<Profile>) };
     } catch {
       return emptyProfile();
     }
@@ -48,7 +48,8 @@ export class FileProfileStore implements ProfileStore {
 
   async save(profile: Profile): Promise<Profile> {
     this.ensure();
-    await this.file.write(JSON.stringify(profile));
+    // Synchronous: the async write sometimes never settled on the iOS simulator.
+    this.file.writeSync(JSON.stringify(profile));
     return profile;
   }
 
