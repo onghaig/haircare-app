@@ -15,11 +15,25 @@ describe('hairline templates', () => {
     }
   });
 
-  it('highlights the temple on the side you turn toward: left temple on the right of the screen', () => {
+  // Pinned: the preview is mirrored, so your left temple is on the left of the screen. This was
+  // flipped twice before; checked on a phone, the left temple view's line belongs on screen-left.
+  it('draws the left temple line on the left of the screen and the right temple line on the right', () => {
     const meanX = (pts: readonly (readonly [number, number])[]) => pts.reduce((s, p) => s + p[0], 0) / pts.length;
-    expect(meanX(TEMPLATES.leftTemple)).toBeGreaterThan(100);
-    expect(meanX(TEMPLATES.rightTemple)).toBeLessThan(100);
+    expect(meanX(TEMPLATES.leftTemple)).toBeLessThan(100);
+    expect(meanX(TEMPLATES.rightTemple)).toBeGreaterThan(100);
     expect(meanX(TEMPLATES.leftTemple) + meanX(TEMPLATES.rightTemple)).toBeCloseTo(200);
+    // On screen too, through the guide frame.
+    const left = highlightPoints('leftTemple', undefined, W, H).points;
+    const right = highlightPoints('rightTemple', undefined, W, H).points;
+    expect(meanX(left)).toBeLessThan(W / 2);
+    expect(meanX(right)).toBeGreaterThan(W / 2);
+  });
+
+  it('switches the temple views to the detected temple hairline, like the front view', () => {
+    const curve = [[0.2, 0.3], [0.25, 0.26], [0.32, 0.24]] as [number, number][];
+    const hl = highlightPoints('leftTemple', { foreheadVisible: true, interPupilPx: 90, curve }, W, H);
+    expect(hl.detected).toBe(true);
+    expect(hl.points[0]).toEqual([0.2 * W, 0.3 * H]);
   });
 
   it('maps template and native points to the screen', () => {

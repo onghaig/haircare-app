@@ -22,5 +22,7 @@ public enum ScanView: String, CaseIterable, Sendable {
   public var checksHairCoverage: Bool { !usesFaceTracking }
   /// Hairline position is measured on the front view only.
   public var measuresHairline: Bool { self == .front }
+  /// The hairline is traced (for the green line) on the front and both temple views.
+  public var tracesHairline: Bool { usesFaceTracking }
   public var needsForehead: Bool { self == .front }
 }
