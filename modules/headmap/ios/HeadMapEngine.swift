@@ -64,7 +64,7 @@ final class HeadMapEngine {
     }
     let faces = try landmarker.detect(videoFrame: image, timestampInMilliseconds: timestampMs)
     var seg: ImageSegmenterResult?
-    if view.measuresHairline { seg = try segmenter.segment(videoFrame: image, timestampInMilliseconds: timestampMs) }
+    if view.tracesHairline { seg = try segmenter.segment(videoFrame: image, timestampInMilliseconds: timestampMs) }
     return evaluate(faces: faces, seg: seg, gray: gray, view: view, baselineFaceWidth: baselineFaceWidth)
   }
 
@@ -81,7 +81,7 @@ final class HeadMapEngine {
     }
     let faces = try landmarker.detect(image: image)
     var seg: ImageSegmenterResult?
-    if view.measuresHairline { seg = try segmenter.segment(image: image) }
+    if view.tracesHairline { seg = try segmenter.segment(image: image) }
     return evaluate(faces: faces, seg: seg, gray: gray, view: view, baselineFaceWidth: baselineFaceWidth)
   }
 
