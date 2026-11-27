@@ -38,6 +38,9 @@ export function createFsMock() {
     async text() {
       return files.get(this.uri) ?? '';
     }
+    textSync() {
+      return files.get(this.uri) ?? '';
+    }
     /** Async, like SDK 58's File.write: a caller that doesn't await it reads stale data. */
     async write(s: string) {
       await new Promise((r) => setTimeout(r, 0));
