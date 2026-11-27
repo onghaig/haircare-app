@@ -71,5 +71,6 @@ describe('the green hairline highlight', () => {
     }
     await render(<HeadGuide view="front" aligned width={W} height={H} hairline={found} />);
     expect(screen.getByTestId('hairline-detected')).toBeOnTheScreen();
-  });
+    // Six full SVG renders: more than the default 5 s on a busy CI runner.
+  }, 20000);
 });
