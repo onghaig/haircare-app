@@ -170,7 +170,7 @@ function TurnAround({ scan }: { scan: ScanRecord }) {
         Drag to turn around your head. Your scan photos, blended between angles.
       </Text>
 
-      <ScrollView horizontal contentContainerStyle={styles.strip} showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal style={{ flexGrow: 0 }} contentContainerStyle={styles.strip} showsHorizontalScrollIndicator={false}>
         {[...RING.map((r) => ({ ...r, top: false })), { view: TOP.view, label: TOP.label, angle: 0, top: true }]
           .filter((r) => views.includes(r.view))
           .map((r) => {
