@@ -305,10 +305,11 @@ export default function ScanSessionScreen() {
   const ghost = baseline?.views[view]?.uri;
   const tip = state.tip ? TIPS[state.tip] : null;
   // Without live checks (no scan engine, or the camera failed) the shutter is the only way on.
+  // It also shows when every check passes but no photo has been taken after a while: the
+  // auto-capture can stall (seen on the Android emulator), and then there was no way on.
   const showManual =
     state.phase === 'capturing' &&
     !held &&
-    !live?.allPassed &&
     (!isHeadMapAvailable || !!cameraError || (state.viewSince != null && clock - state.viewSince >= MANUAL_AFTER_MS));
 
   return (
