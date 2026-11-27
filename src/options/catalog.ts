@@ -17,10 +17,11 @@ import type { Profile, TreatmentChoice } from '@/profile/types';
  */
 export const SHOW_RX_TO_ADULTS = true;
 
-/** 3 strong, 2 some, 1 limited, 0 not shown to help pattern loss (not counted in the forecast). */
-export type Evidence = 0 | 1 | 2 | 3;
+/** 4 very strong, 3 strong, 2 some, 1 limited, 0 not shown to help pattern loss (not counted in the forecast). */
+export type Evidence = 0 | 1 | 2 | 3 | 4;
 
 export const EVIDENCE_LABEL: Record<Evidence, string> = {
+  4: 'Very strong',
   3: 'Strong',
   2: 'Some',
   1: 'Limited',
@@ -28,6 +29,7 @@ export const EVIDENCE_LABEL: Record<Evidence, string> = {
 };
 
 export const EVIDENCE_MEANING: Record<Evidence, string> = {
+  4: 'Large trials of each part, and the pair did better than either alone',
   3: 'Several large randomised trials in men with pattern loss',
   2: 'Fewer or shorter trials',
   1: 'Small studies only',
@@ -92,13 +94,13 @@ export const OPTIONS: OptionInfo[] = [
     id: 'dutasteride',
     name: 'Dutasteride',
     role: 'slows',
-    evidence: 2,
+    evidence: 3,
     rx: true,
     items: ['dutasteride'],
     takes: ['dutasteride'],
     short: 'Changes your slope. A stronger DHT blocker, used off-label for hair in many places.',
     about: 'A daily prescription capsule that lowers DHT more than finasteride. Only a clinician can decide if it suits you.',
-    evidenceText: 'Fewer trials than finasteride, mostly 6 to 12 months',
+    evidenceText: 'Randomised trials in men, including head-to-head trials against finasteride',
     timeline: 'Results by 6 to 12 months',
     tradeoffs: 'Side effects like finasteride, and it stays in the body for months. Loss resumes if stopped.',
     notFor: 'Under 18s, or anyone who could get pregnant',
@@ -150,13 +152,13 @@ export const OPTIONS: OptionInfo[] = [
     id: 'fin_minox',
     name: 'Finasteride + minoxidil',
     role: 'both',
-    evidence: 2,
+    evidence: 4,
     rx: true,
     items: ['finasteride', 'minoxidil'],
     takes: [],
     short: 'Slope and lift together.',
     about: 'Finasteride to slow the loss underneath, and minoxidil to add density on top. Only a clinician can decide if it suits you.',
-    evidenceText: 'Fewer trials of the pair than of each one alone',
+    evidenceText: 'Large trials of each part, and trials of the pair did better than either alone',
     timeline: 'Results by 6 to 12 months',
     tradeoffs: 'The trade-offs of both. Stopping either loses its part of the effect.',
     notFor: 'Under 18s, or anyone who could get pregnant',

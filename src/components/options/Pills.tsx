@@ -4,12 +4,12 @@ import { Text } from '@/components/ui';
 import { EVIDENCE_LABEL, ROLE_LABEL, type Evidence, type OptionRole } from '@/options/catalog';
 import { colors, radius } from '@/theme';
 
-/** Evidence as three dots plus a word: strong, some, limited, or not for pattern loss. */
+/** Evidence as four dots plus a word: very strong, strong, some, limited, or not for pattern loss. */
 export function EvidencePill({ level }: { level: Evidence }) {
   return (
     <View style={styles.pill} accessible accessibilityLabel={`Evidence: ${EVIDENCE_LABEL[level]}`}>
       <View style={styles.dots}>
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4].map((i) => (
           <View key={i} style={[styles.dot, i <= level && styles.dotOn]} />
         ))}
       </View>
