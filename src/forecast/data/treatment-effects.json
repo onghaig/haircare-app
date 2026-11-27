@@ -1,0 +1,19 @@
+{
+  "_note": "UNVERIFIED SAMPLE NUMBERS. Working assumptions for the v0 'forecast by action' design, not checked against trial papers. Every value needs a check against the published trials (and a clinician's review for Rx options) before launch. low/mid/high bracket what we assume; the app shows the spread as a range.",
+  "verified": false,
+  "slows": {
+    "_doc": "Fraction by which the option slows the rate of progression, at full adherence. Changes the slope of the line.",
+    "finasteride": { "low": 0.6, "mid": 0.8, "high": 0.9 },
+    "dutasteride": { "low": 0.65, "mid": 0.85, "high": 0.92 }
+  },
+  "grows": {
+    "_doc": "Lift in Norwood stages while used, at full adherence. Same slope. Reaches full effect after onset_months, fades over fade_months after stopping. Options in the same group don't stack (topical and oral minoxidil).",
+    "minoxidil": { "group": "minoxidil", "low": 0.2, "mid": 0.35, "high": 0.5, "onset_months": 6, "fade_months": 4 },
+    "oral_minoxidil": { "group": "minoxidil", "low": 0.2, "mid": 0.4, "high": 0.6, "onset_months": 6, "fade_months": 4 },
+    "massage": { "group": "massage", "low": 0.0, "mid": 0.1, "high": 0.2, "onset_months": 6, "fade_months": 4 }
+  },
+  "chance_margin": {
+    "_doc": "Added either side of a Norwood 3 chance before it is shown as a range, for model calibration error. An assumption.",
+    "value": 0.05
+  }
+}

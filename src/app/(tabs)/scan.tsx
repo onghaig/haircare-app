@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { HairlineNumbers } from '@/components/scan/HairlineNumbers';
+import { ResumeScanCard } from '@/components/scan/ResumeScanCard';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { useScans } from '@/scan/ScanProvider';
 import { daysUntilNextScan } from '@/scan/store';
@@ -12,28 +13,36 @@ function formatDate(iso: string) {
 }
 
 export default function ScanTab() {
-  const { records, latest, baseline, loaded } = useScans();
+  const { records, latest, baseline, loaded, draft } = useScans();
   const due = daysUntilNextScan(records, new Date());
   const first = records.length === 0;
 
   return (
     <Screen title="Scan">
-      <Card style={styles.hero}>
-        <Text variant="caption" color="accent">
-          {first ? 'Your first scan sets your baseline' : due === 0 ? 'Weekly scan due today' : `Next scan in ${due} day${due === 1 ? '' : 's'}`}
-        </Text>
-        <Text variant="headline">{first ? 'About 90 seconds, five views' : 'Same time, same spot'}</Text>
-        <Button
-          label={first ? 'Start your first scan' : 'Start weekly scan'}
-          onPress={() => router.push('/scan/session')}
-          style={{ marginTop: spacing.sm }}
-        />
-      </Card>
+      {draft ? (
+        <ResumeScanCard firstScan={first} />
+      ) : (
+        <Card style={styles.hero}>
+          <Text variant="caption" color="accent">
+            {first
+              ? 'Your first scan sets your baseline'
+              : due === 0
+                ? 'Weekly scan due today'
+                : `Next scan in ${due} day${due === 1 ? '' : 's'}`}
+          </Text>
+          <Text variant="headline">{first ? 'About 90 seconds, five views' : 'Same time, same spot'}</Text>
+          <Button
+            label={first ? 'Start your first scan' : 'Start weekly scan'}
+            onPress={() => router.push('/scan/session')}
+            style={{ marginTop: spacing.sm }}
+          />
+        </Card>
+      )}
 
       {latest ? <HairlineNumbers scan={latest} baseline={baseline} /> : null}
       {latest && Object.keys(latest.views).length > 1 ? (
         <Button
-          label="See your hair from every angle"
+          label="See your scalp map"
           variant="secondary"
           onPress={() => router.push({ pathname: '/scan/panorama', params: { id: latest.id } })}
         />
@@ -47,16 +56,20 @@ export default function ScanTab() {
               key={r.id}
               onPress={() => router.push({ pathname: '/scan/[id]', params: { id: r.id } })}
               accessibilityRole="button"
-              accessibilityLabel={`Scan from ${formatDate(r.takenAt)}, quality ${r.quality}`}>
+              accessibilityLabel={`Scan from ${formatDate(r.takenAt)}, ${r.lowConfidence ? 'quality not measured' : `quality ${r.quality}`}`}>
               <Card style={styles.row}>
                 <View style={{ flex: 1 }}>
                   <Text>{formatDate(r.takenAt)}</Text>
                   <Text variant="caption" color="textMuted">
-                    {r.id === baseline?.id ? 'Baseline' : r.lowConfidence ? 'Low confidence' : `${Object.keys(r.views).length} views`}
+                    {r.id === baseline?.id
+                      ? 'Baseline'
+                      : r.lowConfidence
+                        ? 'Couldn’t be measured, not counted'
+                        : `${Object.keys(r.views).length} views`}
                   </Text>
                 </View>
-                <Text variant="headline" color={r.lowConfidence ? 'warning' : 'text'}>
-                  {r.quality}
+                <Text variant={r.lowConfidence ? 'caption' : 'headline'} color={r.lowConfidence ? 'warning' : 'text'}>
+                  {r.lowConfidence ? 'Retake' : r.quality}
                 </Text>
               </Card>
             </Pressable>

@@ -1,4 +1,4 @@
-import type { Forecast, Treatment, UserInput, YearForecast } from '@/forecast';
+import { CHANCE_MARGIN, type ChanceRange, type Forecast, type Treatment, type UserInput, type YearForecast } from '@/forecast';
 import { isMinor } from '@/profile/onboarding';
 import type { Profile } from '@/profile/types';
 import { rangeLabel } from '@/reveal/reveal';
@@ -24,6 +24,30 @@ export function chanceLabel(p: number): string {
   if (p > 0.95) return 'More than 19 in 20';
   const tenths = Math.max(1, Math.min(9, Math.round(p * 10)));
   return `About ${tenths} in 10`;
+}
+
+/** The headline compares paths at this horizon: the chance of Norwood 3 or worse in 10 years. */
+export const HEADLINE_YEARS = 10;
+
+/**
+ * A Norwood 3 chance as whole tenths, low to high, widened by the model's calibration margin.
+ * A single number (the untreated path) gets the margin either side; a plan gets its strongest
+ * and weakest assumed effect.
+ */
+export function chanceTenths(c: ChanceRange | number): { lo: number; hi: number } {
+  const [best, worst] = typeof c === 'number' ? [c, c] : [c.best, c.worst];
+  const t = (v: number) => Math.max(0, Math.min(10, Math.round(v * 10)));
+  return { lo: t(best - CHANCE_MARGIN), hi: t(worst + CHANCE_MARGIN) };
+}
+
+/** "4 to 6 in 10", "About 3 in 10", "Less than 1 in 10". Never a percentage. */
+export function chanceRangeLabel(c: ChanceRange | number): string {
+  const { lo, hi } = chanceTenths(c);
+  if (hi === 0) return 'Less than 1 in 10';
+  if (lo === 10) return 'More than 9 in 10';
+  if (lo === hi) return `About ${lo} in 10`;
+  if (lo === 0) return `Up to ${hi} in 10`;
+  return `${lo} to ${hi} in 10`;
 }
 
 export interface Scenario {

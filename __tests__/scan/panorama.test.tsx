@@ -4,6 +4,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import PanoramaScreen from '@/app/scan/panorama';
 import ScanResultScreen from '@/app/scan/[id]';
 import { arc, availableViews, layersAt, nearestView, stepAngle, wrap } from '@/scan/panorama';
+import { ProfileProvider } from '@/profile/ProfileProvider';
+import { MemoryProfileStore } from '@/profile/store';
+import { emptyProfile } from '@/profile/types';
 import { ScanProvider } from '@/scan/ScanProvider';
 import { MemoryScanStore } from '@/scan/store';
 
@@ -43,7 +46,7 @@ describe('panorama blending', () => {
     const noCrown = ['front', 'leftTemple', 'rightTemple'] as const;
     expect(layersAt(180, [...noCrown]).map((l) => l.view)).toEqual(['leftTemple', 'rightTemple']);
     expect(layersAt(90, ['front'])).toEqual([{ view: 'front', opacity: 1 }]);
-    expect(nearestView(170, [...ALL])?.label).toBe('Back');
+    expect(nearestView(170, [...ALL])?.label).toBe('Crown');
     expect(availableViews(record('x', '2026-11-20T09:00:00Z'))).toEqual(['front']);
     expect(stepAngle(0, 1, [...ALL])).toBe(60);
     expect(stepAngle(0, -1, [...ALL])).toBe(300);
@@ -60,13 +63,14 @@ describe('panorama screen', () => {
         <PanoramaScreen />
       </ScanProvider>,
     );
+    await fireEvent.press(await screen.findByRole('tab', { name: 'Turn around' }));
     expect(await screen.findByTestId('panorama-angle')).toHaveTextContent('Front');
     const viewer = screen.getByTestId('panorama-viewer');
     await fireEvent(viewer, 'responderGrant', { nativeEvent: { pageX: 300 } });
     await fireEvent(viewer, 'responderMove', { nativeEvent: { pageX: 60 } });
     expect(screen.getByTestId('panorama-angle')).toHaveTextContent('Left side');
-    await fireEvent.press(screen.getByRole('button', { name: 'Show back' }));
-    expect(screen.getByTestId('panorama-angle')).toHaveTextContent('Back');
+    await fireEvent.press(screen.getByRole('button', { name: 'Show crown' }));
+    expect(screen.getByTestId('panorama-angle')).toHaveTextContent('Crown');
     await fireEvent.press(screen.getByRole('button', { name: 'Show top' }));
     expect(screen.getByTestId('panorama-angle')).toHaveTextContent('Top');
     await fireEvent(viewer, 'accessibilityAction', { nativeEvent: { actionName: 'increment' } });
@@ -79,11 +83,13 @@ describe('panorama screen', () => {
 
   it('opens from the scan result', async () => {
     await render(
-      <ScanProvider store={new MemoryScanStore([scan])}>
-        <ScanResultScreen />
-      </ScanProvider>,
+      <ProfileProvider store={new MemoryProfileStore(emptyProfile())}>
+        <ScanProvider store={new MemoryScanStore([scan])}>
+          <ScanResultScreen />
+        </ScanProvider>
+      </ProfileProvider>,
     );
-    await fireEvent.press(await screen.findByRole('button', { name: 'See your hair from every angle' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'See your scalp map' }));
     expect(router.push).toHaveBeenCalledWith({ pathname: '/scan/panorama', params: { id: 's1' } });
   });
 });
