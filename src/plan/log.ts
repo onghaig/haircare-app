@@ -40,14 +40,15 @@ export class FileLogStore implements LogStore {
   async load(): Promise<LogBook> {
     if (!this.file.exists) return {};
     try {
-      return JSON.parse(await this.file.text()) as LogBook;
+      return JSON.parse(this.file.textSync()) as LogBook;
     } catch {
       return {};
     }
   }
   async save(book: LogBook) {
     if (!this.root.exists) this.root.create({ intermediates: true });
-    await this.file.write(JSON.stringify(book));
+    // Synchronous: the async write sometimes never settled on the iOS simulator.
+    this.file.writeSync(JSON.stringify(book));
   }
 }
 
