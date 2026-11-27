@@ -5,19 +5,19 @@ appId: com.onghaig.haircare
 ---
 - tapOn: "Predict"
 - extendedWaitUntil:
-    visible: "Chance of Norwood \\d or worse by \\d+"
+    visible: "Your Plan.*"
     timeout: 20000
-- assertVisible: "Your plan, by what it does"
+- assertVisible: "What your plan does"
 - takeScreenshot: e2e-60-predict
 - scrollUntilVisible:
     element: "Compare all options"
 - tapOn: "Compare all options"
 - extendedWaitUntil:
-    visible: "Oral finasteride: .*in 10"
+    visible: "Oral finasteride: .*%"
     timeout: 20000
 - assertVisible: "SLOWS LOSS"
 - takeScreenshot: e2e-61-compare-options
-- tapOn: "Oral finasteride: .*in 10"
+- tapOn: "Oral finasteride: .*%"
 - extendedWaitUntil:
     visible: "Talk to a licensed provider"
     timeout: 20000

@@ -126,7 +126,7 @@ export default function RevealScreen() {
             </Text>
           </View>
         </Card>
-        <Text>{low ? 'Your forecast looks stable as of right now. Tracking keeps it that way.' : goal.sentence ?? zones.sentence}</Text>
+        <Text>{low ? 'Looks stable for now.' : goal.sentence ?? zones.sentence}</Text>
 
         {showsFuturePreview(profile) && preview ? (
           <>
@@ -178,7 +178,7 @@ export default function RevealScreen() {
             </View>
           ))}
           <Text variant="caption" color="textMuted">
-            Ranges, not certainties. Estimate for wellness tracking, not a medical prediction.
+            Estimates only.
           </Text>
         </Card>
       </ScrollView>

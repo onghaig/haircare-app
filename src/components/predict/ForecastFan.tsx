@@ -41,7 +41,7 @@ export function ForecastFan({ forecast, horizon = 10, lockedAfter }: { forecast:
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       accessible
       testID="forecast-fan"
-      accessibilityLabel={`Forecast chart to age ${last?.age}. Grey: doing nothing.${plan ? ' Green: your plan.' : ''}${lockedAfter != null ? ` Years after ${lockedAfter} locked.` : ''}`}>
+      accessibilityLabel={`Forecast chart to age ${last?.age}. Grey: no plan.${plan ? ' Green: with plan.' : ''}${lockedAfter != null ? ` Years after ${lockedAfter} locked.` : ''}`}>
       <Svg width={width} height={HEIGHT}>
         {[1, 2, 3, 4, 5, 6].map((n) => (
           <Line key={n} x1={LEFT} x2={width} y1={y(n)} y2={y(n)} stroke={colors.line} strokeWidth={1} />
@@ -75,7 +75,7 @@ export function ForecastFan({ forecast, horizon = 10, lockedAfter }: { forecast:
         <View style={styles.key}>
           <View style={[styles.swatch, { backgroundColor: colors.textMuted }]} />
           <Text variant="caption" color="textMuted">
-            Do nothing
+            No plan
           </Text>
         </View>
         {plan ? (

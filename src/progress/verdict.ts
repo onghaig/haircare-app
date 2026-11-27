@@ -159,11 +159,11 @@ export function explanations(verdict: Verdict, s: PeriodSummary, treatmentShare:
 export function versusForecast(verdict: Verdict): string {
   switch (verdict) {
     case 'holding':
-      return 'Your forecast expected little visible change this early, and that matches what we measured.';
+      return 'Little change, as expected this early.';
     case 'better':
-      return 'This is better than your forecast expected. We will keep checking that it lasts.';
+      return 'Better than your forecast expected.';
     case 'worse':
-      return 'This is faster than your forecast expected. One report is not a trend, so the next one will tell us more.';
+      return 'Faster than your forecast expected. Next month will tell us more.';
   }
 }
 

@@ -80,15 +80,15 @@ export function zoneSummary(profile: Profile): { weakest: string | null; stronge
     return { weakest: null, strongest: 'All zones', sentence: 'No zone stands out yet. Your first scan is your baseline.' };
   }
   if (profile.zones.includes('allOver')) {
-    return { weakest: 'All over', strongest: null, sentence: 'Thinning looks spread out rather than in one zone.' };
+    return { weakest: 'All over', strongest: null, sentence: 'Thinning looks spread out.' };
   }
   const order: Exclude<Zone, 'allOver'>[] = ['temples', 'hairline', 'crown', 'top'];
   const weak = order.find((z) => profile.zones.includes(z))!;
   const strong = [...order].reverse().find((z) => !profile.zones.includes(z)) ?? null;
   // What the person told us, said as theirs: the scan measures it, the answer doesn't.
   const sentence = strong
-    ? `You notice it most at your ${ZONE_NAME[weak].toLowerCase()}. Your weekly scans will show how fast it’s moving.`
-    : 'You notice it in several places, so tracking every zone matters.';
+    ? `You notice it most at your ${ZONE_NAME[weak].toLowerCase()}.`
+    : 'You notice it in several places.';
   return { weakest: ZONE_NAME[weak], strongest: strong ? ZONE_NAME[strong] : null, sentence };
 }
 

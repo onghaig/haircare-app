@@ -46,10 +46,10 @@ describe('zones', () => {
     expect(zoneSummary(p({ zones: ['temples'] }))).toEqual({
       weakest: 'Temples',
       strongest: 'Top',
-      sentence: 'You notice it most at your temples. Your weekly scans will show how fast it’s moving.',
+      sentence: 'You notice it most at your temples.',
     });
     expect(zoneSummary(p({ zones: ['crown', 'top'] })).sentence).toBe(
-      'You notice it most at your crown. Your weekly scans will show how fast it’s moving.',
+      'You notice it most at your crown.',
     );
     expect(zoneSummary(p({ worriedOnly: true })).weakest).toBeNull();
     expect(zoneSummary(p({ zones: ['allOver'] })).weakest).toBe('All over');
