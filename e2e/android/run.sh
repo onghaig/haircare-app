@@ -4,6 +4,11 @@
 # 3 minutes, so it records back-to-back parts that are joined afterwards.
 set -u
 mkdir -p e2e-results/parts
+# A cold-booted emulator can show "Pixel Launcher isn't responding" over the app. Let it settle,
+# hide system error dialogs, and close any that are already up.
+adb shell settings put global hide_error_dialogs 1 || true
+sleep 20
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null || true
 adb install -r android/app/build/outputs/apk/release/app-release.apk
 adb shell pm grant com.onghaig.haircare android.permission.CAMERA || true
 
