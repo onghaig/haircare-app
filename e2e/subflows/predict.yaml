@@ -34,7 +34,9 @@ appId: com.onghaig.haircare
 - scrollUntilVisible:
     element: "10 years"
 - tapOn: "10 years"
-- assertVisible: "Likely at \\d+: N.*"
+# The headline sits under the picture, below the fold on a phone.
+- scrollUntilVisible:
+    element: "Likely at \\d+: N.*"
 - takeScreenshot: e2e-64-future-you-10y
 - scrollUntilVisible:
     element: "Share your forecast"
