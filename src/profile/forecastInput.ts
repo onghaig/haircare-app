@@ -1,6 +1,7 @@
-import type { Ancestry, Relation, RelativeReport, RelativeStatus, Treatment, UserInput } from '@/forecast';
+import type { Ancestry, Observation, Relation, RelativeReport, RelativeStatus, Treatment, UserInput } from '@/forecast';
 
 import type { AncestryChoice, FamilyMember, HairStatus, Profile, TreatmentChoice } from './types';
+
 
 /** Relatives the v0 model has a liability correlation for. Mothers and grandmothers are kept for later. */
 const RELATION: Partial<Record<FamilyMember, Relation>> = {
@@ -39,11 +40,17 @@ export function ancestryFor(choices: AncestryChoice[]): Ancestry | undefined {
 /** The strongest treatment the user already takes, in the model's terms. */
 export function treatmentFor(choices: TreatmentChoice[]): Treatment {
   const has = (t: TreatmentChoice) => choices.includes(t);
+  const minox = has('minoxidil') || has('oralMinoxidil');
   if (has('dutasteride')) return 'dutasteride';
-  if (has('finasteride') && has('minoxidil')) return 'finasteride+minoxidil';
+  if (has('finasteride') && minox) return 'finasteride+minoxidil';
   if (has('finasteride')) return 'finasteride';
-  if (has('minoxidil')) return 'minoxidil';
+  if (minox) return 'minoxidil';
   return 'none';
+}
+
+export function observationsFor(profile: Profile): Observation[] {
+  const stage = selfReportedStage(profile);
+  return stage != null && profile.age != null ? [{ age: profile.age, stage, source: 'self_report' }] : [];
 }
 
 export function relativesFor(profile: Profile): RelativeReport[] {
@@ -59,13 +66,42 @@ export function relativesFor(profile: Profile): RelativeReport[] {
   return out;
 }
 
-/** Everything the forecast engine needs from onboarding. Returns null until age is known. */
-export function toForecastInput(profile: Profile): UserInput | null {
+/**
+ * A rough Norwood stage from where the user says they notice loss. Self-reports are weak evidence
+ * (the model treats them with a 0.8-stage error), and are replaced by scan grading once it exists.
+ */
+export function selfReportedStage(profile: Profile): number | null {
+  if (profile.worriedOnly) return 1;
+  const z = new Set(profile.zones);
+  if (z.size === 0) return null;
+  const front = z.has('temples') || z.has('hairline');
+  const back = z.has('crown') || z.has('top');
+  if (z.has('allOver') || (front && back)) return 3;
+  if (back) return 3; // vertex thinning reads as Norwood 3V
+  return 2;
+}
+
+/**
+ * Everything the forecast engine needs from onboarding. Returns null until age is known.
+ * A stage estimated from a scan replaces the self-report (it already blends in the answers),
+ * and counts as weak evidence: it is not yet validated against graded photos.
+ */
+export function toForecastInput(profile: Profile, scanStage?: number | null): UserInput | null {
   if (profile.age == null) return null;
+  if (scanStage != null) {
+    return {
+      age: profile.age,
+      ancestry: ancestryFor(profile.ancestry),
+      relatives: relativesFor(profile),
+      treatment: treatmentFor(profile.treatments),
+      observations: [{ age: profile.age, stage: scanStage, source: 'scan_estimate' }],
+    };
+  }
   return {
     age: profile.age,
     ancestry: ancestryFor(profile.ancestry),
     relatives: relativesFor(profile),
     treatment: treatmentFor(profile.treatments),
+    observations: observationsFor(profile),
   };
 }

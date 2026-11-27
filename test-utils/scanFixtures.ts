@@ -1,7 +1,7 @@
 import type { CaptureResult, QualityCheck, QualityReport, ScanView } from '@modules/headmap';
 import type { ScanRecord } from '@/scan/session';
 
-export const ALL_CHECKS: QualityCheck[] = ['faceFound', 'centred', 'pose', 'distance', 'backlight', 'exposure', 'foreheadVisible', 'sharpness', 'hairlineFound'];
+export const ALL_CHECKS: QualityCheck[] = ['faceFound', 'hairInFrame', 'centred', 'pose', 'distance', 'backlight', 'exposure', 'foreheadVisible', 'sharpness', 'hairlineFound'];
 
 export function report(view: ScanView, failed: QualityCheck[] = [], extra: Partial<QualityReport> = {}): QualityReport {
   return {
