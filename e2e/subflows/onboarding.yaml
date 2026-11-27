@@ -12,9 +12,19 @@ appId: com.onghaig.haircare
       - extendedWaitUntil:
           visible: "1 of 9"
           timeout: 5000
-- tapOn:
-    id: "age-input"
-- inputText: "24"
+# A keystroke can be lost on a slow simulator (seen on iOS CI: "2" instead of "24", so
+# Continue stayed off). Type until the age is accepted.
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn:
+          id: "age-input"
+      - eraseText: 4
+      - inputText: "24"
+      - assertVisible:
+          id: "age-input"
+          text: "24"
+      - assertNotVisible: "Haircare is for ages.*"
 # Android's keyboard stays up over the answers; iOS's number pad doesn't cover them.
 - runFlow:
     when:
