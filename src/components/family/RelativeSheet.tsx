@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +8,7 @@ import type { FamilyMember, HairStatus, Relative } from '@/profile/types';
 import { colors, radius, spacing } from '@/theme';
 
 import { MEMBER_NAME } from './FamilyTree';
+import { RelativePhoto } from './RelativePhoto';
 
 const STATUS_OPTIONS: Option<HairStatus>[] = [
   { value: 'full', label: 'Full head of hair' },
@@ -78,12 +78,9 @@ export function RelativeSheet({
             <Text variant="caption" color="textMuted">
               Forehead visible, hair uncovered, roughly front-on. Ideally at about your age now.
             </Text>
+            {relative?.photoUri ? <RelativePhoto relative={relative} name={MEMBER_NAME[member]} /> : null}
             <View style={styles.photoRow}>
-              {relative?.photoUri ? (
-                <Image source={{ uri: relative.photoUri }} style={styles.photo} accessibilityLabel="Their photo" />
-              ) : (
-                <View style={[styles.photo, styles.photoEmpty]} />
-              )}
+              {relative?.photoUri ? null : <View style={[styles.photo, styles.photoEmpty]} />}
               <Button
                 label={relative?.photoUri ? 'Change photo' : 'Add photo'}
                 variant="secondary"

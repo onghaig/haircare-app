@@ -1,11 +1,11 @@
 # The paywall: annual pre-selected with the trial end stated, then a test purchase (no charge).
 appId: com.onghaig.haircare
 ---
-- assertVisible: "(Unlock your full forecast and your plan|Keep your hair on track)"
-- assertVisible: "Free until .*Cancel in one tap\\."
+- assertVisible: "(Unlock your full forecast and your plan|Keep your hair on track|Keep what you have|See what’s working|See where your hair is heading|Decide with the full picture)"
+- assertVisible: "Free until .*Cancel any time in Settings\\."
 - assertVisible: "Test build: no payment is taken\\."
 - takeScreenshot: e2e-30-paywall
 - tapOn: "Weekly.*"
 - assertVisible: "Subscribe for \\$6\\.99 a week"
 - tapOn: "Annual.*"
-- tapOn: "Start free trial"
+- tapOn: "Start 3-day free trial"

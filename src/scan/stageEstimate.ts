@@ -42,13 +42,13 @@ export interface StageGrader {
 const half = (x: number) => Math.round(x * 2) / 2;
 const clamp = (x: number) => Math.min(7, Math.max(1, x));
 
-/** Front: temple recession (in pupil distances) and hairline height above the brow line. */
-export function frontStage(scan: ScanRecord): { stage: number; signal: string } | null {
-  const front = scan.views.front;
-  const hl = scan.hairline;
-  if (!front || front.score < MIN_TREND_QUALITY || !hl) return null;
-  const r = hl.templeRecessionIPD;
-  const c = hl.centreMM;
+/**
+ * Stage from the hairline alone: temple recession (in pupil distances) and hairline height above
+ * the brow line. Shared by the scan's front view and relatives' photos.
+ */
+export function hairlineStage(recessionIPD: number | undefined, centreMM: number | undefined): { stage: number; signal: string } | null {
+  const r = recessionIPD;
+  const c = centreMM;
   if (r == null && c == null) return null;
   let stage = 1;
   if (r != null) stage = r < 0.15 ? 1 : r < 0.3 ? 2 : r < 0.45 ? 3 : 4;
@@ -60,6 +60,14 @@ export function frontStage(scan: ScanRecord): { stage: number; signal: string } 
         ? 'Your temples sit a little higher than the middle of your hairline.'
         : 'Your temples and hairline sit noticeably higher than a straight-across hairline.';
   return { stage, signal };
+}
+
+/** Front: temple recession (in pupil distances) and hairline height above the brow line. */
+export function frontStage(scan: ScanRecord): { stage: number; signal: string } | null {
+  const front = scan.views.front;
+  const hl = scan.hairline;
+  if (!front || front.score < MIN_TREND_QUALITY || !hl) return null;
+  return hairlineStage(hl.templeRecessionIPD, hl.centreMM);
 }
 
 /** Top and crown: how much of each zone of the scalp map the camera saw as hair. */

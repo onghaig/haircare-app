@@ -3,6 +3,7 @@ import { addDays, dayKey } from '@/plan/tasks';
 import {
   adjustments,
   consistency,
+  planDays,
   deltaLabel,
   explanations,
   latestReport,
@@ -103,6 +104,13 @@ describe('the period', () => {
     const b = book(30, (d, i, acc) => answer(acc, d, 'finasteride', i % 4 ? 'done' : 'skipped'));
     expect(consistency(b, today, ['finasteride']).share).toBeCloseTo(0.73, 1);
     expect(consistency(b, today, []).label).toBe('Days on plan');
+  });
+
+  it('counts plan days since the first logged day, not over a fixed 30', () => {
+    const today = addDays(base, 56);
+    const b = book(5, (d, _i, acc) => answer(acc, d, 'massage', 'done'));
+    expect(planDays(b, today)).toBe(1);
+    expect(planDays({}, today)).toBe(0);
   });
 });
 
