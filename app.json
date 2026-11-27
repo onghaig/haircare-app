@@ -55,7 +55,8 @@
     },
     "backgroundColor": "#07090A",
     "extra": {
-      "visualizeEndpoint": ""
+      "visualizeEndpoint": "",
+      "clinicReferralUrl": ""
     }
   }
 }

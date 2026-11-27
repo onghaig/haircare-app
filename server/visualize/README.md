@@ -1,9 +1,13 @@
-# Visualize: the AI "future you" preview
+# Visualize: the AI "future you" preview, hairstyle try-on and transplant preview
 
 One Cloudflare Worker. The app sends one downscaled front photo (768 px JPEG) plus the forecast's
 median Norwood stage and the number of years; the Worker asks Google's Gemini image model to
 restyle only the hair and returns the image. The prompt is built here from those two numbers
 (`src/prompt.ts`), so callers can't send their own prompts.
+
+The same Worker also takes `{ image, kind: 'style', style, stage }` (a hairstyle from the fixed list in
+`src/styles.ts`, hairline and density kept as they are) and `{ image, kind: 'restore', stage }` (a
+realistic transplant result, less full at later stages). Prompts for both are built here too.
 
 **Privacy.** The photo exists only in memory for that one request: no storage, no logging of
 bodies (Workers observability is off). Use a **paid** Gemini API project: Google's terms say paid

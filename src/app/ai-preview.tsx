@@ -48,8 +48,8 @@ export default function AiPreviewConsentScreen() {
           See it on your own photo
         </Text>
         <Text color="textMuted">
-          Instead of a drawing, an AI image model redraws your hair on your own photo at the stage your forecast
-          shows as most likely for that year.
+          Instead of a drawing, an AI image model redraws your hair on your own photo: your forecast, a hairstyle
+          you try, or a transplant preview.
         </Text>
         <Card style={styles.points}>
           <Point title="Your photo leaves your phone for this">
@@ -60,8 +60,8 @@ export default function AiPreviewConsentScreen() {
             The photo is used for that one request and not stored. The result is saved only on this phone.
           </Point>
           <Point title="It’s an illustration">
-            It shows what the forecast’s most likely stage could look like on you. It isn’t a medical prediction
-            or a diagnosis.
+            It shows what something could look like on you. It isn’t a medical prediction, a diagnosis or a
+            promise of a result.
           </Point>
           <Point title="You can turn it off">
             Turning it off here deletes every AI preview from this phone. Deleting a scan deletes the previews made
