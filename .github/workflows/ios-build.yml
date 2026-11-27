@@ -85,9 +85,16 @@ jobs:
           REC=$!
           sleep 2
           set +e
-          maestro --device "$UDID" test e2e/app.yaml --format junit --output e2e-results/report.xml \
-            --test-output-dir e2e-results
-          status=$?
+          # The XCUITest driver sometimes never comes up on a runner. That is not an app failure,
+          # so try once more (only for that error).
+          for attempt in 1 2; do
+            maestro --device "$UDID" test e2e/app.yaml --format junit --output e2e-results/report.xml \
+              --test-output-dir e2e-results 2>&1 | tee e2e-results/maestro.log
+            status=${PIPESTATUS[0]}
+            [ $status -eq 0 ] && break
+            grep -q "iOS driver not ready in time" e2e-results/maestro.log || break
+            echo "Maestro's iOS driver did not start (attempt $attempt); retrying"
+          done
           sleep 2
           kill -INT $REC
           wait $REC

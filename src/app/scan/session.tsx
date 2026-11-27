@@ -251,6 +251,7 @@ export default function ScanSessionScreen() {
               onPress={redoLast}
               accessibilityRole="button"
               accessibilityLabel={`Redo last photo: ${VIEW_LABEL[lastTaken].split(':')[0]}`}
+              testID="redo-last-photo"
               style={styles.redo}>
               <Text variant="caption" color="textMuted" style={{ fontWeight: '600' }}>
                 {`↺ Redo last photo (${VIEW_LABEL[lastTaken].split(':')[0]})`}
