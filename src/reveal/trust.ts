@@ -51,3 +51,11 @@ export function confidenceHint(scan: ScanRecord | undefined): { text: string; re
 export function retakeSeconds(views: number): number {
   return Math.max(20, views * 20);
 }
+
+/** One sentence on why the confidence is what it is, said next to it. */
+export function confidenceWhy(c: Confidence, basis: ScanBasis): string {
+  if (basis === 'none') return 'It’s from your answers only until your first scan.';
+  if (basis === 'weak') return 'Your last scan couldn’t be measured, so it’s from your answers only.';
+  if (c === 'high') return 'Your scan and answers agree.';
+  return 'It rises as more scans agree with each other.';
+}

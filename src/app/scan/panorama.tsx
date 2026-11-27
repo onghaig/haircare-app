@@ -1,17 +1,17 @@
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScalpMap } from '@/components/scan/ScalpMap';
-import { Text } from '@/components/ui';
+import { CloseButton, Text } from '@/components/ui';
 import { availableViews, DEG_PER_POINT, layersAt, nearestView, RING, stepAngle, TOP, wrap } from '@/scan/panorama';
 import type { MapZone } from '@/scan/headModel';
 import { compareZone, comparisonText, MAP_ZONE_LABEL, MAP_ZONES, previousGoodScan, scanHairMap } from '@/scan/scalpMap';
 import { useScans } from '@/scan/ScanProvider';
 import type { ScanRecord } from '@/scan/session';
-import { colors, minTouchTarget, radius, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 
 /**
  * Your whole head of hair from one scan: the scalp map (photos stitched top-down, with the hair
@@ -37,9 +37,7 @@ export default function PanoramaScreen() {
         <Text variant="headline" accessibilityRole="header" style={{ flex: 1 }}>
           {mode === 'map' ? 'Your scalp map' : 'Your hair, all the way round'}
         </Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={styles.close}>
-          <Text color="textMuted">Close</Text>
-        </Pressable>
+        <CloseButton />
       </View>
       <Segments
         options={[
@@ -205,7 +203,6 @@ function TurnAround({ scan }: { scan: ScanRecord }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg, gap: spacing.md },
   header: { flexDirection: 'row', alignItems: 'center' },
-  close: { minHeight: minTouchTarget, justifyContent: 'center' },
   viewer: { flex: 1, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surfaceRaised },
   badge: {
     position: 'absolute',

@@ -20,7 +20,7 @@ import { HairChecklist } from '@/components/scan/HairChecklist';
 import { HeadGuide } from '@/components/scan/HeadGuide';
 import { FINISH_MS, ScanFinish } from '@/components/scan/ScanFinish';
 import { PromptCard, StatusChips, ViewProgress } from '@/components/scan/ScanHud';
-import { Button, Text } from '@/components/ui';
+import { Button, CloseButton as RoundClose, Text } from '@/components/ui';
 import { cameraErrorMessage, MANUAL_AFTER_MS, promptFor, statusChips, viewInstruction } from '@/scan/guidance';
 import { useProfile } from '@/profile/ProfileProvider';
 import { AIM_VOICE, BURST_MS, crownReducer, initialCrownState, stepVoice } from '@/scan/crown';
@@ -460,11 +460,7 @@ export default function ScanSessionScreen() {
 }
 
 function CloseButton({ onPress = () => router.back() }: { onPress?: () => void }) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Close scan" style={styles.close}>
-      <Text variant="headline">×</Text>
-    </Pressable>
-  );
+  return <RoundClose onPress={onPress} label="Close scan" />;
 }
 
 /** Leaving mid-scan keeps the photos taken so far for a day, so nobody starts again from zero. */
@@ -526,7 +522,6 @@ const styles = StyleSheet.create({
   },
   viewTitle: { textAlign: 'center', marginTop: spacing.sm },
   bottom: { padding: spacing.lg, gap: spacing.md },
-  close: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   practice: { backgroundColor: 'rgba(0,0,0,0.72)', borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   sheet: {

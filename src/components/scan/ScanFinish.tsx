@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { tracePath } from '@/components/predict/ShareCard';
 import { Text } from '@/components/ui';
 import { SCAN_ORDER } from '@/scan/session';
 import { colors, radius, spacing } from '@/theme';
@@ -56,10 +57,15 @@ export function ScanFinish({
     };
   }, [land, draw]);
 
-  const d = curve && curve.length > 1 ? fitPath(curve) : null;
+  const d = curve ? tracePath(curve, LINE_W, LINE_H) : null;
 
   return (
-    <View style={styles.overlay} testID="scan-finish" accessible accessibilityLiveRegion="polite" accessibilityLabel={`Scan complete. ${shots.length} photos saved.`}>
+    <View
+      style={styles.overlay}
+      testID="scan-finish"
+      accessible
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={`Scan complete. ${shots.length} photos saved.`}>
       <View style={styles.tiles}>
         {shots.map((c, i) => (
           <Animated.View
@@ -74,7 +80,15 @@ export function ScanFinish({
       </View>
       {d ? (
         <Svg width={LINE_W} height={LINE_H} viewBox={`0 0 ${LINE_W} ${LINE_H}`}>
-          <AnimatedPath d={d} stroke={colors.accent} strokeWidth={4} strokeLinecap="round" fill="none" strokeDasharray={`${DASH}`} strokeDashoffset={draw} />
+          <AnimatedPath
+            d={d}
+            stroke={colors.accent}
+            strokeWidth={4}
+            strokeLinecap="round"
+            fill="none"
+            strokeDasharray={`${DASH}`}
+            strokeDashoffset={draw}
+          />
         </Svg>
       ) : null}
       <Text variant="title">Scan complete</Text>
@@ -83,21 +97,9 @@ export function ScanFinish({
   );
 }
 
-/** The traced hairline, scaled to fill the box with a margin and keep its shape. */
-function fitPath(curve: [number, number][]): string {
-  const xs = curve.map((p) => p[0]);
-  const ys = curve.map((p) => p[1]);
-  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-  const pad = 8;
-  const k = Math.min((LINE_W - pad * 2) / Math.max(x1 - x0, 1e-3), (LINE_H - pad * 2) / Math.max(y1 - y0, 1e-3));
-  const ox = (LINE_W - (x1 - x0) * k) / 2;
-  const oy = (LINE_H - (y1 - y0) * k) / 2;
-  return `M${curve.map(([x, y]) => `${(ox + (x - x0) * k).toFixed(1)} ${(oy + (y - y0) * k).toFixed(1)}`).join(' L')}`;
-}
-
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -105,5 +107,13 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   tiles: { flexDirection: 'row', gap: spacing.sm },
-  tile: { width: TILE, height: TILE, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.accent },
+  tile: {
+    width: TILE,
+    height: TILE,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.accent,
+  },
 });

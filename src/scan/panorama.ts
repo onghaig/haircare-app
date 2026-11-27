@@ -10,7 +10,7 @@ import type { ScanRecord } from './session';
 export const RING: { view: ScanView; angle: number; label: string }[] = [
   { view: 'front', angle: 0, label: 'Front' },
   { view: 'leftTemple', angle: 60, label: 'Left side' },
-  { view: 'crown', angle: 180, label: 'Back' },
+  { view: 'crown', angle: 180, label: 'Crown' },
   { view: 'rightTemple', angle: 300, label: 'Right side' },
 ];
 

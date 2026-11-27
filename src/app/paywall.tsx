@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Text } from '@/components/ui';
+import { Button, CloseButton, Text } from '@/components/ui';
 import {
   billedLabel,
   ctaLabel,
@@ -93,9 +93,7 @@ export default function PaywallScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.top}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.dismissAll()} style={styles.close}>
-          <Text variant="headline">×</Text>
-        </Pressable>
+        <CloseButton onPress={() => router.dismissAll()} />
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Text variant="title" accessibilityRole="header">
@@ -192,14 +190,6 @@ export default function PaywallScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   top: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  close: {
-    width: minTouchTarget,
-    height: minTouchTarget,
-    borderRadius: minTouchTarget / 2,
-    backgroundColor: colors.surfaceRaised,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   content: { padding: spacing.lg, gap: spacing.lg },
   benefit: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   dot: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent },

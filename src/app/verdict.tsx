@@ -1,12 +1,12 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Ring } from '@/components/onboarding/Controls';
 import { VersusChart } from '@/components/progress/VersusChart';
-import { Button, Card, Text } from '@/components/ui';
+import { Button, Card, CloseButton, Text } from '@/components/ui';
 import { shortDate } from '@/paywall/plans';
 import { usePlan } from '@/plan/PlanProvider';
 import { dailyTasks } from '@/plan/tasks';
@@ -15,7 +15,7 @@ import { deltaLabel, latestReport, trendScans, VERDICT_TITLE, type VerdictReport
 import { pathTitle, versusPaths, type VersusPaths } from '@/progress/versusPaths';
 import { useForecast } from '@/reveal/ForecastProvider';
 import { useScans } from '@/scan/ScanProvider';
-import { colors, minTouchTarget, radius, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 
 const VERDICT_LINE = {
   better: 'Your hairline measured lower on your forehead than at your baseline, by more than a re-scan can explain.',
@@ -157,9 +157,7 @@ export default function VerdictScreen() {
             <View key={p.title} style={[styles.seg, j <= i && styles.segOn]} />
           ))}
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={styles.close}>
-          <Text color="textMuted">Close</Text>
-        </Pressable>
+        <CloseButton />
       </View>
 
       {page ? (
@@ -189,7 +187,6 @@ const styles = StyleSheet.create({
   dots: { flex: 1, flexDirection: 'row', gap: 4 },
   seg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.line },
   segOn: { backgroundColor: colors.accent },
-  close: { minHeight: minTouchTarget, justifyContent: 'center' },
   card: { flex: 1, gap: spacing.md, borderRadius: radius.lg },
   photos: { flexDirection: 'row', gap: spacing.sm },
   photo: { aspectRatio: 3 / 4, borderRadius: radius.sm, backgroundColor: colors.surfaceRaised },

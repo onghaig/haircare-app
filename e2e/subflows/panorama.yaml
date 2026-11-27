@@ -37,7 +37,7 @@ appId: com.onghaig.haircare
 - extendedWaitUntil:
     visible:
       id: "panorama-angle"
-      text: "Back"
+      text: "Crown"
     timeout: 5000
 - tapOn:
     id: "panorama-thumb-top"

@@ -5,21 +5,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, minTouchTarget, spacing } from '@/theme';
 
+import { CloseButton } from './CloseButton';
 import { Text } from './Text';
 
-/** A pushed or modal screen: a back (or close) control, a title, scrollable content. */
+/** A pushed screen (back chevron at the left) or a modal (round close at the right), a title, scrollable content. */
 export function SubScreen({ title, close = false, children }: { title: string; close?: boolean; children?: ReactNode }) {
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
       <View style={styles.head}>
-        <Pressable accessibilityRole="button" accessibilityLabel={close ? 'Close' : 'Back'} onPress={() => router.back()} style={styles.back}>
-          <Text variant="headline" color="textMuted">
-            {close ? '✕' : '‹'}
-          </Text>
-        </Pressable>
-        <Text variant="title" accessibilityRole="header" style={{ flex: 1, fontSize: 22, lineHeight: 26 }}>
+        {close ? null : (
+          <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={styles.back}>
+            <Text variant="headline" color="textMuted">
+              ‹
+            </Text>
+          </Pressable>
+        )}
+        <Text variant="title" accessibilityRole="header" style={[{ flex: 1, fontSize: 22, lineHeight: 26 }, close && { paddingLeft: spacing.sm }]}>
           {title}
         </Text>
+        {close ? <CloseButton /> : null}
       </View>
       <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
     </SafeAreaView>
