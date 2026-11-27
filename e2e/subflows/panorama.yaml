@@ -28,8 +28,13 @@ appId: com.onghaig.haircare
       id: "panorama-viewer"
     direction: LEFT
 - takeScreenshot: e2e-71-panorama-turned
-- tapOn: "Show back"
-- assertVisible: "Back"
-- tapOn: "Show top"
+# Tap thumbs by id: a label tap can land on the neighbouring thumb.
+- tapOn:
+    id: "panorama-thumb-crown"
+- assertVisible:
+    id: "panorama-angle"
+    text: "Back"
+- tapOn:
+    id: "panorama-thumb-top"
 - takeScreenshot: e2e-72-panorama-top
 - tapOn: "Close"

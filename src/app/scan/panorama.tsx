@@ -180,6 +180,7 @@ function TurnAround({ scan }: { scan: ScanRecord }) {
                 key={r.view}
                 accessibilityRole="button"
                 accessibilityLabel={`Show ${r.label.toLowerCase()}`}
+                testID={`panorama-thumb-${r.view}`}
                 accessibilityState={{ selected: on }}
                 onPress={() => {
                   setShowTop(r.top);

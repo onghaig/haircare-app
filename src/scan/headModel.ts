@@ -288,6 +288,31 @@ export function mapSources(views: Partial<Record<ScanView, SavedView>>, minScore
   return out;
 }
 
+/**
+ * Why each photo of a scan could or couldn't be placed on the head, in a few words. Shown when
+ * the map is empty, so a problem is visible instead of a silent blank map.
+ */
+export function placementReport(views: Partial<Record<ScanView, SavedView>>): string[] {
+  const out: string[] = [];
+  for (const view of Object.keys(views) as ScanView[]) {
+    const v = views[view];
+    if (!v) continue;
+    const back = view === 'top' || view === 'crown';
+    const missing = [
+      !v.frameSize && 'size',
+      back ? !v.hairGrid && 'hair map' : !v.anchors && 'face points',
+    ].filter(Boolean);
+    if (missing.length) {
+      out.push(`${view}: no ${missing.join(' or ')}`);
+      continue;
+    }
+    const [w, h] = v.frameSize!;
+    const placed = back ? (v.hairGrid ? fitBackCamera(view, v.hairGrid, w, h) : null) : fitFaceCamera(v.anchors!, w, h);
+    out.push(`${view}: ${placed ? 'placed' : back ? 'too little hair seen' : 'face points did not fit'}`);
+  }
+  return out;
+}
+
 /** How much a photo counts for a scalp point: facing the camera and inside the photo. */
 export function viewWeight(cam: Camera, p: Vec3, n: Vec3): { w: number; u: number; v: number } | null {
   const facing = dot(n, cam.toCamera);
