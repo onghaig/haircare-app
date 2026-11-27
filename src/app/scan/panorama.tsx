@@ -62,15 +62,20 @@ export default function PanoramaScreen() {
         accessibilityValue={{ text: here }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={(e) => turn(e.nativeEvent.actionName === 'increment' ? 1 : -1)}>
-        {layers.map((l) => (
-          <Image
-            key={l.view}
-            source={{ uri: scan.views[l.view]?.uri }}
-            style={[StyleSheet.absoluteFill, { opacity: l.opacity }]}
-            contentFit="cover"
-            transition={0}
-          />
-        ))}
+        {/* The photo layers change while dragging. Kept out of touch handling, so the touch
+            always belongs to this stable view: a touch whose target unmounts mid-drag is never
+            ended, and the next tap anywhere on screen was swallowed by this view. */}
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          {layers.map((l) => (
+            <Image
+              key={l.view}
+              source={{ uri: scan.views[l.view]?.uri }}
+              style={[StyleSheet.absoluteFill, { opacity: l.opacity }]}
+              contentFit="cover"
+              transition={0}
+            />
+          ))}
+        </View>
         <View style={styles.badge} pointerEvents="none">
           <Text variant="caption" style={{ fontWeight: '700' }} testID="panorama-angle">
             {here}
