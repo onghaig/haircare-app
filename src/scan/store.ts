@@ -88,7 +88,9 @@ export class FileScanStore implements ScanStore {
     }
     const saved = { ...record, views };
     const all = (await this.list()).filter((r) => r.id !== record.id);
-    await this.index.write(JSON.stringify(sortByDate([...all, saved])));
+    // Synchronous on purpose: the async write sometimes never settled on the simulator right
+    // after a capture, leaving the finish screen on "Saving your scan".
+    this.index.writeSync(JSON.stringify(sortByDate([...all, saved])));
     return saved;
   }
 
@@ -96,6 +98,6 @@ export class FileScanStore implements ScanStore {
     const dir = new Directory(this.root, id);
     if (dir.exists) dir.delete();
     const all = (await this.list()).filter((r) => r.id !== id);
-    if (this.root.exists) await this.index.write(JSON.stringify(all));
+    if (this.root.exists) this.index.writeSync(JSON.stringify(all));
   }
 }
