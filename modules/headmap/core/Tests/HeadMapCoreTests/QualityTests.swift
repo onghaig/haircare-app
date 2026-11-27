@@ -105,9 +105,22 @@ final class QualityScorerTests: XCTestCase {
     let r = frame(yaw: 44, view: .rightTemple)
     XCTAssertTrue(frame(yaw: -44, view: .leftTemple).passed.contains(.pose))
     XCTAssertFalse(r.failed.contains(.pose))
-    XCTAssertNil(r.hairline)
+    XCTAssertNil(r.hairline?.centreMM)
     XCTAssertFalse(r.failed.contains(.foreheadVisible))
     XCTAssertFalse(r.failed.contains(.hairlineFound))
+  }
+
+  func testTempleViewsTraceOnlyTheirOwnSideOfTheHairline() throws {
+    // Fixture landmarks are unmirrored: the subject's left eye (263) is on the image right.
+    let left = try XCTUnwrap(frame(yaw: -44, view: .leftTemple).hairline)
+    XCTAssertGreaterThan(left.curve.count, 10)
+    XCTAssertTrue(left.curve.allSatisfy { $0.x > centre.x }, "left temple traces the subject's left")
+    let right = try XCTUnwrap(frame(yaw: 44, view: .rightTemple).hairline)
+    XCTAssertTrue(right.curve.allSatisfy { $0.x < centre.x })
+    // No distances from a turned head, and the forehead check stays front-only.
+    XCTAssertNil(left.centreMM)
+    XCTAssertNil(left.leftTempleMM)
+    XCTAssertFalse(frame(yaw: -44, view: .leftTemple).failed.contains(.foreheadVisible))
   }
 
   func testDarkFrameFailsExposure() {

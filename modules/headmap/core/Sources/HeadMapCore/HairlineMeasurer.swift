@@ -126,4 +126,16 @@ public struct HairlineMeasurer: Sendable {
       centreIPD: c, leftTempleIPD: lt, rightTempleIPD: rt, templeRecessionIPD: recession,
       curve: curve, foreheadVisible: foreheadVisible, interPupilPx: ipd)
   }
+
+  /// Temple views: keep only the stretch of the traced hairline on that temple's side of the face,
+  /// for the green line. Side is the subject's own (MediaPipe's left eye is the subject's left),
+  /// so it holds on mirrored and unmirrored frames alike. Distances are only measured on the front.
+  public static func templeTrace(_ m: HairlineMeasure, landmarks lm: FaceLandmarks, view: ScanView) -> HairlineMeasure {
+    let centreX = lm[LandmarkID.glabella].x
+    let sideX = lm[view == .leftTemple ? LandmarkID.eyeLeftOuter : LandmarkID.eyeRightOuter].x
+    let side = sideX - centreX
+    return HairlineMeasure(
+      centreIPD: nil, leftTempleIPD: nil, rightTempleIPD: nil, templeRecessionIPD: nil,
+      curve: m.curve.filter { ($0.x - centreX) * side > 0 }, foreheadVisible: m.foreheadVisible, interPupilPx: m.interPupilPx)
+  }
 }
