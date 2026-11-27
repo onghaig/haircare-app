@@ -8,6 +8,7 @@ import { Button, Card, Screen, Text } from '@/components/ui';
 import { answer, missedYesterday, progress, streak, type Answer } from '@/plan/log';
 import { usePlan } from '@/plan/PlanProvider';
 import { biggestNudge, weekStrip } from '@/options/plan';
+import { activeSupplies, sheddingHeadsUp, supplies, supplyCopy } from '@/plan/coach';
 import { applyReminders, DEFAULT_REMINDERS, reminderPlan, requestReminderPermission } from '@/plan/reminders';
 import { dailyTasks, dayKey, type Task, type TaskId } from '@/plan/tasks';
 import { TASK_WHY } from '@/plan/why';
@@ -42,6 +43,9 @@ export default function TodayScreen() {
   const strip = nudge ? weekStrip(book, now, nudge.entry.task) : null;
   const remindersOn = profile.reminders?.enabled ?? false;
   const goal = goalCopy(profile.goal, forecast ? isLowRisk(forecast) : false);
+  const active = activeSupplies(profile);
+  const lowSupplies = supplies(profile, active, book, now).filter((s) => s.state !== 'ok');
+  const headsUp = sheddingHeadsUp(profile, active, book, now);
 
   const set = (id: TaskId, a: Answer | undefined) => void change((b) => answer(b, today, id, a));
 
@@ -55,8 +59,10 @@ export default function TodayScreen() {
     if (!(await requestReminderPermission())) return;
     const reminders = { ...DEFAULT_REMINDERS, ...profile.reminders, enabled: true };
     await update((p) => ({ ...p, reminders }));
-    await applyReminders(reminderPlan({ ...profile, reminders }, reminders, new Date()));
+    await applyReminders(reminderPlan({ ...profile, reminders }, reminders, new Date(), book));
   }
+
+  const dismiss = (key: string) => void update((p) => ({ ...p, coach: { ...p.coach, dismissed: [...(p.coach?.dismissed ?? []), key] } }));
 
   return (
     <Screen title="Today">
@@ -76,6 +82,27 @@ export default function TodayScreen() {
           </Text>
           <Text variant="headline">Same time, same spot</Text>
           <Button label={records.length === 0 ? 'Start your first scan' : 'Start weekly scan'} onPress={() => router.push('/scan/session')} />
+        </Card>
+      ) : null}
+
+      {lowSupplies.map((s) => (
+        <Pressable key={s.id} accessibilityRole="button" accessibilityLabel={supplyCopy(s)} onPress={() => router.push('/coach')}>
+          <Card style={styles.alert} testID={`low-${s.id}`}>
+            <Text variant="caption" color="warning">
+              {s.state === 'out' ? 'Used up' : 'Running low'}
+            </Text>
+            <Text>{supplyCopy(s)}</Text>
+          </Card>
+        </Pressable>
+      ))}
+
+      {headsUp ? (
+        <Card style={styles.headsUp} testID="shedding-heads-up">
+          <Text variant="headline">{headsUp.title}</Text>
+          <Text variant="caption">{headsUp.body}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Got it" onPress={() => dismiss(headsUp.key)} style={styles.gotIt}>
+            <Text color="accent">Got it</Text>
+          </Pressable>
         </Card>
       ) : null}
 
@@ -172,6 +199,15 @@ export default function TodayScreen() {
         </Card>
       </Pressable>
 
+      <Pressable accessibilityRole="button" accessibilityLabel="Routine coach" onPress={() => router.push('/coach')}>
+        <Card style={{ gap: 2 }}>
+          <Text variant="headline">Routine coach</Text>
+          <Text variant="caption" color="textMuted">
+            Reminder times, supplies and product checks
+          </Text>
+        </Card>
+      </Pressable>
+
       {!remindersOn ? (
         <Card style={{ gap: spacing.sm }}>
           <Text variant="headline">Reminders</Text>
@@ -188,6 +224,9 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   hero: { gap: spacing.sm, backgroundColor: colors.surfaceRaised, borderColor: colors.accentDim },
+  alert: { gap: 2, borderColor: colors.warning },
+  headsUp: { gap: spacing.xs, borderColor: colors.info },
+  gotIt: { minHeight: minTouchTarget, justifyContent: 'center', alignSelf: 'flex-start' },
   row: { flexDirection: 'row', alignItems: 'center' },
   tap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 56 },
   border: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },

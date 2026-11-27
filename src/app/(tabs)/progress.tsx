@@ -4,10 +4,12 @@ import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Ring } from '@/components/onboarding/Controls';
+import { LifestyleCard } from '@/components/progress/LifestyleCard';
 import { TrendChart } from '@/components/progress/TrendChart';
 import { HairlineNumbers } from '@/components/scan/HairlineNumbers';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { shortDate } from '@/paywall/plans';
+import { lifestyleTrend } from '@/plan/lifestyle';
 import { usePlan } from '@/plan/PlanProvider';
 import { dailyTasks } from '@/plan/tasks';
 import { useProfile } from '@/profile/ProfileProvider';
@@ -85,6 +87,8 @@ export default function ProgressScreen() {
           <TrendChart scans={scans} />
         </Card>
       ) : null}
+
+      <LifestyleCard trend={lifestyleTrend(book, records, now)} />
 
       <Card style={styles.row}>
         <View accessible accessibilityLabel={`${keep.label} ${Math.round(keep.share * 100)}% of the last 30 days`}>

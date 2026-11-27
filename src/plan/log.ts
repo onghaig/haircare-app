@@ -4,12 +4,17 @@ import { addDays, dayKey, type TaskId } from './tasks';
 
 export type Answer = 'done' | 'skipped';
 export type Shedding = 'less' | 'normal' | 'more';
+export type Diet = 'well' | 'mixed' | 'poorly';
 
 export interface QuickLog {
   shedding: Shedding;
   /** 1 (calm) to 5 (very stressed). */
   stress: number;
   sleepHours: number;
+  /** How the user ate today. Optional: logs from before it existed have none. */
+  diet?: Diet;
+  /** Worked out or played sport today. Optional, like diet. */
+  workout?: boolean;
 }
 
 export interface DayLog {

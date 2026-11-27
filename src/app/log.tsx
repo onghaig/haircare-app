@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Chips, type Option } from '@/components/onboarding/Controls';
 import { Button, CloseButton, Text } from '@/components/ui';
-import { logQuick, type Shedding } from '@/plan/log';
+import { logQuick, type Diet, type Shedding } from '@/plan/log';
 import { usePlan } from '@/plan/PlanProvider';
 import { dayKey } from '@/plan/tasks';
 import { colors, spacing } from '@/theme';
@@ -30,7 +30,20 @@ const SLEEP: Option<'5' | '6' | '7' | '8' | '9'>[] = [
   { value: '9', label: '9 h+' },
 ];
 
-/** Three questions, about ten seconds. Feeds the monthly report's "what changed". */
+const DIET: Option<Diet>[] = [
+  { value: 'well', label: 'Well' },
+  { value: 'mixed', label: 'Mixed' },
+  { value: 'poorly', label: 'Poorly' },
+];
+const WORKOUT: Option<'yes' | 'no'>[] = [
+  { value: 'yes', label: 'Yes' },
+  { value: 'no', label: 'No' },
+];
+
+/**
+ * Three questions and two optional ones, about ten seconds. Feeds the monthly report's "what
+ * changed" and the habits vs hair view on Progress.
+ */
 export default function QuickLogScreen() {
   const { book, change } = usePlan();
   const today = dayKey(new Date());
@@ -38,11 +51,21 @@ export default function QuickLogScreen() {
   const [shedding, setShedding] = useState<Shedding | undefined>(prev?.shedding);
   const [stress, setStress] = useState<string | undefined>(prev ? String(prev.stress) : undefined);
   const [sleep, setSleep] = useState<string | undefined>(prev ? String(Math.min(9, Math.max(5, prev.sleepHours))) : undefined);
+  const [diet, setDiet] = useState<Diet | undefined>(prev?.diet);
+  const [workout, setWorkout] = useState<'yes' | 'no' | undefined>(prev?.workout == null ? undefined : prev.workout ? 'yes' : 'no');
   const ready = shedding && stress && sleep;
 
   async function save() {
     if (!ready) return;
-    await change((b) => logQuick(b, today, { shedding, stress: Number(stress), sleepHours: Number(sleep) }));
+    await change((b) =>
+      logQuick(b, today, {
+        shedding,
+        stress: Number(stress),
+        sleepHours: Number(sleep),
+        ...(diet ? { diet } : {}),
+        ...(workout ? { workout: workout === 'yes' } : {}),
+      }),
+    );
     router.back();
   }
 
@@ -59,6 +82,13 @@ export default function QuickLogScreen() {
         <Chips options={STRESS} selected={stress ? [stress as '1'] : []} onToggle={setStress} />
         <Text variant="headline">Sleep last night</Text>
         <Chips options={SLEEP} selected={sleep ? [sleep as '5'] : []} onToggle={setSleep} />
+        <Text variant="headline">How you ate today</Text>
+        <Chips options={DIET} selected={diet ? [diet] : []} onToggle={(v) => setDiet(v === diet ? undefined : v)} />
+        <Text variant="headline">Workout or sport today</Text>
+        <Chips options={WORKOUT} selected={workout ? [workout] : []} onToggle={(v) => setWorkout(v === workout ? undefined : v)} />
+        <Text variant="caption" color="textMuted">
+          The last two are optional.
+        </Text>
       </ScrollView>
       <View style={styles.bottom}>
         <Button label="Save" disabled={!ready} onPress={() => void save()} />

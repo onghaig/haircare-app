@@ -1,4 +1,5 @@
 import type { Subscription } from '@/paywall/purchases';
+import type { Supply, SupplyId } from '@/plan/coach';
 import type { ReminderSettings } from '@/plan/reminders';
 
 /** The hair profile built during onboarding. Every answer is optional except age. */
@@ -93,6 +94,12 @@ export interface Profile {
    * agrees (consentAt) or says no (declinedAt). Never offered to under-18s.
    */
   aiPreview?: { consentAt?: string; declinedAt?: string };
+  /** The pack each supply was last restocked with, for the stock-out alert. */
+  supplies?: Partial<Record<SupplyId, Supply>>;
+  /** When the user says they started a treatment, "2026-11-26". Else the first logged dose counts. */
+  treatmentStarts?: Partial<Record<SupplyId, string>>;
+  /** Routine coach cards the user has dismissed, such as "shedding:minoxidil". */
+  coach?: { dismissed?: string[] };
 }
 
 export const emptyProfile = (): Profile => ({
