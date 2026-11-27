@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import { TABS, tabByRoute } from '@/navigation/tabs';
+import { isTabVisible, TABS, tabByRoute } from '@/navigation/tabs';
 
 describe('tabs', () => {
   it('are the five tabs from the spec, in order', () => {
@@ -15,6 +15,10 @@ describe('tabs', () => {
       expect(t.md).toBeTruthy();
       expect(t.job.length).toBeGreaterThan(0);
     }
+  });
+
+  it('keeps the placeholder Ask tab out of the tab bar', () => {
+    expect(TABS.filter((t) => isTabVisible(t.route)).map((t) => t.label)).toEqual(['Today', 'Scan', 'Progress', 'Predict']);
   });
 
   it('has unique routes', () => {

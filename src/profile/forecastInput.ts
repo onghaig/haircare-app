@@ -40,10 +40,11 @@ export function ancestryFor(choices: AncestryChoice[]): Ancestry | undefined {
 /** The strongest treatment the user already takes, in the model's terms. */
 export function treatmentFor(choices: TreatmentChoice[]): Treatment {
   const has = (t: TreatmentChoice) => choices.includes(t);
+  const minox = has('minoxidil') || has('oralMinoxidil');
   if (has('dutasteride')) return 'dutasteride';
-  if (has('finasteride') && has('minoxidil')) return 'finasteride+minoxidil';
+  if (has('finasteride') && minox) return 'finasteride+minoxidil';
   if (has('finasteride')) return 'finasteride';
-  if (has('minoxidil')) return 'minoxidil';
+  if (minox) return 'minoxidil';
   return 'none';
 }
 
@@ -80,9 +81,22 @@ export function selfReportedStage(profile: Profile): number | null {
   return 2;
 }
 
-/** Everything the forecast engine needs from onboarding. Returns null until age is known. */
-export function toForecastInput(profile: Profile): UserInput | null {
+/**
+ * Everything the forecast engine needs from onboarding. Returns null until age is known.
+ * A stage estimated from a scan replaces the self-report (it already blends in the answers),
+ * and counts as weak evidence: it is not yet validated against graded photos.
+ */
+export function toForecastInput(profile: Profile, scanStage?: number | null): UserInput | null {
   if (profile.age == null) return null;
+  if (scanStage != null) {
+    return {
+      age: profile.age,
+      ancestry: ancestryFor(profile.ancestry),
+      relatives: relativesFor(profile),
+      treatment: treatmentFor(profile.treatments),
+      observations: [{ age: profile.age, stage: scanStage, source: 'scan_estimate' }],
+    };
+  }
   return {
     age: profile.age,
     ancestry: ancestryFor(profile.ancestry),

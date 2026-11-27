@@ -1,4 +1,5 @@
 import type { Subscription } from '@/paywall/purchases';
+import type { ReminderSettings } from '@/plan/reminders';
 
 /** The hair profile built during onboarding. Every answer is optional except age. */
 
@@ -38,12 +39,20 @@ export interface Relative {
   startAge?: number;
   /** Local file URI of a photo the user added. */
   photoUri?: string;
+  /** What the scan engine read from that photo. Absent when it found no hairline. */
+  photoAnalysis?: {
+    stage: number;
+    low: number;
+    high: number;
+    curve: [number, number][];
+  };
 }
 
 export type TreatmentChoice =
   | 'finasteride'
   | 'dutasteride'
   | 'minoxidil'
+  | 'oralMinoxidil'
   | 'ketoconazole'
   | 'microneedling'
   | 'none';
@@ -78,6 +87,12 @@ export interface Profile {
   revealSeenAt?: string;
   /** Set once the user subscribes (or starts a trial). */
   subscription?: Subscription;
+  reminders?: ReminderSettings;
+  /**
+   * The AI "future you" preview sends one front photo to the preview service. Set when the user
+   * agrees (consentAt) or says no (declinedAt). Never offered to under-18s.
+   */
+  aiPreview?: { consentAt?: string; declinedAt?: string };
 }
 
 export const emptyProfile = (): Profile => ({

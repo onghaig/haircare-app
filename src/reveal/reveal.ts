@@ -74,7 +74,7 @@ const ZONE_NAME: Record<Exclude<Zone, 'allOver'>, string> = {
   crown: 'Crown',
 };
 
-/** Weakest and strongest zones, from what the user reported (the scan grader replaces this later). */
+/** Weakest and strongest zones, from what the user reported. Always shown as their answer, never as measured. */
 export function zoneSummary(profile: Profile): { weakest: string | null; strongest: string | null; sentence: string } {
   if (profile.worriedOnly || profile.zones.length === 0) {
     return { weakest: null, strongest: 'All zones', sentence: 'No zone stands out yet. Your first scan is your baseline.' };
@@ -85,10 +85,10 @@ export function zoneSummary(profile: Profile): { weakest: string | null; stronge
   const order: Exclude<Zone, 'allOver'>[] = ['temples', 'hairline', 'crown', 'top'];
   const weak = order.find((z) => profile.zones.includes(z))!;
   const strong = [...order].reverse().find((z) => !profile.zones.includes(z)) ?? null;
-  const verb = weak === 'temples' ? 'are' : 'is';
+  // What the person told us, said as theirs: the scan measures it, the answer doesn't.
   const sentence = strong
-    ? `Your ${ZONE_NAME[weak].toLowerCase()} ${verb} changing faster than your ${ZONE_NAME[strong].toLowerCase()}.`
-    : 'Change shows in several zones, so tracking all of them matters.';
+    ? `You notice it most at your ${ZONE_NAME[weak].toLowerCase()}. Your weekly scans will show how fast it’s moving.`
+    : 'You notice it in several places, so tracking every zone matters.';
   return { weakest: ZONE_NAME[weak], strongest: strong ? ZONE_NAME[strong] : null, sentence };
 }
 
@@ -100,6 +100,8 @@ export function analysisCounters(profile: Profile, scan: ScanRecord | undefined)
   return {
     views,
     points: faceViews * LANDMARKS_PER_VIEW,
+    /** Points on the hairline line the front view actually traced. */
+    hairlinePoints: scan?.hairline?.curve?.length ?? 0,
     relatives,
     projectTo: Math.max(50, (profile.age ?? 30) + 10),
   };

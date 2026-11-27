@@ -1,0 +1,54 @@
+# The scalp map (photos stitched top-down, with the hair the camera saw), then the turn-around
+# panorama, opened from the Scan tab.
+appId: com.onghaig.haircare
+---
+- tapOn: "Scan"
+- scrollUntilVisible:
+    element: "See your scalp map"
+- tapOn: "See your scalp map"
+- assertVisible: "Your scalp map"
+- assertVisible:
+    id: "scalp-map"
+# The photos are mapped onto the head model on the phone; give it a moment.
+- extendedWaitUntil:
+    visible:
+      id: "scalp-map-image"
+    timeout: 60000
+- takeScreenshot: e2e-69a-scalp-map
+- tapOn: "Hair only"
+- takeScreenshot: e2e-69b-scalp-map-hair
+# By id: "Crown" is also the map's own zone label, which scrolls under the header.
+- scrollUntilVisible:
+    element:
+      id: "zone-row-crown"
+- takeScreenshot: e2e-69c-scalp-map-zones
+- tapOn: "Turn around"
+- assertVisible: "Your hair, all the way round"
+- takeScreenshot: e2e-70-panorama-front
+# Jump with the thumbs (by id: a label tap can land on the neighbouring thumb), then drag, then
+# check a tap still works after the drag (it once didn't: the dragged-over photo unmounted).
+- tapOn:
+    id: "panorama-thumb-crown"
+- extendedWaitUntil:
+    visible:
+      id: "panorama-thumb-crown"
+      selected: true
+    timeout: 5000
+- tapOn:
+    id: "panorama-thumb-top"
+- takeScreenshot: e2e-72-panorama-top
+- tapOn:
+    id: "panorama-thumb-front"
+- swipe:
+    from:
+      id: "panorama-viewer"
+    direction: LEFT
+- takeScreenshot: e2e-71-panorama-turned
+- tapOn:
+    id: "panorama-thumb-crown"
+- extendedWaitUntil:
+    visible:
+      id: "panorama-thumb-crown"
+      selected: true
+    timeout: 5000
+- tapOn: "Close"

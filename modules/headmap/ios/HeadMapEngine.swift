@@ -57,11 +57,14 @@ final class HeadMapEngine {
   /// Live frame from the camera (portrait, already mirrored for the front camera).
   func analyse(pixelBuffer: CVPixelBuffer, timestampMs: Int, view: ScanView, baselineFaceWidth: Double?) throws -> QualityReport {
     let gray = HeadMapEngine.grayImage(from: pixelBuffer)
-    guard view.usesFaceTracking else { return scorer.evaluateWithoutFace(view: view, gray: gray) }
     let image = try MPImage(pixelBuffer: pixelBuffer)
+    guard view.usesFaceTracking else {
+      let seg = try segmenter.segment(videoFrame: image, timestampInMilliseconds: timestampMs)
+      return scorer.evaluateWithoutFace(view: view, gray: gray, hair: hairMask(seg, gray: gray))
+    }
     let faces = try landmarker.detect(videoFrame: image, timestampInMilliseconds: timestampMs)
     var seg: ImageSegmenterResult?
-    if view.measuresHairline { seg = try segmenter.segment(videoFrame: image, timestampInMilliseconds: timestampMs) }
+    if view.tracesHairline { seg = try segmenter.segment(videoFrame: image, timestampInMilliseconds: timestampMs) }
     return evaluate(faces: faces, seg: seg, gray: gray, view: view, baselineFaceWidth: baselineFaceWidth)
   }
 
@@ -72,11 +75,13 @@ final class HeadMapEngine {
     guard let gray = HeadMapEngine.grayImage(from: uiImage) else {
       return scorer.evaluate(view: view, landmarks: nil, pose: nil, hair: nil, gray: nil)
     }
-    guard view.usesFaceTracking else { return scorer.evaluateWithoutFace(view: view, gray: gray) }
     let image = try MPImage(uiImage: uiImage)
+    guard view.usesFaceTracking else {
+      return scorer.evaluateWithoutFace(view: view, gray: gray, hair: hairMask(try segmenter.segment(image: image), gray: gray))
+    }
     let faces = try landmarker.detect(image: image)
     var seg: ImageSegmenterResult?
-    if view.measuresHairline { seg = try segmenter.segment(image: image) }
+    if view.tracesHairline { seg = try segmenter.segment(image: image) }
     return evaluate(faces: faces, seg: seg, gray: gray, view: view, baselineFaceWidth: baselineFaceWidth)
   }
 
@@ -93,15 +98,18 @@ final class HeadMapEngine {
       for r in 0..<4 { for c in 0..<4 { rowMajor[r * 4 + c] = Double(m.value(atRow: UInt(r), column: UInt(c))) } }
       pose = PoseAngles.from(rowMajor: rowMajor)
     }
-    var hair: HairMask?
-    if let masks = seg?.confidenceMasks, masks.count > 1 {
-      let mask = masks[1]  // class 1 = hair
-      let mw = Int(mask.width), mh = Int(mask.height)
-      let ptr = mask.float32Data
-      hair = HairMask(width: mw, height: mh, values: Array(UnsafeBufferPointer(start: ptr, count: mw * mh)),
-                      imageWidth: w, imageHeight: h)
-    }
+    let hair = hairMask(seg, gray: gray)
     return scorer.evaluate(view: view, landmarks: lm, pose: pose, hair: hair, gray: gray, baselineFaceWidth: baselineFaceWidth)
+  }
+
+  /// The hair confidence mask (class 1) from the segmenter, sized to the gray image.
+  private func hairMask(_ seg: ImageSegmenterResult?, gray: GrayImage) -> HairMask? {
+    guard let masks = seg?.confidenceMasks, masks.count > 1 else { return nil }
+    let mask = masks[1]  // class 1 = hair
+    let mw = Int(mask.width), mh = Int(mask.height)
+    let ptr = mask.float32Data
+    return HairMask(width: mw, height: mh, values: Array(UnsafeBufferPointer(start: ptr, count: mw * mh)),
+                    imageWidth: Double(gray.width), imageHeight: Double(gray.height))
   }
 
   // MARK: - Grayscale conversion
@@ -179,6 +187,19 @@ extension QualityReport {
       // Normalised 0..1 so JS can draw it over any preview size.
       m["curve"] = hl.curve.map { [$0.x / frameWidth, $0.y / frameHeight] }
       d["hairline"] = m
+    }
+    if let g = hairGrid {
+      // Two decimals is plenty for a heatmap and keeps the saved scan small.
+      d["hairGrid"] = ["cols": g.cols, "rows": g.rows, "values": g.values.map { ($0 * 100).rounded() / 100 }]
+    }
+    d["frameSize"] = [frameWidth, frameHeight]
+    if let a = anchors {
+      d["anchors"] = Dictionary(uniqueKeysWithValues: a.map { (String($0.key), [$0.value.x / frameWidth, $0.value.y / frameHeight]) })
+    }
+    if let a = aim {
+      var m: [String: Any] = ["hint": a.hint.rawValue, "hairShare": a.hairShare]
+      if let c = a.centre { m["centre"] = [c.x, c.y] }
+      d["aim"] = m
     }
     return d
   }
