@@ -104,9 +104,21 @@ class QualityScorerTest {
     val r = frame(yaw = 44.0, view = ScanView.RIGHT_TEMPLE)
     assertTrue(frame(yaw = -44.0, view = ScanView.LEFT_TEMPLE).passed.contains(QualityCheck.POSE))
     assertFalse(r.failed.contains(QualityCheck.POSE))
-    assertNull(r.hairline)
+    assertNull(r.hairline?.centreMM)
     assertFalse(r.failed.contains(QualityCheck.FOREHEAD_VISIBLE))
     assertFalse(r.failed.contains(QualityCheck.HAIRLINE_FOUND))
+  }
+
+  @Test fun templeViewsTraceOnlyTheirOwnSideOfTheHairline() {
+    // Fixture landmarks are unmirrored: the subject's left eye (263) is on the image right.
+    val left = frame(yaw = -44.0, view = ScanView.LEFT_TEMPLE).hairline!!
+    assertTrue(left.curve.size > 10)
+    assertTrue(left.curve.all { it.x > centre.x }, "left temple traces the subject's left")
+    val right = frame(yaw = 44.0, view = ScanView.RIGHT_TEMPLE).hairline!!
+    assertTrue(right.curve.all { it.x < centre.x })
+    assertNull(left.centreMM)
+    assertNull(left.leftTempleMM)
+    assertFalse(frame(yaw = -44.0, view = ScanView.LEFT_TEMPLE).failed.contains(QualityCheck.FOREHEAD_VISIBLE))
   }
 
   @Test fun darkFrameFailsExposure() = assertTrue(frame(face = 30, background = 30).failed.contains(QualityCheck.EXPOSURE))

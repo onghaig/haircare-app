@@ -35,6 +35,17 @@ class HairlineMeasurer(
 ) {
   companion object {
     const val MEAN_INTER_PUPIL_MM = 63.0
+
+    /**
+     * Temple views: keep only the stretch of the traced hairline on that temple's side of the face,
+     * for the green line. Side is the subject's own (MediaPipe's left eye is the subject's left), so
+     * it holds on mirrored and unmirrored frames alike. Distances are only measured on the front.
+     */
+    fun templeTrace(m: HairlineMeasure, lm: FaceLandmarks, view: ScanView): HairlineMeasure {
+      val centreX = lm[LandmarkID.GLABELLA].x
+      val side = lm[if (view == ScanView.LEFT_TEMPLE) LandmarkID.EYE_LEFT_OUTER else LandmarkID.EYE_RIGHT_OUTER].x - centreX
+      return HairlineMeasure(null, null, null, null, m.curve.filter { (it.x - centreX) * side > 0 }, m.foreheadVisible, m.interPupilPx)
+    }
   }
 
   fun measure(lm: FaceLandmarks, hair: HairMask): HairlineMeasure {

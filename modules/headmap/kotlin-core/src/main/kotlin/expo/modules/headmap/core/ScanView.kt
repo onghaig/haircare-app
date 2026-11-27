@@ -20,6 +20,8 @@ enum class ScanView(val raw: String) {
   /** Hairline position is measured on the front view only. */
   val measuresHairline: Boolean get() = this == FRONT
   val needsForehead: Boolean get() = this == FRONT
+  /** The hairline is traced (for the green line) on the front and both temple views. */
+  val tracesHairline: Boolean get() = usesFaceTracking
 
   companion object {
     fun from(raw: String?): ScanView = entries.firstOrNull { it.raw == raw } ?: FRONT

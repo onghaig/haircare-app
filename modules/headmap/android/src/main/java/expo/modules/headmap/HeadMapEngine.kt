@@ -75,7 +75,7 @@ class HeadMapEngine(context: Context) : AutoCloseable {
       return scorer.evaluateWithoutFace(view, gray, hairMask(segmenter.segment(image), gray))
     }
     val faces = landmarker.detect(image)
-    val seg = if (view.measuresHairline) segmenter.segment(image) else null
+    val seg = if (view.tracesHairline) segmenter.segment(image) else null
     return evaluate(faces, seg, gray, view, baselineFaceWidth)
   }
 

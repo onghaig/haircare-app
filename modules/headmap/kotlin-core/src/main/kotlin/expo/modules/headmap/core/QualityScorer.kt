@@ -156,7 +156,10 @@ class QualityScorer(val thresholds: QualityThresholds = QualityThresholds()) {
       ?: return QualityReport(view, null, null, DistanceHint.OK, CentringHint.OK, null, null, null, emptyList(), listOf(QualityCheck.FACE_FOUND), 0)
     val (lo, hi) = lm.boundingBox
     val stats = gray?.let { ImageStats.compute(it, lo, hi) }
-    val hairline = if (view.measuresHairline && hair != null) measurer.measure(lm, hair) else null
+    val hairline = if (view.tracesHairline && hair != null) {
+      val m = measurer.measure(lm, hair)
+      if (view.measuresHairline) m else HairlineMeasurer.templeTrace(m, lm, view)
+    } else null
     val poseError = pose?.maxDeviation(view.targetPose)
     val frameWidth = hair?.imageWidth ?: gray?.width?.toDouble() ?: (lm.faceWidth * 2)
     val frameHeight = hair?.imageHeight ?: gray?.height?.toDouble() ?: (frameWidth * 16 / 9)
