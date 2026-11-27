@@ -7,3 +7,8 @@
 -keep class com.google.protobuf.** { *; }
 -dontwarn com.google.mediapipe.**
 -dontwarn com.google.protobuf.**
+
+# MediaPipe logs through Flogger, which finds its backend by class name when it first loads.
+# Stripped, the landmarker dies in a static initializer (ExceptionInInitializerError).
+-keep class com.google.common.flogger.** { *; }
+-dontwarn com.google.common.flogger.**
