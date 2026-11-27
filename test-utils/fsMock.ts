@@ -46,6 +46,9 @@ export function createFsMock() {
       await new Promise((r) => setTimeout(r, 0));
       files.set(this.uri, s);
     }
+    writeSync(s: string) {
+      files.set(this.uri, s);
+    }
     async copy(dest: File) {
       files.set(dest.uri, files.get(this.uri) ?? '');
     }
