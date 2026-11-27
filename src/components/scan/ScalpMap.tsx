@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Svg, { G, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import { Text } from '@/components/ui';
-import { mapXY, MAP_ZONE_LABEL, ZONE_EDGES, type MapZone } from '@/scan/headModel';
+import { mapXY, MAP_ZONE_LABEL, placementReport, ZONE_EDGES, type MapZone } from '@/scan/headModel';
 import { renderScalpImage } from '@/scan/scalpRender';
 import { scanHairMap } from '@/scan/scalpMap';
 import type { ScanRecord } from '@/scan/session';
@@ -143,6 +143,9 @@ export function ScalpMap({
         <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="none">
           <Text variant="caption" color="textMuted" style={{ textAlign: 'center', maxWidth: size * 0.7 }}>
             This scan’s photos can’t be placed on the head. Scans from this version on can.
+          </Text>
+          <Text variant="caption" color="textMuted" style={{ textAlign: 'center', maxWidth: size * 0.8, fontSize: 10 }} testID="scalp-map-why">
+            {placementReport(scan.views).join(' · ')}
           </Text>
         </View>
       ) : null}
