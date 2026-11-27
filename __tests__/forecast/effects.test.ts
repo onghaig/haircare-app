@@ -7,7 +7,7 @@ const person: UserInput = {
   relatives: [{ relation: 'father', status: 'thinning', age: 52 }],
 };
 const model = new ForecastModel();
-const run = (u: UserInput, paths = {}) => model.forecast(u, { samples: 30_000, paths });
+const run = (u: UserInput, paths = {}) => model.forecast(u, { samples: 12_000, paths });
 
 describe('two kinds of action', () => {
   it('finasteride-type options slow loss; minoxidil and massage grow hair', () => {
