@@ -31,6 +31,17 @@ const VIEW_POSE: Record<ScanView, string> = {
   crown: 'Hold the phone up high above your head, camera pointing down',
 };
 
+/**
+ * The hairline views need the hairline itself in the photo, so each one says to pull the hair
+ * back first, on screen and out loud.
+ */
+export const HAIR_BACK: Partial<Record<ScanView, string>> = {
+  front: 'Pull your hair back off your forehead',
+  leftTemple: 'Pull your hair back off your left temple',
+  rightTemple: 'Pull your hair back off your right temple',
+  top: 'Pull your hair back off your hairline',
+};
+
 /** Target yaw per temple view, in the camera module's convention (negative: nose to your right). */
 export const TEMPLE_YAW: Partial<Record<ScanView, number>> = { leftTemple: -45, rightTemple: 45 };
 
@@ -48,7 +59,12 @@ export function turnToward(view: ScanView, yaw: number | undefined): 'right' | '
 
 /** What to do for a view, spoken when the view starts. */
 export function viewInstruction(view: ScanView): string {
-  return VIEW_POSE[view];
+  const back = HAIR_BACK[view];
+  return back ? `${back}. Then ${lowerFirst(VIEW_POSE[view])}` : VIEW_POSE[view];
+}
+
+function lowerFirst(s: string) {
+  return s.charAt(0).toLowerCase() + s.slice(1);
 }
 
 export function promptFor(report: QualityReport): Prompt {

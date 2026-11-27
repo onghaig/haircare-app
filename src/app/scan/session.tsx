@@ -20,7 +20,7 @@ import { HeadGuide } from '@/components/scan/HeadGuide';
 import { FINISH_MS, ScanFinish } from '@/components/scan/ScanFinish';
 import { PromptCard, StatusChips, ViewProgress } from '@/components/scan/ScanHud';
 import { Button, CloseButton as RoundClose, Text } from '@/components/ui';
-import { cameraErrorMessage, MANUAL_AFTER_MS, promptFor, statusChips, viewInstruction } from '@/scan/guidance';
+import { cameraErrorMessage, HAIR_BACK, MANUAL_AFTER_MS, promptFor, statusChips, viewInstruction } from '@/scan/guidance';
 import { useProfile } from '@/profile/ProfileProvider';
 import { BURST_MS, crownReducer, initialCrownState, stepVoice } from '@/scan/crown';
 import { draftRemaining } from '@/scan/draft';
@@ -393,6 +393,11 @@ export default function ScanSessionScreen() {
         <Text variant="headline" style={styles.viewTitle}>
           {practice ? 'Practice: front view' : VIEW_LABEL[view]}
         </Text>
+        {HAIR_BACK[view] && state.phase === 'capturing' ? (
+          <Text variant="caption" style={styles.hairBack} testID="hair-back">
+            {`${HAIR_BACK[view]}, so the hairline shows`}
+          </Text>
+        ) : null}
         <View style={{ flex: 1 }} />
         <View style={styles.bottom}>
           {!onCrown ? <PromptCard prompt={prompt} tip={tip} /> : null}
@@ -518,6 +523,17 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   viewTitle: { textAlign: 'center', marginTop: spacing.sm },
+  hairBack: {
+    alignSelf: 'center',
+    marginTop: spacing.xs,
+    fontWeight: '600',
+    color: colors.accent,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
   bottom: { padding: spacing.lg, gap: spacing.md },
   practice: { backgroundColor: 'rgba(0,0,0,0.72)', borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },

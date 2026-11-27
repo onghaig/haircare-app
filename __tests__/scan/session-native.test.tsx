@@ -249,13 +249,14 @@ describe('Scan session with the native camera', () => {
     const { prepareVoiceAudioAsync } = jest.requireMock('@modules/headmap') as { prepareVoiceAudioAsync: jest.Mock };
     await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
     expect(prepareVoiceAudioAsync).toHaveBeenCalled();
-    expect(Speech.speak.mock.calls[0][0]).toBe('Let’s start with your hairline. Look straight at the phone, chin level.');
+    expect(Speech.speak.mock.calls[0][0]).toBe('Let’s start with your hairline. Pull your hair back off your forehead. Then look straight at the phone, chin level.');
+    expect(screen.getByTestId('hair-back')).toHaveTextContent('Pull your hair back off your forehead, so the hairline shows');
     expect(screen.getByRole('switch', { name: 'Voice guidance' })).toBeChecked();
     await shot('front');
     expect(Speech.speak.mock.calls.map((c) => c[0])).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^(Got it\.|Nice, got that one\.|Perfect\.)$/),
-        expect.stringMatching(/^Now your left temple\. Show your left temple: turn your nose toward your right shoulder/),
+        expect.stringMatching(/^Now your left temple\. Pull your hair back off your left temple\. Then show your left temple: turn your nose toward your right shoulder/),
       ]),
     );
   });
