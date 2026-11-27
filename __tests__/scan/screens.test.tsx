@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Platform } from 'react-native';
 
 import ScanTab from '@/app/(tabs)/scan';
 import ScanResultScreen from '@/app/scan/[id]';
@@ -164,27 +163,3 @@ describe('Scan session', () => {
   });
 });
 
-describe('Scan session on Android', () => {
-  const os = Platform.OS;
-  beforeEach(() => Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true }));
-  afterEach(() => Object.defineProperty(Platform, 'OS', { value: os, configurable: true }));
-
-  it('says scanning is iPhone-only for now and still opens the first forecast', async () => {
-    await render(
-      <ProfileProvider store={new MemoryProfileStore(emptyProfile())}>
-        <ScanProvider store={new MemoryScanStore()}>
-          <ScanSessionScreen />
-        </ScanProvider>
-      </ProfileProvider>,
-    );
-    expect(await screen.findByRole('header', { name: 'Scanning isn’t on Android yet' })).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole('button', { name: 'See your forecast' }));
-    expect(router.replace).toHaveBeenCalledWith('/reveal/analysing');
-  });
-
-  it('goes back after the forecast has been seen', async () => {
-    await render(withScans(<ScanSessionScreen />));
-    await fireEvent.press(await screen.findByRole('button', { name: 'Back' }));
-    expect(router.back).toHaveBeenCalled();
-  });
-});

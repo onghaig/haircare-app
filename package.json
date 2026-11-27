@@ -61,7 +61,8 @@
     "check": "npm run lint && npm run typecheck && npm test",
     "models": "node modules/headmap/scripts/download-models.mjs",
     "postinstall": "node modules/headmap/scripts/download-models.mjs --soft",
-    "test:swift": "cd modules/headmap/core && swift test"
+    "test:swift": "cd modules/headmap/core && swift test",
+    "test:kotlin": "cd modules/headmap/kotlin-core && gradle test"
   },
   "private": true,
   "jest": {

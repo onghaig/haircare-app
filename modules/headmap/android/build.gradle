@@ -1,0 +1,35 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.onghaig.haircare'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.headmap"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  sourceSets {
+    main {
+      // The pure-Kotlin core (also a standalone JVM project with its own tests, ../kotlin-core),
+      // the Android twin of the Swift core in ../core.
+      java.srcDirs += ['../kotlin-core/src/main/kotlin']
+      // Same two Apache-2.0 MediaPipe models as iOS, fetched by `npm run models`. demo_face.jpg is
+      // only present in CI emulator builds (see .github/workflows/android-apk.yml).
+      assets.srcDirs += ['../ios/models']
+    }
+  }
+}
+
+dependencies {
+  implementation 'com.google.mediapipe:tasks-vision:0.10.21'
+  def camerax = '1.4.2'
+  implementation "androidx.camera:camera-core:${camerax}"
+  implementation "androidx.camera:camera-camera2:${camerax}"
+  implementation "androidx.camera:camera-lifecycle:${camerax}"
+  implementation "androidx.camera:camera-view:${camerax}"
+  implementation 'androidx.exifinterface:exifinterface:1.4.1'
+}

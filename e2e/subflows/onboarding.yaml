@@ -8,6 +8,12 @@ appId: com.onghaig.haircare
 - tapOn:
     id: "age-input"
 - inputText: "24"
+# Android's keyboard stays up over the answers; iOS's number pad doesn't cover them.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - tapOn: "Male"
 - tapOn: "Continue"
 - assertVisible: "Your background"

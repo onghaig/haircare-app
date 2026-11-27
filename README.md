@@ -3,7 +3,7 @@
 The hair-loss forecast: see your future hairline, then prove your plan is working.
 
 Built with Expo (React Native, TypeScript). Performance-critical parts, starting with the
-guided head scan, are native Swift modules (Kotlin for Android later).
+guided head scan, are native modules: Swift on iOS and Kotlin on Android, sharing one tested algorithm.
 
 ## Run it locally
 
@@ -67,9 +67,10 @@ with native code). For JS-only changes, use Expo Go or the `dev-client` variant.
    the browser or file manager when Android asks.
 
 It's a release build with the JS bundled in, signed with the Android debug key, for 64-bit ARM
-phones. What works: onboarding, the forecast reveal, Today, Progress and Predict. The hairline
-scan camera is Swift-only for now, so on Android the scan screen says so and offers the forecast
-instead; the Kotlin version of the scan is a later milestone.
+phones. Everything works, including the guided scan: the Android camera module
+(`modules/headmap/android`, CameraX plus the same two MediaPipe models) runs the same quality
+checks, hair coverage, hairline measurement and capture gate as iOS, from a Kotlin port of the
+Swift core (`modules/headmap/kotlin-core`) that is tested against the same reference fixtures.
 
 ### Later, when you have a paid Apple Developer account ($99/year)
 
@@ -97,6 +98,10 @@ app with Xcode 26, and runs the end-to-end flows in `e2e/` with
 illustrated demo face (`e2e/assets/demo_face.jpg`) that goes through the real on-device
 analysis. Device builds never include it, and real photo capture is only checked on a phone. When native iOS code changes, the sideload `.ipa` is rebuilt too.
 
+The **Android APK** workflow runs on free Linux runners: the Kotlin core's JVM tests, the phone
+APK (`Haircare-apk` artifact), and the same Maestro flows on an Android emulator with the demo
+face, recorded to `ci-demo` under `<branch>-android/`.
+
 ## Layout
 
 | Path | What it holds |
@@ -116,7 +121,7 @@ analysis. Device builds never include it, and real photo capture is only checked
 | `src/app/(tabs)/predict.tsx`, `src/app/share.tsx`, `src/predict/` | Predict: the look and the range year by year, treatment what-ifs for adults, and the share card (an illustration, never your photo) |
 | `src/profile/` | Hair profile: answers, on-device storage, onboarding rules, mapping to the forecast |
 | `src/components/head/`, `src/components/family/` | Drawn heads with tappable zones; the family tree and relative cards |
-| `modules/headmap/` | Native Swift scan module: camera, MediaPipe, measurement, quality checks ([README](modules/headmap/README.md)) |
+| `modules/headmap/` | Native scan module: camera, MediaPipe, measurement, quality checks. Swift (`ios/`, `core/`) and Kotlin (`android/`, `kotlin-core/`) ([README](modules/headmap/README.md)) |
 | `__tests__/` | Jest tests |
 | `e2e/` | Maestro end-to-end flows, run on an iOS simulator in CI |
 
