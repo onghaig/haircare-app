@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui';
@@ -81,7 +81,7 @@ export default function PanoramaScreen() {
         Drag to turn around your head. Your scan photos, blended between angles.
       </Text>
 
-      <ScrollView horizontal style={{ flexGrow: 0 }} contentContainerStyle={styles.strip} showsHorizontalScrollIndicator={false}>
+      <View style={styles.strip}>
         {[...RING.map((r) => ({ ...r, top: false })), { view: TOP.view, label: TOP.label, angle: 0, top: true }]
           .filter((r) => views.includes(r.view))
           .map((r) => {
@@ -105,7 +105,7 @@ export default function PanoramaScreen() {
               </Pressable>
             );
           })}
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -124,8 +124,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 4,
   },
-  strip: { gap: spacing.sm },
-  thumb: { width: 72, gap: 4, alignItems: 'center', borderRadius: radius.sm, padding: 4, borderWidth: 1, borderColor: colors.line },
+  strip: { flexDirection: 'row', gap: spacing.xs },
+  thumb: { flex: 1, gap: 4, alignItems: 'center', borderRadius: radius.sm, padding: 4, borderWidth: 1, borderColor: colors.line },
   thumbOn: { borderColor: colors.accent },
-  thumbImg: { width: 62, height: 80, borderRadius: radius.sm - 4, backgroundColor: colors.surface },
+  thumbImg: { width: '100%', aspectRatio: 62 / 80, borderRadius: radius.sm - 4, backgroundColor: colors.surface },
 });
