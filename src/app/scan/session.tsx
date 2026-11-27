@@ -63,18 +63,30 @@ export default function ScanSessionScreen() {
   const [crown, crownDispatch] = useReducer(crownReducer, initialCrownState);
   const onCrown = view === 'crown' && state.phase === 'capturing';
 
-  // Finish: save and show the result.
+  // Finish: save and show the result. Once per scan: a later state change must not start a
+  // second save (with a new id) while the first is still running.
+  const saving = useRef(false);
+  const [saveStep, setSaveStep] = useState<string | null>(null);
   useEffect(() => {
-    if (state.phase !== 'done') return;
+    if (state.phase !== 'done' || saving.current) return;
+    saving.current = true;
     const record = buildScanRecord(state, newId(), new Date());
+    setSaveStep('Storing your photos');
     save(record)
       .then(async (saved) => {
-        if (replaces && replaces !== saved.id) await remove(replaces);
+        if (replaces && replaces !== saved.id) {
+          setSaveStep('Replacing the old scan');
+          await remove(replaces);
+        }
+        setSaveStep('Opening your results');
         // The first finished scan leads into the forecast reveal; later scans show their result.
         if (firstReveal) router.replace('/reveal/analysing');
         else router.replace({ pathname: '/scan/[id]', params: { id: saved.id } });
       })
-      .catch((e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => {
+        saving.current = false;
+        setSaveError(e instanceof Error ? e.message : String(e));
+      });
   }, [state, save, remove, replaces, firstReveal]);
 
   // Announce each new view with what to do; the crown's steps announce themselves.
@@ -194,7 +206,7 @@ export default function ScanSessionScreen() {
   const prompt = saveError
     ? { title: 'Couldn’t save this scan', detail: saveError, tone: 'fix' as const, voice: '' }
     : state.phase === 'done'
-      ? { title: 'Saving your scan', tone: 'ready' as const, voice: '' }
+      ? { title: 'Saving your scan', detail: saveStep ?? undefined, tone: 'ready' as const, voice: '' }
       : cameraError
         ? { title: 'Camera problem', detail: cameraError, tone: 'fix' as const, voice: '' }
         : held

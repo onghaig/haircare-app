@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.util.Log
 import androidx.exifinterface.media.ExifInterface
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.ByteBufferExtractor
@@ -35,7 +36,12 @@ class HeadMapEngine(context: Context) : AutoCloseable {
   class ModelMissing(name: String) : Exception("Model $name is missing from the app. Run `npm run models` before building.")
 
   private val landmarker: FaceLandmarker
-  private val segmenter: ImageSegmenter
+  /**
+   * The hair segmenter needs OpenGL ES 3.1 for its last step. Where that is missing (some older
+   * phones, software-rendered emulators) it is switched off and the scan carries on without the
+   * hair mask, instead of failing every frame.
+   */
+  private var segmenter: ImageSegmenter?
   private val scorer = QualityScorer()
 
   init {
@@ -50,7 +56,7 @@ class HeadMapEngine(context: Context) : AutoCloseable {
         .setOutputFacialTransformationMatrixes(true)
         .build(),
     )
-    segmenter = ImageSegmenter.createFromOptions(
+    segmenter = try { ImageSegmenter.createFromOptions(
       context,
       ImageSegmenter.ImageSegmenterOptions.builder()
         .setBaseOptions(BaseOptions.builder().setModelAssetBuffer(seg).build())
@@ -58,12 +64,27 @@ class HeadMapEngine(context: Context) : AutoCloseable {
         .setOutputConfidenceMasks(true)
         .setOutputCategoryMask(false)
         .build(),
-    )
+    ) } catch (e: Throwable) {
+      Log.w("HeadMap", "Hair segmenter unavailable; scanning without the hair mask", e)
+      null
+    }
+  }
+
+  private fun segment(image: com.google.mediapipe.framework.image.MPImage): ImageSegmenterResult? {
+    val s = segmenter ?: return null
+    return try {
+      s.segment(image)
+    } catch (e: Throwable) {
+      Log.w("HeadMap", "Hair segmenter failed; scanning without the hair mask from now on", e)
+      runCatching { s.close() }
+      segmenter = null
+      null
+    }
   }
 
   override fun close() {
     landmarker.close()
-    segmenter.close()
+    segmenter?.close()
   }
 
   /** One upright frame or photo (ARGB_8888). */
@@ -72,10 +93,10 @@ class HeadMapEngine(context: Context) : AutoCloseable {
     val gray = grayImage(bitmap)
     val image = BitmapImageBuilder(bitmap).build()
     if (!view.usesFaceTracking) {
-      return scorer.evaluateWithoutFace(view, gray, hairMask(segmenter.segment(image), gray))
+      return scorer.evaluateWithoutFace(view, gray, hairMask(segment(image), gray))
     }
     val faces = landmarker.detect(image)
-    val seg = if (view.tracesHairline) segmenter.segment(image) else null
+    val seg = if (view.tracesHairline) segment(image) else null
     return evaluate(faces, seg, gray, view, baselineFaceWidth)
   }
 

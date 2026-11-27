@@ -11,6 +11,10 @@ sleep 20
 adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null || true
 adb install -r android/app/build/outputs/apk/release/app-release.apk
 adb shell pm grant com.onghaig.haircare android.permission.CAMERA || true
+# The APK is ARM64 (MediaPipe has no x86 library); the x86_64 image runs it via ARM translation.
+echo "Emulator ABIs: $(adb shell getprop ro.product.cpu.abilist | tr -d '\r')"
+echo "ARM translation: $(adb shell getprop ro.dalvik.vm.native.bridge | tr -d '\r')"
+adb logcat -c || true
 
 (
   i=0
@@ -24,6 +28,10 @@ sleep 2
 
 maestro test e2e/app.yaml --format junit --output e2e-results/report.xml --test-output-dir e2e-results
 status=$?
+if [ $status -ne 0 ]; then
+  echo "--- crash and native-library lines from logcat ---"
+  adb logcat -d -b crash,main 2>/dev/null | grep -E "AndroidRuntime|FATAL|DEBUG  :|linker|dlopen|native.bridge|ndk_translation|haircare|HeadMap|Caused by|^\S+ \S+ +[0-9]+ +[0-9]+ E " | tail -120 || true
+fi
 
 touch e2e-results/.stop
 sleep 2

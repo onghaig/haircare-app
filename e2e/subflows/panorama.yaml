@@ -13,7 +13,7 @@ appId: com.onghaig.haircare
 - extendedWaitUntil:
     visible:
       id: "scalp-map-image"
-    timeout: 30000
+    timeout: 60000
 - takeScreenshot: e2e-69a-scalp-map
 - tapOn: "Hair only"
 - takeScreenshot: e2e-69b-scalp-map-hair
@@ -23,18 +23,23 @@ appId: com.onghaig.haircare
 - tapOn: "Turn around"
 - assertVisible: "Your hair, all the way round"
 - takeScreenshot: e2e-70-panorama-front
+# Jump with the thumbs (by id: a label tap can land on the neighbouring thumb), then drag. The
+# thumbs come first: on the iOS simulator a tap right after the synthetic drag doesn't register.
+- tapOn:
+    id: "panorama-thumb-crown"
+- extendedWaitUntil:
+    visible:
+      id: "panorama-thumb-crown"
+      selected: true
+    timeout: 5000
+- tapOn:
+    id: "panorama-thumb-top"
+- takeScreenshot: e2e-72-panorama-top
+- tapOn:
+    id: "panorama-thumb-front"
 - swipe:
     from:
       id: "panorama-viewer"
     direction: LEFT
 - takeScreenshot: e2e-71-panorama-turned
-# Tap thumbs by id: a label tap can land on the neighbouring thumb.
-- tapOn:
-    id: "panorama-thumb-crown"
-- assertVisible:
-    id: "panorama-angle"
-    text: "Back"
-- tapOn:
-    id: "panorama-thumb-top"
-- takeScreenshot: e2e-72-panorama-top
 - tapOn: "Close"

@@ -19,11 +19,11 @@ appId: com.onghaig.haircare
 - tapOn: "Start the redo"
 - extendedWaitUntil:
     visible: "Before you scan"
-    timeout: 10000
+    timeout: 30000
 - tapOn: "Close scan"
 - extendedWaitUntil:
     visible: "Scan from .*"
-    timeout: 10000
+    timeout: 30000
 # Delete: change your mind first, then delete for real.
 - tapOn: "Scan from .*"
 - scrollUntilVisible:
@@ -39,5 +39,5 @@ appId: com.onghaig.haircare
 - tapOn: "Delete scan"
 - extendedWaitUntil:
     visible: "Your first scan sets your baseline"
-    timeout: 10000
+    timeout: 30000
 - takeScreenshot: e2e-82-scan-deleted

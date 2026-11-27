@@ -387,7 +387,17 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
     val feed = DemoFeed(source, iv)
     demo = feed
     val timer = Executors.newSingleThreadScheduledExecutor()
-    timer.scheduleWithFixedDelay({ analysis.execute { analyseDemoFrame(feed) } }, 300, 150, TimeUnit.MILLISECONDS)
+    // One demo frame in the queue at a time. When analysis is slower than the timer (the emulator
+    // runs it through ARM translation) the queue would otherwise grow without end, and a photo
+    // request would wait behind it.
+    val queued = java.util.concurrent.atomic.AtomicBoolean(false)
+    timer.scheduleWithFixedDelay({
+      if (queued.compareAndSet(false, true)) {
+        analysis.execute {
+          try { analyseDemoFrame(feed) } finally { queued.set(false) }
+        }
+      }
+    }, 300, 150, TimeUnit.MILLISECONDS)
     feed.timer = timer
   }
 
@@ -426,7 +436,11 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
   }
 
   private fun emitError(e: Throwable) {
-    val message = e.message ?: e.javaClass.simpleName
+    android.util.Log.e("HeadMap", "Camera problem", e)
+    // Show the root cause: an initializer error's own message is empty.
+    var root = e
+    while (root.cause != null && root.cause !== root) root = root.cause!!
+    val message = root.message ?: e.message ?: root.javaClass.simpleName
     post {
       if (!isAttachedToWindow) pendingError = message else onError(mapOf("message" to message))
     }
