@@ -31,7 +31,9 @@ export type ZoneComparison =
   | { kind: 'first' }
   | { kind: 'unavailable'; reason: 'noMap' | 'lowQuality' }
   | { kind: 'same'; margin: number }
-  | { kind: 'less' | 'more'; low: number; high: number };
+  | { kind: 'more'; low: number; high: number }
+  /** `confirmed` once the scan before this one showed less too: one scan alone can be light or angle. */
+  | { kind: 'less'; low: number; high: number; confirmed: boolean };
 
 function round5(x: number) {
   return Math.round(x * 20) * 5;
@@ -39,13 +41,14 @@ function round5(x: number) {
 
 /**
  * A zone's coverage in this scan against the same zone in your first scan, as a range in whole
- * 5 percent steps. A range that crosses zero reads as "about the same".
+ * 5 percent steps. A range that crosses zero reads as "about the same". Less coverage is only
+ * stated as a loss when `previous` (the good scan before this one) showed less as well.
  */
 export function compareZone(
   zone: MapZone,
   scan: ScanRecord,
   baseline: ScanRecord | undefined,
-  maps: { now?: HairMap; then?: HairMap } = {},
+  maps: { now?: HairMap; then?: HairMap; previous?: ScanRecord } = {},
 ): ZoneComparison {
   const now = (maps.now ?? scanHairMap(scan)).zones[zone];
   if (now == null) return { kind: 'unavailable', reason: hasAnyMap(scan) ? 'lowQuality' : 'noMap' };
@@ -56,16 +59,36 @@ export function compareZone(
   const low = change - COMPARE_MARGIN;
   const high = change + COMPARE_MARGIN;
   if (low <= 0 && high >= 0) return { kind: 'same', margin: round5(COMPARE_MARGIN) };
-  if (high < 0) return { kind: 'less', low: round5(-high), high: round5(-low) };
+  if (high < 0) {
+    const prev = maps.previous;
+    const usable = prev && prev.id !== scan.id && prev.id !== baseline.id && !prev.lowConfidence;
+    const confirmed = !!usable && compareZone(zone, prev, baseline, { then: maps.then }).kind === 'less';
+    return { kind: 'less', low: round5(-high), high: round5(-low), confirmed };
+  }
   return { kind: 'more', low: round5(low), high: round5(high) };
+}
+
+/** The last good scan taken before this one, to confirm a change; null if there is none. */
+export function previousGoodScan(records: readonly ScanRecord[], scan: ScanRecord): ScanRecord | undefined {
+  return records
+    .filter((r) => r.id !== scan.id && !r.lowConfidence && r.takenAt < scan.takenAt)
+    .sort((a, b) => (a.takenAt < b.takenAt ? 1 : -1))[0];
 }
 
 function hasAnyMap(scan: ScanRecord) {
   return mapSources(scan.views).length > 0;
 }
 
+const ZONE_WHERE: Record<MapZone, string> = {
+  front: 'at the front',
+  leftTemple: 'on your left side',
+  rightTemple: 'on your right side',
+  top: 'on top',
+  crown: 'on your crown',
+};
+
 /** One line per zone. Never a diagnosis: coverage as the camera saw it, against your own scan. */
-export function comparisonText(c: ZoneComparison): string {
+export function comparisonText(c: ZoneComparison, zone?: MapZone): string {
   switch (c.kind) {
     case 'first':
       return 'Your first map. Later scans are compared with it.';
@@ -74,6 +97,10 @@ export function comparisonText(c: ZoneComparison): string {
     case 'same':
       return `About the same as your first scan (within ±${c.margin}%).`;
     case 'less':
+      if (!c.confirmed) {
+        const where = zone ? ` ${ZONE_WHERE[zone]}` : '';
+        return `Possible change${where}. Your next scan will confirm it.`;
+      }
       return `Roughly ${c.low}–${c.high}% less hair coverage seen than your first scan.`;
     case 'more':
       return `Roughly ${c.low}–${c.high}% more hair coverage seen than your first scan.`;

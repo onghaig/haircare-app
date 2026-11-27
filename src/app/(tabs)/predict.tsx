@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { MinePill, EvidencePill, RolePill, RxPill } from '@/components/options/Pills';
 import { ForecastFan } from '@/components/predict/ForecastFan';
-import { FuturePreview } from '@/components/reveal/FuturePreview';
+import { FutureLook } from '@/components/reveal/FutureLook';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import type { Forecast, YearForecast } from '@/forecast';
 import { inPlan, showsRx, visibleOptions } from '@/options/catalog';
@@ -16,7 +16,10 @@ import { isMinor } from '@/profile/onboarding';
 import { useProfile } from '@/profile/ProfileProvider';
 import type { Profile } from '@/profile/types';
 import { useForecast } from '@/reveal/ForecastProvider';
-import { confidenceLabel, isLowRisk, rangeLabel, stageLabel, yearOf } from '@/reveal/reveal';
+import { isLowRisk, rangeLabel, stageLabel, yearOf } from '@/reveal/reveal';
+import { confidenceWhy, scanBasis, shownConfidence } from '@/reveal/trust';
+import { useScans } from '@/scan/ScanProvider';
+import { estimateStage } from '@/scan/stageEstimate';
 import { colors, minTouchTarget, radius, spacing } from '@/theme';
 
 /**
@@ -47,6 +50,10 @@ function AdultForecast({ forecast, profile, plan }: { forecast: Forecast; profil
   const ten = yearOf(forecast, HEADLINE_YEARS) ?? forecast.byYear.at(-1)!;
   const one = yearOf(forecast, 1) ?? forecast.byYear[0];
   const nudge = useMemo(() => biggestNudge(plan, book, new Date()), [plan, book]);
+  // The same confidence the reveal showed: never higher than the scan backs.
+  const { latest } = useScans();
+  const estimate = useMemo(() => estimateStage(latest, profile), [latest, profile]);
+  const confidence = shownConfidence(forecast, latest, estimate);
 
   return (
     <Screen title="Predict">
@@ -117,7 +124,7 @@ function AdultForecast({ forecast, profile, plan }: { forecast: Forecast; profil
       <FutureYou forecast={forecast} premium={premium} />
 
       <Text variant="caption" color="textMuted">
-        Confidence: {confidenceLabel(forecast)}. Based on {basedOn(profile).join(', ').toLowerCase() || 'your answers'}. Treatment effects are early estimates, not yet checked against trials.
+        Confidence: {confidence}. {confidenceWhy(confidence, scanBasis(latest))} Based on {basedOn(profile).join(', ').toLowerCase() || 'your answers'}. Treatment effects are early estimates, not yet checked against trials.
       </Text>
     </Screen>
   );
@@ -206,7 +213,7 @@ function FutureYou({ forecast, premium }: { forecast: Forecast; premium: boolean
           ))}
         </View>
       ) : null}
-      <FuturePreview stage={range(y).p50} age={y.age} locked={locked} />
+      <FutureLook stage={range(y).p50} age={y.age} years={years} locked={locked} />
       {locked ? (
         <Button label="Unlock your forecast" onPress={() => router.push('/paywall')} />
       ) : (

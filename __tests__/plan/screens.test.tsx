@@ -70,7 +70,7 @@ describe('Today', () => {
   });
 
   it('shows the forecast card once the forecast is ready', async () => {
-    const { wrap } = makeProviders({ profile: adult });
+    const { wrap } = makeProviders({ profile: adult, scans: [record('s', new Date().toISOString())] });
     await render(wrap(<TodayScreen />));
     expect(await screen.findByText(/^Likely at 29: N.* on your plan$/, {}, { timeout: 5000 })).toBeOnTheScreen();
   });
@@ -87,7 +87,7 @@ describe('Today', () => {
     let log = {};
     for (let i = 0; i < 7; i++) log = answer(log, dayKey(addDays(new Date(), -i)), 'minoxidil', i === 1 || i === 4 ? 'skipped' : 'done');
     const sub = { plan: 'annual' as const, startedAt: '2026-11-26T10:00:00Z', trialEndsAt: null, test: true };
-    const { wrap } = makeProviders({ profile: { ...adult, treatments: ['minoxidil'], subscription: sub }, log });
+    const { wrap } = makeProviders({ profile: { ...adult, treatments: ['minoxidil'], subscription: sub }, log, scans: [record('s', new Date().toISOString())] });
     await render(wrap(<TodayScreen />));
     expect(await screen.findByTestId('week-strip')).toHaveTextContent(/Minoxidil this week5 of 7/);
     expect(screen.getByLabelText('5 of the last 7 days done')).toBeOnTheScreen();

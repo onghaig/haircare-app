@@ -118,14 +118,21 @@ export function Ring({ percent, size = 44, label }: { percent: number; size?: nu
 }
 
 /** The live risk card that fills in as the user answers. */
-export function RiskCard({ percent, line, remaining }: { percent: number; line: string; remaining: number }) {
+export function RiskCard({ line, remaining, confidence }: { line: string; remaining: number; confidence: 'building' | 'ready' }) {
+  const status = confidence === 'ready' ? 'Ready' : 'Building';
   return (
-    <Card style={styles.risk} accessibilityLabel={`Your risk card, ${percent}% built. ${line}`}>
-      <Ring percent={percent} />
-      <View style={{ flex: 1 }}>
-        <Text variant="headline">Your risk card</Text>
+    <Card style={styles.risk} accessibilityLabel={`What we know so far. ${line}. Confidence: ${status.toLowerCase()}.`}>
+      <View style={{ flex: 1, gap: 4 }}>
+        <View style={styles.riskHead}>
+          <Text variant="headline">What we know so far</Text>
+          <View style={styles.riskPill} testID="risk-confidence">
+            <Text variant="caption" style={{ fontWeight: '600' }}>
+              Confidence: {status.toLowerCase()}
+            </Text>
+          </View>
+        </View>
         <Text variant="caption" color="textMuted">
-          {line}. {remaining > 0 ? `${remaining} more answer${remaining === 1 ? '' : 's'}.` : 'Ready.'}
+          {line}. {remaining > 0 ? `${remaining} more answer${remaining === 1 ? '' : 's'} to go.` : 'Your forecast is ready.'}
         </Text>
       </View>
     </Card>
@@ -133,6 +140,8 @@ export function RiskCard({ percent, line, remaining }: { percent: number; line: 
 }
 
 const styles = StyleSheet.create({
+  riskHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  riskPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, borderWidth: 1, borderColor: colors.line },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: {
     minHeight: minTouchTarget,

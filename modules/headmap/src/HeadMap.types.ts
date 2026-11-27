@@ -74,6 +74,8 @@ export interface CaptureResult {
   report?: QualityReport;
   /** True when this is the best frame of a crown burst rather than a single shot. */
   burst?: boolean;
+  /** Set by the app (not the camera): taken with the manual shutter while checks were still red. */
+  manual?: boolean;
 }
 
 export type PermissionStatus = 'granted' | 'denied';

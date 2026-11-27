@@ -4,6 +4,7 @@ import { Keyboard, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimens
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FamilyTree } from '@/components/family/FamilyTree';
+import { analyseRelativePhoto, statusForStage } from '@/family/photoAnalysis';
 import { pickPhoto, RelativeSheet } from '@/components/family/RelativeSheet';
 import { HeadZonePicker } from '@/components/head/HeadZonePicker';
 import { Chips, ProgressBar, RiskCard, ToggleRow, type Option } from '@/components/onboarding/Controls';
@@ -153,7 +154,18 @@ export default function QuestionsScreen() {
     const uri = await pickPhoto();
     if (!uri) return;
     const kept = await keepPhoto(m, uri);
-    await update((p) => ({ ...p, family: { ...p.family, [m]: { status: 'unknown', ...p.family[m], photoUri: kept } } }));
+    await update((p) => ({ ...p, family: { ...p.family, [m]: { status: 'unknown', ...p.family[m], photoUri: kept, photoAnalysis: undefined } } }));
+    // Read the hairline from the photo. Its stage fills in their hair status only when the
+    // person hasn't picked one; they can always change it.
+    const found = await analyseRelativePhoto(kept);
+    if (!found) return;
+    const { signal: _s, ...photoAnalysis } = found;
+    await update((p) => {
+      const r = p.family[m];
+      if (!r || r.photoUri !== kept) return p;
+      const status = r.status === 'unknown' ? statusForStage(found.stage) : r.status;
+      return { ...p, family: { ...p.family, [m]: { ...r, status, photoAnalysis } } };
+    });
   }
 
   const card = riskCard(profile, index + 1);
@@ -328,7 +340,7 @@ export default function QuestionsScreen() {
         ) : null}
       </ScrollView>
       <View style={styles.bottom}>
-        <RiskCard percent={card.percent} line={card.line} remaining={card.remaining} />
+        <RiskCard line={card.line} remaining={card.remaining} confidence={card.confidence} />
         <Button
           label={last ? 'Continue to your scan' : 'Continue'}
           disabled={!canContinue(step, profile)}

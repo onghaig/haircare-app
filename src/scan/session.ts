@@ -43,6 +43,12 @@ export interface ScanSessionState {
   /** A check whose tip should show now (failed at least twice). */
   tip: QualityCheck | null;
   startedAt: number | null;
+  /** Retaking only some views of an earlier scan: just these are captured, in scan order. */
+  only: ScanView[] | null;
+  /** When the camera first reported on the current view (for the manual shutter's delay). */
+  viewSince: number | null;
+  /** Every check has been green at least once this session (ends the practice round). */
+  everPassed: boolean;
 }
 
 export type ScanAction =
@@ -50,6 +56,15 @@ export type ScanAction =
   | { type: 'quality'; report: QualityReport; now: number }
   | { type: 'captured'; result: CaptureResult }
   | { type: 'retake'; view: ScanView }
+  | {
+      type: 'resume';
+      hairState: HairState;
+      /** Photos already taken (a scan left part-way, kept as a draft). */
+      captures?: Partial<Record<ScanView, CaptureResult>>;
+      /** Capture only these views (retaking weak views of a saved scan). */
+      only?: ScanView[] | null;
+      now: number;
+    }
   | { type: 'dismissTip' };
 
 export const initialScanState: ScanSessionState = {
@@ -62,7 +77,20 @@ export const initialScanState: ScanSessionState = {
   fails: {},
   tip: null,
   startedAt: null,
+  only: null,
+  viewSince: null,
+  everPassed: false,
 };
+
+/** The views this session still has to take, in scan order. */
+export function viewsToTake(s: Pick<ScanSessionState, 'only' | 'captures'>): ScanView[] {
+  return (s.only ?? SCAN_ORDER).filter((v) => !s.captures[v]);
+}
+
+function nextIndex(s: Pick<ScanSessionState, 'only' | 'captures'>): number {
+  const next = viewsToTake(s)[0];
+  return next ? SCAN_ORDER.indexOf(next) : SCAN_ORDER.length;
+}
 
 export function currentView(s: ScanSessionState): ScanView {
   return SCAN_ORDER[Math.min(s.index, SCAN_ORDER.length - 1)];
@@ -72,6 +100,19 @@ export function scanReducer(s: ScanSessionState, a: ScanAction): ScanSessionStat
   switch (a.type) {
     case 'start':
       return { ...initialScanState, phase: 'capturing', hairState: a.hairState, startedAt: a.now };
+
+    case 'resume': {
+      const base = { only: a.only?.length ? a.only : null, captures: a.captures ?? {} };
+      const index = nextIndex(base);
+      return {
+        ...initialScanState,
+        ...base,
+        hairState: a.hairState,
+        startedAt: a.now,
+        index,
+        phase: index >= SCAN_ORDER.length ? 'done' : 'capturing',
+      };
+    }
 
     case 'quality': {
       if (s.phase !== 'capturing' || a.report.view !== currentView(s)) return s;
@@ -87,29 +128,47 @@ export function scanReducer(s: ScanSessionState, a: ScanAction): ScanSessionStat
         stuck = { check: issue, since: a.now };
         if (n >= TIP_AFTER_FAILS) tip = issue;
       }
-      return { ...s, live: a.report, stuck, fails, tip };
+      return {
+        ...s,
+        live: a.report,
+        stuck,
+        fails,
+        tip,
+        viewSince: s.viewSince ?? a.now,
+        everPassed: s.everPassed || a.report.allPassed,
+      };
     }
 
     case 'captured': {
       if (s.phase !== 'capturing' || a.result.view !== currentView(s)) return s;
       const captures = { ...s.captures, [a.result.view]: a.result };
       // Next view is the first one in order not yet captured (handles retakes).
-      const next = SCAN_ORDER.findIndex((v) => !captures[v]);
+      const index = nextIndex({ only: s.only, captures });
       return {
         ...s,
         captures,
-        index: next === -1 ? SCAN_ORDER.length : next,
-        phase: next === -1 ? 'done' : 'capturing',
+        index,
+        phase: index >= SCAN_ORDER.length ? 'done' : 'capturing',
         live: null,
         stuck: null,
         tip: null,
+        viewSince: null,
       };
     }
 
     case 'retake': {
       const captures = { ...s.captures };
       delete captures[a.view];
-      return { ...s, captures, index: SCAN_ORDER.indexOf(a.view), phase: 'capturing', live: null, stuck: null, tip: null };
+      return {
+        ...s,
+        captures,
+        index: SCAN_ORDER.indexOf(a.view),
+        phase: 'capturing',
+        live: null,
+        stuck: null,
+        tip: null,
+        viewSince: null,
+      };
     }
 
     case 'dismissTip':
@@ -120,6 +179,10 @@ export function scanReducer(s: ScanSessionState, a: ScanAction): ScanSessionStat
 export interface ScanViewRecord {
   uri: string;
   score: number;
+  /** The check that was still failing when the photo was taken, if any. Says why a view scored low. */
+  issue?: QualityCheck;
+  /** Taken with the manual shutter while checks were still red. */
+  manual?: boolean;
   /** Coarse hair map of the photo, for the scalp map. Scans from before it existed have none. */
   hairGrid?: HairGrid;
   /** Face landmarks (normalised) and the frame size, to place this photo on the head model. */
@@ -148,18 +211,34 @@ export interface ScanRecord {
   faceWidthPx?: number;
 }
 
-export function buildScanRecord(s: ScanSessionState, id: string, takenAt: Date): ScanRecord {
+export function buildScanRecord(
+  s: ScanSessionState,
+  id: string,
+  takenAt: Date,
+  /** Retaking some views of this scan: the views not retaken, and its measurements, carry over. */
+  base?: ScanRecord,
+): ScanRecord {
   if (s.phase !== 'done' || !s.hairState) throw new Error('Scan is not finished');
   const views: ScanRecord['views'] = {};
   const scores: number[] = [];
   for (const v of SCAN_ORDER) {
     const c = s.captures[v];
-    if (!c) continue;
+    if (!c) {
+      const kept = base?.views[v];
+      if (kept) {
+        views[v] = kept;
+        scores.push(kept.score);
+      }
+      continue;
+    }
     const score = c.report?.score ?? 0;
     const r = c.report;
+    const issue = r && !r.allPassed ? r.topIssue : undefined;
     views[v] = {
       uri: c.uri,
       score,
+      ...(issue ? { issue } : {}),
+      ...(c.manual ? { manual: true } : {}),
       ...(r?.hairGrid ? { hairGrid: r.hairGrid } : {}),
       ...(r?.anchors ? { anchors: r.anchors } : {}),
       ...(r?.frameSize ? { frameSize: r.frameSize } : {}),
@@ -184,9 +263,47 @@ export function buildScanRecord(s: ScanSessionState, id: string, takenAt: Date):
           templeRecessionIPD: hl.templeRecessionIPD,
           curve: hl.curve,
         }
-      : null,
-    faceWidthPx: front?.faceWidthPx,
+      : s.captures.front
+        ? null
+        : (base?.hairline ?? null),
+    faceWidthPx: front?.faceWidthPx ?? (s.captures.front ? undefined : base?.faceWidthPx),
   };
+}
+
+/** Views that need a retake: missing, or scored under the trend threshold. In scan order. */
+export function weakViews(scan: ScanRecord): ScanView[] {
+  return SCAN_ORDER.filter((v) => {
+    const r = scan.views[v];
+    return !r || r.score < MIN_TREND_QUALITY;
+  });
+}
+
+/** Why a view scored low, and what to do, in plain words. */
+export function weakReason(scan: ScanRecord, view: ScanView): string {
+  const r = scan.views[view];
+  if (!r) return 'This view wasn’t taken.';
+  switch (r.issue) {
+    case 'exposure':
+      return view === 'front' ? 'Too dark to find your hairline. Face a window.' : 'The light was off. Face a window or turn on a light.';
+    case 'backlight':
+      return 'Too much light behind you. Turn to face the light.';
+    case 'sharpness':
+      return view === 'crown' ? 'A little blurry. Hold the phone still for the burst.' : 'A little blurry. Hold still for a second.';
+    case 'foreheadVisible':
+    case 'hairlineFound':
+      return 'Your hairline was hidden. Push your hair back off your forehead.';
+    case 'pose':
+      return 'Your head was at a different angle from the outline.';
+    case 'distance':
+      return 'The phone was nearer or further than your first scan.';
+    case 'centred':
+    case 'faceFound':
+      return 'Your head wasn’t inside the outline.';
+    case 'hairInFrame':
+      return 'Not enough hair in the photo. Fill the circle with your head.';
+    default:
+      return r.manual ? 'Taken before every check was green.' : 'Not clear enough to measure.';
+  }
 }
 
 /** Tip copy, shown only after a check has failed twice. */

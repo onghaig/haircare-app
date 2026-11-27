@@ -1,13 +1,15 @@
 # The full guided scan. The simulator has no camera, so CI builds include an illustrated demo
 # face that runs through the real on-device analysis; the green hairline highlight animates on
-# every view. Shots are taken by hand ("Take photo now"); the crown uses the solo burst.
+# every view. Shots are taken by hand with the manual shutter, which appears once a view has been
+# stuck for a few seconds ("Having trouble? Take it anyway"); the crown uses the solo burst.
 # Timeouts are generous: the Android E2E app runs through ARM translation, where each photo is
 # analysed several times slower than on a phone.
 appId: com.onghaig.haircare
 ---
 - assertVisible: "Before you scan"
 - takeScreenshot: e2e-10-scan-checklist
-- tapOn: "Start scan"
+# First scan: skip the practice view.
+- tapOn: "Skip to the scan"
 - assertVisible: "Front: hairline"
 - assertVisible: "View 1 of 5"
 # Let the hairline highlight draw (and the demo face be analysed) for the recording.
@@ -15,12 +17,20 @@ appId: com.onghaig.haircare
     timeout: 3000
 - takeScreenshot: e2e-11-front
 # The on-device analysis must be running (it once failed to load on the emulator, unnoticed).
-- assertNotVisible: "Camera problem"
+- assertNotVisible: "(The scan couldn’t start|No camera found|The camera is busy)"
 # Each shot waits for the green line to finish drawing, then holds "Got it" before the next view.
 # One tap per view: a retried tap would queue a shot for the next view too.
-- tapOn:
-    text: "Take photo now"
-    retryTapIfNoChange: false
+# The shutter shows only while a check fails; when every check passes the view captures itself.
+- extendedWaitUntil:
+    visible: "(Having trouble\\? Take it anyway|View 2 of 5)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Having trouble\\? Take it anyway"
+    commands:
+      - tapOn:
+          text: "Having trouble\\? Take it anyway"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 2 of 5"
     timeout: 30000
@@ -30,38 +40,83 @@ appId: com.onghaig.haircare
     notVisible: "Line up with the outline"
     timeout: 30000
 # Redo the photo just taken: back to the front view, then on again.
+# A tip appearing in the prompt card can move the link just as it is tapped, so tap once more if
+# the first tap missed (never twice: a second redo would go back another view).
 - tapOn:
     id: "redo-last-photo"
     retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 1 of 5"
+    timeout: 8000
+    optional: true
+- runFlow:
+    when:
+      visible: "View 2 of 5"
+    commands:
+      - tapOn:
+          id: "redo-last-photo"
+          retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "View 1 of 5"
     timeout: 30000
 - takeScreenshot: e2e-12a-redo-last-photo
-- tapOn:
-    text: "Take photo now"
-    retryTapIfNoChange: false
+# The shutter shows only while a check fails; when every check passes the view captures itself.
+- extendedWaitUntil:
+    visible: "(Having trouble\\? Take it anyway|View 2 of 5)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Having trouble\\? Take it anyway"
+    commands:
+      - tapOn:
+          text: "Having trouble\\? Take it anyway"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 2 of 5"
     timeout: 30000
 - takeScreenshot: e2e-12-left-temple
-- tapOn:
-    text: "Take photo now"
-    retryTapIfNoChange: false
+# The shutter shows only while a check fails; when every check passes the view captures itself.
+- extendedWaitUntil:
+    visible: "(Having trouble\\? Take it anyway|View 3 of 5)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Having trouble\\? Take it anyway"
+    commands:
+      - tapOn:
+          text: "Having trouble\\? Take it anyway"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 3 of 5"
     timeout: 30000
 - assertVisible: "Right temple"
-- tapOn:
-    text: "Take photo now"
-    retryTapIfNoChange: false
+# The shutter shows only while a check fails; when every check passes the view captures itself.
+- extendedWaitUntil:
+    visible: "(Having trouble\\? Take it anyway|View 4 of 5)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Having trouble\\? Take it anyway"
+    commands:
+      - tapOn:
+          text: "Having trouble\\? Take it anyway"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 4 of 5"
     timeout: 30000
 - assertVisible: "Top of head"
 - takeScreenshot: e2e-13-top-down
-- tapOn:
-    text: "Take photo now"
-    retryTapIfNoChange: false
+# The shutter shows only while a check fails; when every check passes the view captures itself.
+- extendedWaitUntil:
+    visible: "(Having trouble\\? Take it anyway|View 5 of 5)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Having trouble\\? Take it anyway"
+    commands:
+      - tapOn:
+          text: "Having trouble\\? Take it anyway"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 5 of 5"
     timeout: 30000
@@ -101,8 +156,25 @@ appId: com.onghaig.haircare
 - tapOn:
     text: "Keep this photo"
     retryTapIfNoChange: false
-# The first finished scan saves, then leads into the forecast (reveal.yaml checks it). The
-# "Building your forecast" screen is brief: a slow run can be past it before it is checked.
+# The finish moment, then the forecast. Hand-taken demo shots can score too low to count; then
+# the result lists the weak views first, and we keep the scan and go on to the forecast. The
+# "Building your forecast" screen is brief: a slow run can be past it before it is checked, so
+# wait for either the weak-views result or the reveal itself (reveal.yaml checks the rest).
+# The finish moment is brief when the save is quick (seen on iOS), so capture it only if shown.
+- runFlow:
+    when:
+      visible: "Scan complete"
+    commands:
+      - takeScreenshot: e2e-15-scan-finish
+- extendedWaitUntil:
+    visible: "(Your Norwood timeline|Keep it and see my forecast)"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: "Keep it and see my forecast"
+    commands:
+      - takeScreenshot: e2e-16-weak-views
+      - tapOn: "Keep it and see my forecast"
 - extendedWaitUntil:
     notVisible: "Saving your scan"
     timeout: 30000
