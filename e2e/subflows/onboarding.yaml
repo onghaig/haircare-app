@@ -14,10 +14,15 @@ appId: com.onghaig.haircare
       platform: Android
     commands:
       - hideKeyboard
-- tapOn: "Male"
-# The Android E2E app runs through ARM translation and is slower: let the answer register first.
-- waitForAnimationToEnd:
-    timeout: 3000
+# The first tap after the keyboard closes is sometimes lost on the (slower, ARM-translated)
+# Android E2E app: tap until the answer shows as selected.
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn: "Male"
+      - assertVisible:
+          text: "Male"
+          selected: true
 - tapOn: "Continue"
 - extendedWaitUntil:
     visible: "Your background"
