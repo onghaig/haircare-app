@@ -12,6 +12,8 @@ appId: com.onghaig.haircare
 - waitForAnimationToEnd:
     timeout: 3000
 - takeScreenshot: e2e-11-front
+# The on-device analysis must be running (it once failed to load on the emulator, unnoticed).
+- assertNotVisible: "Camera problem"
 # Each shot waits for the green line to finish drawing, then holds "Got it" before the next view.
 # One tap per view: a retried tap would queue a shot for the next view too.
 - tapOn:
