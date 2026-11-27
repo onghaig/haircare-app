@@ -91,6 +91,7 @@ export default function TodayScreen() {
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: a === 'done' }}
                   accessibilityLabel={t.title}
+                  accessibilityHint={TASK_WHY[t.id].text.slice(2)}
                   onPress={() => (t.answer === 'open' && a !== 'done' ? open(t) : set(t.id, a === 'done' ? undefined : 'done'))}
                   style={styles.tap}>
                   <View style={[styles.box, a === 'done' && styles.boxOn]} />
