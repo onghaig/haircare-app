@@ -25,6 +25,10 @@ appId: com.onghaig.haircare
     visible: "View 2 of 5"
     timeout: 30000
 - assertVisible: "Left temple"
+# Wait for the first analysis of the new view: its prompt can change the layout under the tap.
+- extendedWaitUntil:
+    notVisible: "Line up with the outline"
+    timeout: 30000
 # Redo the photo just taken: back to the front view, then on again.
 - tapOn:
     id: "redo-last-photo"
