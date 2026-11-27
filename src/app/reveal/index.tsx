@@ -5,10 +5,13 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FuturePreview } from '@/components/reveal/FuturePreview';
+import { estimateRange } from '@/components/scan/StageEstimateCard';
 import { Button, Card, Text } from '@/components/ui';
 import { isPremium } from '@/paywall/purchases';
 import { useProfile } from '@/profile/ProfileProvider';
 import { useForecast } from '@/reveal/ForecastProvider';
+import { useOptionalScans } from '@/scan/ScanProvider';
+import { estimateStage } from '@/scan/stageEstimate';
 import {
   confidenceLabel,
   isLowRisk,
@@ -29,6 +32,7 @@ import { colors, radius, spacing } from '@/theme';
 export default function RevealScreen() {
   const { profile, update } = useProfile();
   const { forecast } = useForecast();
+  const estimate = estimateStage(useOptionalScans()?.latest, profile);
   const [years, setYears] = useState<PreviewYear>(5);
 
   useEffect(() => {
@@ -65,6 +69,11 @@ export default function RevealScreen() {
             <Text variant="caption" color="textMuted">
               Norwood today, {confidenceLabel(forecast)} confidence
             </Text>
+            {estimate ? (
+              <Text variant="caption" color="accent" testID="reveal-scan-estimate">
+                {`Scan estimate ${estimateRange(estimate)}, ${estimate.confidence} confidence`}
+              </Text>
+            ) : null}
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text variant="caption" color="textMuted">

@@ -6,6 +6,10 @@ appId: com.onghaig.haircare
 - scrollUntilVisible:
     element: "Scan from .*"
 - tapOn: "Scan from .*"
+# The estimated current Norwood stage (a range and a confidence, or why there is none).
+- scrollUntilVisible:
+    element: "Estimated Norwood stage"
+- takeScreenshot: e2e-79-stage-estimate
 - scrollUntilVisible:
     element: "Delete this scan"
 # Redo: confirm, and the new scan starts (closing it keeps the old one).

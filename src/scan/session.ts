@@ -1,4 +1,4 @@
-import type { CaptureResult, QualityCheck, QualityReport, ScanView } from '@modules/headmap';
+import type { CaptureResult, HairGrid, QualityCheck, QualityReport, ScanView } from '@modules/headmap';
 
 import { MIN_TREND_QUALITY } from './change';
 
@@ -117,16 +117,30 @@ export function scanReducer(s: ScanSessionState, a: ScanAction): ScanSessionStat
   }
 }
 
+export interface ScanViewRecord {
+  uri: string;
+  score: number;
+  /** Coarse hair map of the photo, for the scalp map. Scans from before it existed have none. */
+  hairGrid?: HairGrid;
+}
+
 export interface ScanRecord {
   id: string;
   takenAt: string;
   hairState: HairState;
-  views: Partial<Record<ScanView, { uri: string; score: number }>>;
+  views: Partial<Record<ScanView, ScanViewRecord>>;
   /** Mean of the view scores, 0 to 100. */
   quality: number;
   /** Under 60: kept, but left out of trend lines (spec). */
   lowConfidence: boolean;
-  hairline: { centreMM?: number; leftTempleMM?: number; rightTempleMM?: number; curve?: [number, number][] } | null;
+  hairline: {
+    centreMM?: number;
+    leftTempleMM?: number;
+    rightTempleMM?: number;
+    /** Mean temple height minus centre height, in pupil distances. Positive means receded temples. */
+    templeRecessionIPD?: number;
+    curve?: [number, number][];
+  } | null;
   /** From the front view, for the next scan's distance check. */
   faceWidthPx?: number;
 }
@@ -139,7 +153,7 @@ export function buildScanRecord(s: ScanSessionState, id: string, takenAt: Date):
     const c = s.captures[v];
     if (!c) continue;
     const score = c.report?.score ?? 0;
-    views[v] = { uri: c.uri, score };
+    views[v] = c.report?.hairGrid ? { uri: c.uri, score, hairGrid: c.report.hairGrid } : { uri: c.uri, score };
     scores.push(score);
   }
   const quality = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
@@ -152,7 +166,15 @@ export function buildScanRecord(s: ScanSessionState, id: string, takenAt: Date):
     views,
     quality,
     lowConfidence: quality < MIN_TREND_QUALITY,
-    hairline: hl ? { centreMM: hl.centreMM, leftTempleMM: hl.leftTempleMM, rightTempleMM: hl.rightTempleMM, curve: hl.curve } : null,
+    hairline: hl
+      ? {
+          centreMM: hl.centreMM,
+          leftTempleMM: hl.leftTempleMM,
+          rightTempleMM: hl.rightTempleMM,
+          templeRecessionIPD: hl.templeRecessionIPD,
+          curve: hl.curve,
+        }
+      : null,
     faceWidthPx: front?.faceWidthPx,
   };
 }

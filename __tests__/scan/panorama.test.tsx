@@ -4,6 +4,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import PanoramaScreen from '@/app/scan/panorama';
 import ScanResultScreen from '@/app/scan/[id]';
 import { arc, availableViews, layersAt, nearestView, stepAngle, wrap } from '@/scan/panorama';
+import { ProfileProvider } from '@/profile/ProfileProvider';
+import { MemoryProfileStore } from '@/profile/store';
+import { emptyProfile } from '@/profile/types';
 import { ScanProvider } from '@/scan/ScanProvider';
 import { MemoryScanStore } from '@/scan/store';
 
@@ -60,6 +63,7 @@ describe('panorama screen', () => {
         <PanoramaScreen />
       </ScanProvider>,
     );
+    await fireEvent.press(await screen.findByRole('tab', { name: 'Turn around' }));
     expect(await screen.findByTestId('panorama-angle')).toHaveTextContent('Front');
     const viewer = screen.getByTestId('panorama-viewer');
     await fireEvent(viewer, 'responderGrant', { nativeEvent: { pageX: 300 } });
@@ -79,11 +83,13 @@ describe('panorama screen', () => {
 
   it('opens from the scan result', async () => {
     await render(
-      <ScanProvider store={new MemoryScanStore([scan])}>
-        <ScanResultScreen />
-      </ScanProvider>,
+      <ProfileProvider store={new MemoryProfileStore(emptyProfile())}>
+        <ScanProvider store={new MemoryScanStore([scan])}>
+          <ScanResultScreen />
+        </ScanProvider>
+      </ProfileProvider>,
     );
-    await fireEvent.press(await screen.findByRole('button', { name: 'See your hair from every angle' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'See your scalp map' }));
     expect(router.push).toHaveBeenCalledWith({ pathname: '/scan/panorama', params: { id: 's1' } });
   });
 });

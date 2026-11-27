@@ -4,8 +4,11 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HairlineNumbers } from '@/components/scan/HairlineNumbers';
+import { StageEstimateCard } from '@/components/scan/StageEstimateCard';
 import { Button, Card, Text } from '@/components/ui';
+import { useProfile } from '@/profile/ProfileProvider';
 import { useScans } from '@/scan/ScanProvider';
+import { estimateStage } from '@/scan/stageEstimate';
 import { SCAN_ORDER, VIEW_LABEL } from '@/scan/session';
 import { colors, spacing } from '@/theme';
 
@@ -23,6 +26,7 @@ function baselineNote(isBaseline: boolean, othersLeft: number): string {
 export default function ScanResultScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { records, baseline, remove } = useScans();
+  const { profile } = useProfile();
   const scan = records.find((r) => r.id === id);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
@@ -105,12 +109,13 @@ export default function ScanResultScreen() {
                 : 'Counts toward your trends.'}
           </Text>
         </Card>
+        <StageEstimateCard estimate={estimateStage(scan, profile)} />
         <HairlineNumbers scan={scan} baseline={baseline} />
         <Text variant="caption" color="textMuted">
           Changes smaller than a re-scan can tell apart show as no real change. Estimates for tracking, not a diagnosis.
         </Text>
         <Button
-          label="See your hair from every angle"
+          label="See your scalp map"
           variant="secondary"
           onPress={() => router.push({ pathname: '/scan/panorama', params: { id: scan.id } })}
         />

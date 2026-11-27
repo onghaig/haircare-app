@@ -90,6 +90,14 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
   /** Emulator builds with the demo face only: a still face fed through the real analysis. */
   private var demo: DemoFeed? = null
 
+  /** Crown burst: until [Burst.until], every analysed frame is ranked and the best is kept. Analysis thread only. */
+  private class Burst(val id: Int, val until: Long) {
+    var best: Bitmap? = null
+    var report: QualityReport? = null
+  }
+  private var burst: Burst? = null
+  private var burstCount = 0
+
   init {
     setBackgroundColor(Color.BLACK)
     addView(previewView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -200,6 +208,16 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
     val report = engine.analyse(frame, view, baselineFaceWidth)
     lastReport = report
     lastFrameSize = Size(frame.width, frame.height)
+    burst?.let { b ->
+      val best = b.report
+      if (best == null || report.burstRank > best.burstRank) {
+        // The demo frame is shared, and camera bitmaps are ours already; copy only shared ones.
+        b.best = if (demo != null) frame.copy(Bitmap.Config.ARGB_8888, false) else frame
+        b.report = report
+      }
+      if (SystemClock.elapsedRealtime() >= b.until) finishBurst()
+      return
+    }
     for (event in gate.update(report.allPassed)) {
       when (event) {
         CaptureGate.Event.ALIGNED -> post {
@@ -256,6 +274,48 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
 
   fun resetCapture() {
     analysis.execute { gate.reset() }
+  }
+
+  /**
+   * Crown, on your own: watch the frames for [durationMs] and save the best one (hair in frame,
+   * then score, then sharpness), instead of trusting one shutter press you can't see.
+   */
+  fun startBurst(durationMs: Int) {
+    analysis.execute {
+      val ms = maxOf(200, durationMs).toLong()
+      val b = Burst(++burstCount, SystemClock.elapsedRealtime() + ms)
+      burst = b
+      // Safety net: if no frames arrive (camera stalled), finish this burst anyway.
+      postDelayed({ analysis.execute { if (burst?.id == b.id) finishBurst() } }, ms + 400)
+    }
+  }
+
+  /** Analysis thread. */
+  private fun finishBurst() {
+    val b = burst ?: return
+    burst = null
+    gate.reset()
+    val best = b.best
+    val report = b.report
+    if (best == null || report == null) {
+      post { capture() }
+      return
+    }
+    val view = scanView
+    val file = File(context.cacheDir, "headmap-burst-${view.raw}-${UUID.randomUUID()}.jpg")
+    try {
+      FileOutputStream(file).use { best.compress(Bitmap.CompressFormat.JPEG, 92, it) }
+    } catch (e: Throwable) {
+      return emitError(e)
+    }
+    post { performHapticFeedback(HapticFeedbackConstants.CONFIRM) }
+    val payload = mapOf<String, Any?>(
+      "uri" to "file://${file.absolutePath}",
+      "view" to view.raw,
+      "burst" to true,
+      "report" to report.toMap(best.width.toDouble(), best.height.toDouble()),
+    )
+    post { onCapture(payload) }
   }
 
   /** Runs on the analysis thread: save, re-measure on the full photo, and send it to JS. */

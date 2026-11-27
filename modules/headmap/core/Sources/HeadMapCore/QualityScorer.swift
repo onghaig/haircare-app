@@ -24,6 +24,19 @@ public enum DistanceHint: String, Sendable { case ok, moveCloser, moveBack }
 /// Which way to move on screen so the head sits inside the guide outline.
 public enum CentringHint: String, Sendable { case ok, moveLeft, moveRight, moveUp, moveDown }
 
+/// Top and crown views, where you can't see the screen: which way to move the phone so the hair
+/// fills the middle of the frame. Directions are in the camera image, so for the crown (rear
+/// camera, not mirrored, phone upright behind your head) "moveLeft" means move it to your left.
+public enum AimHint: String, Sendable { case ok, noHair, moveCloser, moveLeft, moveRight, moveUp, moveDown }
+
+public struct Aim: Equatable, Sendable {
+  public var hint: AimHint
+  /// Centre of the hair in the frame, 0 to 1 each way.
+  public var centre: Point?
+  /// Share of the whole frame that is hair, 0 to 1.
+  public var hairShare: Double
+}
+
 public struct QualityReport: Equatable, Sendable {
   public var view: ScanView
   public var pose: PoseAngles?
@@ -34,6 +47,10 @@ public struct QualityReport: Equatable, Sendable {
   public var faceWidth: Double?
   public var stats: ImageStats?
   public var hairline: HairlineMeasure?
+  /// Coarse hair map of the frame, for the scalp map. Nil without a hair mask.
+  public var hairGrid: HairGrid? = nil
+  /// Top and crown views only: where to move the phone.
+  public var aim: Aim? = nil
   public var passed: [QualityCheck]
   public var failed: [QualityCheck]
   /// 0 to 100. Scans under 60 are kept but left out of trend lines.
@@ -41,6 +58,13 @@ public struct QualityReport: Equatable, Sendable {
   public var allPassed: Bool { failed.isEmpty }
   /// The single most important thing to fix right now.
   public var topIssue: QualityCheck? { failed.first }
+
+  /// Ranks frames in a crown burst: a frame with hair in it beats any without, then the score,
+  /// then sharpness (capped so a noisy frame can't win on edges alone).
+  public var burstRank: Double {
+    let hair = failed.contains(.hairInFrame) ? 0.0 : 1000.0
+    return hair + Double(score) + min(stats?.sharpness ?? 0, 400) / 40
+  }
 }
 
 public struct QualityThresholds: Sendable {
@@ -59,6 +83,12 @@ public struct QualityThresholds: Sendable {
   public var centringTolerance = 0.08
   /// Top and crown views: share of the centre of the frame that must be hair.
   public var minHairCoverage = 0.35
+  /// Aim: how far the hair centre may sit from the frame centre, as a share of the frame.
+  public var aimTolerance = 0.12
+  /// Aim: under this share of the frame as hair, there is no hair in view.
+  public var minAimShare = 0.05
+  /// Aim: under this share, the phone is too far from the head.
+  public var closeAimShare = 0.3
   public init() {}
 }
 
@@ -91,6 +121,24 @@ public struct QualityScorer: Sendable {
     return dy < 0 ? .moveDown : .moveUp
   }
 
+  public func aim(hair: HairMask) -> Aim {
+    let found = hair.centroid()
+    guard let found, found.share >= thresholds.minAimShare else {
+      return Aim(hint: .noHair, centre: nil, hairShare: found?.share ?? 0)
+    }
+    let c = found.centre, share = found.share
+    let dx = c.x - 0.5, dy = c.y - 0.5, t = thresholds.aimTolerance
+    let hint: AimHint
+    if abs(dx) > t || abs(dy) > t {
+      hint = abs(dx) >= abs(dy) ? (dx < 0 ? .moveLeft : .moveRight) : (dy < 0 ? .moveUp : .moveDown)
+    } else if share < thresholds.closeAimShare {
+      hint = .moveCloser
+    } else {
+      hint = .ok
+    }
+    return Aim(hint: hint, centre: c, hairShare: share)
+  }
+
   /// The top and crown views have no face to track (head tilted down, or the rear camera behind
   /// the head), so image checks apply, measured on the centre of the frame, plus a check that
   /// the frame is mostly hair when a hair mask is available.
@@ -107,9 +155,12 @@ public struct QualityScorer: Sendable {
     // A sharp photo of something other than hair is not a usable top or crown photo.
     if ok[.hairInFrame] == false { score = min(score, 40) }
     let order = QualityCheck.allCases
-    return QualityReport(
+    var report = QualityReport(
       view: view, pose: nil, poseError: nil, distance: .ok, centring: .ok, faceWidth: nil, stats: stats, hairline: nil,
       passed: order.filter { ok[$0] == true }, failed: order.filter { ok[$0] == false }, score: score)
+    report.hairGrid = hair?.grid()
+    if view.checksHairCoverage { report.aim = hair.map { aim(hair: $0) } }
+    return report
   }
 
   /// Scores one frame. Pass `landmarks: nil` when no face was found.
@@ -149,8 +200,10 @@ public struct QualityScorer: Sendable {
     var score = 0
     for c in QualityCheck.allCases where ok[c] ?? true { score += c.weight }
     let order = QualityCheck.allCases
-    return QualityReport(
+    var report = QualityReport(
       view: view, pose: pose, poseError: poseError, distance: distance, centring: centring, faceWidth: lm.faceWidth, stats: stats, hairline: hairline,
       passed: order.filter { ok[$0] == true }, failed: order.filter { ok[$0] == false }, score: score)
+    report.hairGrid = hair?.grid()
+    return report
   }
 }

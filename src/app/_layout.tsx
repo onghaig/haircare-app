@@ -27,8 +27,8 @@ export default function RootLayout() {
       <PurchasesProvider>
       <ProfileProvider>
         <PlanProvider>
-        <ForecastProvider>
-          <ScanProvider>
+        <ScanProvider>
+          <ForecastProvider>
             <Stack
               screenOptions={{
                 headerShown: false,
@@ -54,8 +54,8 @@ export default function RootLayout() {
               <Stack.Screen name="scan/[id]" options={{ presentation: 'modal' }} />
               <Stack.Screen name="scan/panorama" options={{ presentation: 'fullScreenModal' }} />
             </Stack>
-          </ScanProvider>
-        </ForecastProvider>
+          </ForecastProvider>
+        </ScanProvider>
         </PlanProvider>
       </ProfileProvider>
       </PurchasesProvider>

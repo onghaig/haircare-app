@@ -1,6 +1,7 @@
 // The scan screen against a simulated native camera: the parts Jest can't reach through the
 // "needs a development build" fallback (camera errors, the shutter, a full five-view run).
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import type { AimHint } from '@modules/headmap';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import ScanSessionScreen from '@/app/scan/session';
@@ -11,7 +12,7 @@ import { ScanProvider } from '@/scan/ScanProvider';
 import { SCAN_ORDER, SHOW_CAPTURED_MS } from '@/scan/session';
 import { MemoryScanStore } from '@/scan/store';
 
-import { capture, record } from '../../test-utils/scanFixtures';
+import { capture, record, report } from '../../test-utils/scanFixtures';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() },
@@ -23,7 +24,7 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockCamera: { props: any; capture: jest.Mock } = { props: null, capture: jest.fn() };
+const mockCamera: { props: any; capture: jest.Mock; startBurst: jest.Mock } = { props: null, capture: jest.fn(), startBurst: jest.fn() };
 
 jest.mock('@modules/headmap', () => {
   const { View } = jest.requireActual('react-native');
@@ -36,7 +37,7 @@ jest.mock('@modules/headmap', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     HeadMapCameraView: React.forwardRef(function FakeCamera(props: any, ref: any) {
       mockCamera.props = props;
-      React.useImperativeHandle(ref, () => ({ capture: mockCamera.capture, resetCapture: jest.fn() }));
+      React.useImperativeHandle(ref, () => ({ capture: mockCamera.capture, resetCapture: jest.fn(), startBurst: mockCamera.startBurst }));
       return React.createElement(View, { testID: 'native-camera' });
     }),
   };
@@ -57,6 +58,13 @@ async function openCamera(store = new MemoryScanStore(), revealSeenAt?: string) 
 
 /** The camera reports a photo; the finished line holds for a moment, then the next view starts. */
 async function shot(view: (typeof SCAN_ORDER)[number]) {
+  if (view === 'crown') {
+    // With a helper: the photo comes back, you check it, and keep it.
+    await fireEvent.press(screen.getByRole('button', { name: 'Someone’s helping me' }));
+    await act(async () => mockCamera.props.onCapture({ nativeEvent: capture('crown') }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Keep this photo' }));
+    return;
+  }
   await act(async () => mockCamera.props.onCapture({ nativeEvent: capture(view) }));
   await act(async () => jest.advanceTimersByTime(SHOW_CAPTURED_MS));
 }
@@ -65,6 +73,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   mockCamera.props = null;
   mockCamera.capture.mockClear();
+  mockCamera.startBurst.mockClear();
   jest.mocked(router.replace).mockClear();
 });
 afterEach(() => jest.useRealTimers());
@@ -131,31 +140,71 @@ describe('Scan session with the native camera', () => {
     expect(await store.list()).toHaveLength(1);
   });
 
-  it('always captures the crown: a spoken 3-second self-timer, which can be cancelled', async () => {
-    {
-      const Speech = jest.requireMock('expo-speech') as { speak: jest.Mock };
-      await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
-      for (const view of SCAN_ORDER.slice(0, -1)) await shot(view);
-      expect(screen.getByLabelText('View 5 of 5')).toBeOnTheScreen();
-      expect(screen.queryByRole('button', { name: 'Take photo now' })).toBeNull();
+  it('crown on your own: spoken countdown, aiming hints, a burst, then you check the photo', async () => {
+    const Speech = jest.requireMock('expo-speech') as { speak: jest.Mock };
+    await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
+    for (const view of SCAN_ORDER.slice(0, -1)) await shot(view);
+    expect(screen.getByLabelText('View 5 of 5')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Take photo now' })).toBeNull();
 
-      // Cancel first.
-      await fireEvent.press(screen.getByRole('button', { name: 'Take crown photo in 3 seconds' }));
-      await fireEvent.press(screen.getByRole('button', { name: 'Cancel timer' }));
-      await act(async () => jest.advanceTimersByTime(4000));
-      expect(mockCamera.capture).not.toHaveBeenCalled();
+    Speech.speak.mockClear();
+    await fireEvent.press(screen.getByRole('button', { name: 'On my own' }));
+    expect(screen.getByTestId('crown-countdown')).toHaveTextContent('4');
+    for (let i = 0; i < 4; i++) await act(async () => jest.advanceTimersByTime(1000));
+    const said = Speech.speak.mock.calls.map((c) => c[0]);
+    expect(said).toEqual(expect.arrayContaining(['4', '3', '2', '1']));
+    expect(said.some((l: string) => /behind your head/.test(l))).toBe(true);
+    expect(mockCamera.props.autoCapture).toBe(false);
 
-      Speech.speak.mockClear();
-      await fireEvent.press(screen.getByRole('button', { name: 'Take crown photo in 3 seconds' }));
-      expect(screen.getByText('3')).toBeOnTheScreen();
-      await act(async () => jest.advanceTimersByTime(1000));
-      expect(screen.getByText('2')).toBeOnTheScreen();
-      await act(async () => jest.advanceTimersByTime(1000));
-      expect(screen.getByText('1')).toBeOnTheScreen();
-      await act(async () => jest.advanceTimersByTime(1000));
-      expect(mockCamera.capture).toHaveBeenCalledTimes(1);
-      expect(Speech.speak.mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(['3', '2', '1']));
-    }
+    // Aiming: the hint shows (and is spoken), and holding on target starts the burst.
+    const aim = (hint: AimHint) =>
+      act(async () => mockCamera.props.onQuality({ nativeEvent: report('crown', [], { aim: { hint, hairShare: 0.5 } }) }));
+    await aim('moveUp');
+    expect(screen.getByText('Move the phone up')).toBeOnTheScreen();
+    expect(mockCamera.startBurst).not.toHaveBeenCalled();
+    await aim('ok');
+    await act(async () => jest.advanceTimersByTime(700));
+    await aim('ok');
+    expect(mockCamera.startBurst).toHaveBeenCalledWith(1500);
+    expect(screen.getByText('Hold still')).toBeOnTheScreen();
+
+    // The best frame comes back: check it, retake it, then keep the next one.
+    await act(async () =>
+      mockCamera.props.onCapture({ nativeEvent: { ...capture('crown', 40, { failed: ['hairInFrame'] }), burst: true } }),
+    );
+    expect(screen.getByTestId('crown-review')).toBeOnTheScreen();
+    expect(screen.getByText('Not much hair in this one')).toBeOnTheScreen();
+    expect(mockCamera.props.active).toBe(false);
+    await fireEvent.press(screen.getByRole('button', { name: 'Retake crown photo' }));
+    expect(screen.getByTestId('crown-countdown')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Take it now' }));
+    expect(mockCamera.startBurst).toHaveBeenCalledTimes(2);
+    await act(async () => mockCamera.props.onCapture({ nativeEvent: { ...capture('crown'), burst: true } }));
+    expect(screen.getByText('Looks usable')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Keep this photo' }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalled());
+  });
+
+  it('crown on your own never gets stuck aiming: it bursts after a time-out', async () => {
+    await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
+    for (const view of SCAN_ORDER.slice(0, -1)) await shot(view);
+    await fireEvent.press(screen.getByRole('button', { name: 'On my own' }));
+    for (let i = 0; i < 4; i++) await act(async () => jest.advanceTimersByTime(1000));
+    expect(mockCamera.startBurst).not.toHaveBeenCalled();
+    await act(async () => jest.advanceTimersByTime(8500));
+    expect(mockCamera.startBurst).toHaveBeenCalledTimes(1);
+  });
+
+  it('crown with a helper: live checks, auto-capture and a shutter, then the same check', async () => {
+    await openCamera(new MemoryScanStore(), '2026-11-01T00:00:00Z');
+    await fireEvent(screen.getByTestId('scan-camera'), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 0, height: 0 } } });
+    for (const view of SCAN_ORDER.slice(0, -1)) await shot(view);
+    await fireEvent.press(screen.getByRole('button', { name: 'Someone’s helping me' }));
+    expect(mockCamera.props.autoCapture).toBe(true);
+    await fireEvent.press(screen.getByRole('button', { name: 'Take crown photo' }));
+    expect(mockCamera.capture).toHaveBeenCalledTimes(1);
+    await act(async () => mockCamera.props.onCapture({ nativeEvent: capture('crown') }));
+    expect(screen.getByTestId('crown-review')).toBeOnTheScreen();
   });
 
   it('lets the green line finish drawing before the photo, then holds it with "Got it"', async () => {

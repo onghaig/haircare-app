@@ -8,11 +8,15 @@ checks run at frame rate on device. Nothing leaves the phone during a scan.
 - **Camera** (`ios/HeadMapCameraView.swift`): AVFoundation session, front camera mirrored for
   the front, temple and top views, rear camera for the crown. Live analysis on every frame it can
   keep up with; ~8 small JSON reports a second go to JS. Soft haptic tick when every check turns
-  green, firm tap on capture, auto-capture after a steady half-second hold.
+  green, firm tap on capture, auto-capture after a steady half-second hold. `startBurst(ms)`
+  (crown, on your own) ranks every analysed frame for that long (hair in frame, then score, then
+  sharpness) and sends the best one as a capture with `burst: true`.
 - **Models** (`ios/HeadMapEngine.swift`): MediaPipe Face Landmarker (478 points + head pose) and
   Selfie Multiclass (hair mask), both Apache-2.0, both on device.
 - **Core** (`core/`, a SwiftPM package compiled into the pod): hairline measurement, quality
-  checks and scoring, capture gating. Pure Swift with no UIKit or MediaPipe, so `swift test` runs
+  checks and scoring, capture gating, the coarse hair grid saved with each photo for the scalp
+  map (`hairGrid`, 12 x 16 cells), and aiming hints for the top and crown (`aim`: where the hair
+  sits in the frame, so the app can say "move the phone up" when you can't see the screen). Pure Swift with no UIKit or MediaPipe, so `swift test` runs
   on any Mac or Linux machine.
 - **Android** (`android/`): the same module for Android, with the same name, props, events and
   JSON reports, so the JS side is shared. CameraX (`HeadMapCameraView.kt`: front camera mirrored,

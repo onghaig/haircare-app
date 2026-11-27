@@ -188,6 +188,15 @@ extension QualityReport {
       m["curve"] = hl.curve.map { [$0.x / frameWidth, $0.y / frameHeight] }
       d["hairline"] = m
     }
+    if let g = hairGrid {
+      // Two decimals is plenty for a heatmap and keeps the saved scan small.
+      d["hairGrid"] = ["cols": g.cols, "rows": g.rows, "values": g.values.map { ($0 * 100).rounded() / 100 }]
+    }
+    if let a = aim {
+      var m: [String: Any] = ["hint": a.hint.rawValue, "hairShare": a.hairShare]
+      if let c = a.centre { m["centre"] = [c.x, c.y] }
+      d["aim"] = m
+    }
     return d
   }
 }

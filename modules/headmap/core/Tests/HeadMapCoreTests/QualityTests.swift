@@ -199,6 +199,54 @@ final class QualityScorerTests: XCTestCase {
     XCTAssertEqual(m.coverage(x: 0.0...0.5, y: 0...1), 1, accuracy: 1e-9)
   }
 
+  /// Hair in a w x h mask covering columns x0..<x1 and rows y0..<y1.
+  private func block(_ x0: Int, _ x1: Int, _ y0: Int, _ y1: Int, w: Int = 20, h: Int = 20) -> HairMask {
+    var v = [Float](repeating: 0, count: w * h)
+    for y in y0..<y1 { for x in x0..<x1 { v[y * w + x] = 1 } }
+    return HairMask(width: w, height: h, values: v, imageWidth: Double(w), imageHeight: Double(h))!
+  }
+
+  func testHairGridAveragesEachCell() {
+    let g = block(0, 10, 0, 20).grid(cols: 2, rows: 2)
+    XCTAssertEqual(g.values, [1, 0, 1, 0])
+    XCTAssertEqual(block(0, 5, 0, 20).grid(cols: 2, rows: 1).values, [0.5, 0])
+  }
+
+  func testCentroidAndShare() throws {
+    let c = try XCTUnwrap(block(0, 10, 0, 10).centroid())
+    XCTAssertEqual(c.centre.x, 0.25, accuracy: 1e-9)
+    XCTAssertEqual(c.centre.y, 0.25, accuracy: 1e-9)
+    XCTAssertEqual(c.share, 0.25, accuracy: 1e-9)
+    XCTAssertNil(block(0, 0, 0, 0).centroid())
+  }
+
+  func testAimPointsThePhoneTowardTheHair() {
+    XCTAssertEqual(scorer.aim(hair: block(0, 0, 0, 0)).hint, .noHair)
+    XCTAssertEqual(scorer.aim(hair: block(0, 8, 4, 16)).hint, .moveLeft)
+    XCTAssertEqual(scorer.aim(hair: block(12, 20, 4, 16)).hint, .moveRight)
+    XCTAssertEqual(scorer.aim(hair: block(4, 16, 0, 8)).hint, .moveUp)
+    XCTAssertEqual(scorer.aim(hair: block(4, 16, 12, 20)).hint, .moveDown)
+    XCTAssertEqual(scorer.aim(hair: block(6, 14, 6, 14)).hint, .moveCloser)
+    XCTAssertEqual(scorer.aim(hair: block(2, 18, 2, 18)).hint, .ok)
+  }
+
+  func testCrownReportsCarryAimAndGrid() throws {
+    let g = Fixture.gray(width: 20, height: 20, faceMin: Point(0, 0), faceMax: Point(20, 20))
+    let r = scorer.evaluateWithoutFace(view: .crown, gray: g, hair: block(2, 18, 2, 18))
+    XCTAssertEqual(r.aim?.hint, .ok)
+    XCTAssertEqual(try XCTUnwrap(r.hairGrid).values.count, 12 * 16)
+  }
+
+  func testBurstPrefersHairThenScoreThenSharpness() {
+    let g = Fixture.gray(width: 20, height: 20, faceMin: Point(0, 0), faceMax: Point(20, 20))
+    let hair = scorer.evaluateWithoutFace(view: .crown, gray: g, hair: block(0, 20, 0, 20))
+    let wall = scorer.evaluateWithoutFace(view: .crown, gray: g, hair: block(0, 0, 0, 0))
+    XCTAssertGreaterThan(hair.burstRank, wall.burstRank)
+    var blurrier = hair
+    blurrier.stats?.sharpness = 1
+    XCTAssertGreaterThan(hair.burstRank, blurrier.burstRank)
+  }
+
   func testWeightsAddUpTo100() {
     XCTAssertEqual(QualityCheck.allCases.reduce(0) { $0 + $1.weight }, 100)
   }

@@ -31,6 +31,16 @@ export interface HairlineReport {
   curve: [number, number][];
 }
 
+/** Top and crown views: which way to move the phone so the hair fills the frame. */
+export type AimHint = 'ok' | 'noHair' | 'moveCloser' | 'moveLeft' | 'moveRight' | 'moveUp' | 'moveDown';
+
+/** Mean hair confidence (0 to 1) per cell, row-major from the top left. */
+export interface HairGrid {
+  cols: number;
+  rows: number;
+  values: number[];
+}
+
 export interface QualityReport {
   view: ScanView;
   /** 0 to 100. Scans under 60 are kept but left out of trend lines. */
@@ -46,6 +56,10 @@ export interface QualityReport {
   poseError?: number;
   stats?: { sharpness: number; faceBrightness: number; backlit: boolean };
   hairline?: HairlineReport;
+  /** Coarse hair map of the frame (for the scalp map). */
+  hairGrid?: HairGrid;
+  /** Top and crown views only. Directions are in the camera image (for the crown, your left is left). */
+  aim?: { hint: AimHint; hairShare: number; centre?: [number, number] };
 }
 
 export interface CaptureResult {
@@ -54,6 +68,8 @@ export interface CaptureResult {
   view: ScanView;
   /** Measured again on the full-resolution still. */
   report?: QualityReport;
+  /** True when this is the best frame of a crown burst rather than a single shot. */
+  burst?: boolean;
 }
 
 export type PermissionStatus = 'granted' | 'denied';
@@ -76,4 +92,6 @@ export interface HeadMapCameraViewProps {
 export interface HeadMapCameraViewRef {
   capture(): Promise<void>;
   resetCapture(): Promise<void>;
+  /** Watch the frames for this long and send the best one as a capture (crown, on your own). */
+  startBurst(durationMs: number): Promise<void>;
 }

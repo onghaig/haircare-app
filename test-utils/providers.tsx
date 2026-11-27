@@ -29,9 +29,9 @@ export function makeProviders(seed: Seed = {}) {
     <PurchasesProvider>
       <ProfileProvider store={stores.profile}>
         <PlanProvider store={stores.log}>
-          <ForecastProvider samples={3000}>
-            <ScanProvider store={stores.scans}>{ui}</ScanProvider>
-          </ForecastProvider>
+          <ScanProvider store={stores.scans}>
+            <ForecastProvider samples={3000}>{ui}</ForecastProvider>
+          </ScanProvider>
         </PlanProvider>
       </ProfileProvider>
     </PurchasesProvider>

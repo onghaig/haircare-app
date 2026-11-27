@@ -56,6 +56,11 @@ export function ScanProvider({ store, children }: { store?: ScanStore; children:
   return <ScanContext.Provider value={value}>{children}</ScanContext.Provider>;
 }
 
+/** The scans, or null outside a ScanProvider (for providers that can work without them). */
+export function useOptionalScans(): ScanContextValue | null {
+  return useContext(ScanContext);
+}
+
 export function useScans(): ScanContextValue {
   const v = useContext(ScanContext);
   if (!v) throw new Error('useScans must be used inside <ScanProvider>');

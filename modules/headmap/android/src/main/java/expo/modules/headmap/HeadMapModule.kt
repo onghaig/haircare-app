@@ -56,6 +56,7 @@ class HeadMapModule : Module() {
       // CameraX takes pictures from the main thread.
       AsyncFunction("capture") { v: HeadMapCameraView -> v.post { v.capture() } }
       AsyncFunction("resetCapture") { v: HeadMapCameraView -> v.resetCapture() }
+      AsyncFunction("startBurst") { v: HeadMapCameraView, durationMs: Int -> v.startBurst(durationMs) }
     }
   }
 

@@ -80,9 +80,22 @@ export function selfReportedStage(profile: Profile): number | null {
   return 2;
 }
 
-/** Everything the forecast engine needs from onboarding. Returns null until age is known. */
-export function toForecastInput(profile: Profile): UserInput | null {
+/**
+ * Everything the forecast engine needs from onboarding. Returns null until age is known.
+ * A stage estimated from a scan replaces the self-report (it already blends in the answers),
+ * and counts as weak evidence: it is not yet validated against graded photos.
+ */
+export function toForecastInput(profile: Profile, scanStage?: number | null): UserInput | null {
   if (profile.age == null) return null;
+  if (scanStage != null) {
+    return {
+      age: profile.age,
+      ancestry: ancestryFor(profile.ancestry),
+      relatives: relativesFor(profile),
+      treatment: treatmentFor(profile.treatments),
+      observations: [{ age: profile.age, stage: scanStage, source: 'scan_estimate' }],
+    };
+  }
   return {
     age: profile.age,
     ancestry: ancestryFor(profile.ancestry),

@@ -111,8 +111,8 @@ face, recorded to `ci-demo` under `<branch>-android/`.
 | `src/components/ui/` | Shared UI: `Text`, `Button`, `Card`, `Screen` |
 | `src/navigation/tabs.ts` | Tab order, labels, icons and each tab's one job |
 | `src/forecast/` | On-device forecast engine (port of the Python v0 model) |
-| `src/scan/` | Scan session state machine, guidance copy, voice coach, change detection, local scan storage |
-| `src/app/scan/` | Guided scan (full-screen, voice-guided, "Redo last photo" for the view just taken), scan result (redo or delete the scan, each behind a confirmation; deleting removes its photos and measurements from the phone, and trends re-baseline from what is left), and the hair panorama (every angle of one scan, drag to turn) |
+| `src/scan/` | Scan session state machine, the crown flow (`crown.ts`: on your own with a spoken countdown, aiming hints and a best-of burst, or with a helper; you check the photo before it is kept), the scalp map (`scalpMap.ts`), the estimated Norwood stage (`stageEstimate.ts`, a swappable grader), guidance copy, voice coach, change detection, local scan storage |
+| `src/app/scan/` | Guided scan (full-screen, voice-guided, "Redo last photo" for the view just taken), scan result (redo or delete the scan, each behind a confirmation; deleting removes its photos and measurements from the phone, and trends re-baseline from what is left), the estimated current Norwood stage (a likely range and a confidence, never a diagnosis), and the scalp map (the five photos stitched into one top-down map with the hair the camera saw, each zone compared with your first scan as a rough range), with the drag-to-turn panorama as a second tab |
 | `src/app/onboarding/` | Welcome and the nine onboarding questions |
 | `src/app/reveal/`, `src/reveal/` | Analysing screen and the free reveal with the blurred future look; runs the forecast on device |
 | `src/app/paywall.tsx`, `src/paywall/` | Paywall, plans and prices, the purchase interface (test purchases until StoreKit is connected) |

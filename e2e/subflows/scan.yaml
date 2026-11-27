@@ -1,6 +1,6 @@
 # The full guided scan. The simulator has no camera, so CI builds include an illustrated demo
 # face that runs through the real on-device analysis; the green hairline highlight animates on
-# every view. Shots are taken by hand ("Take photo now", the crown self-timer).
+# every view. Shots are taken by hand ("Take photo now"); the crown uses the solo burst.
 appId: com.onghaig.haircare
 ---
 - assertVisible: "Before you scan"
@@ -59,11 +59,22 @@ appId: com.onghaig.haircare
     timeout: 10000
 - assertVisible: "Crown"
 - takeScreenshot: e2e-14-crown
-# The timer is 3 seconds and Maestro's settle wait on the animated screen can take longer, so
-# don't assert the countdown itself (it may already be over). One tap only: a retry would
-# cancel the timer. The forecast screen appearing proves the timer took the crown photo.
+# The crown: on your own. A spoken countdown, spoken aiming hints, then a burst that keeps the
+# best frame. The demo face is not a crown, so aiming times out and the burst runs anyway.
 - tapOn:
-    text: "Take crown photo in 3 seconds"
+    text: "On my own"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    notVisible:
+      id: "crown-countdown"
+    timeout: 15000
+- takeScreenshot: e2e-14a-crown-aiming
+- extendedWaitUntil:
+    visible: "Check your crown photo"
+    timeout: 30000
+- takeScreenshot: e2e-14b-crown-review
+- tapOn:
+    text: "Keep this photo"
     retryTapIfNoChange: false
 # The first finished scan leads into the forecast.
 - extendedWaitUntil:

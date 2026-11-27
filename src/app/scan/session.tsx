@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
@@ -14,12 +15,14 @@ import {
   type HeadMapCameraViewRef,
   type ScanView,
 } from '@modules/headmap';
+import { CrownPanel, CrownReview } from '@/components/scan/CrownPanel';
 import { HairChecklist } from '@/components/scan/HairChecklist';
 import { HeadGuide } from '@/components/scan/HeadGuide';
 import { PromptCard, StatusChips, ViewProgress } from '@/components/scan/ScanHud';
 import { Button, Text } from '@/components/ui';
 import { promptFor, statusChips, viewInstruction } from '@/scan/guidance';
 import { useProfile } from '@/profile/ProfileProvider';
+import { AIM_VOICE, BURST_MS, crownReducer, initialCrownState, stepVoice } from '@/scan/crown';
 import { useScans } from '@/scan/ScanProvider';
 import {
   buildScanRecord,
@@ -56,9 +59,9 @@ export default function ScanSessionScreen() {
   const camera = useRef<HeadMapCameraViewRef>(null);
   const coach = useMemo(() => new VoiceCoach((line) => Speech.speak(line, { rate: 0.95 })), []);
   const view = currentView(state);
-  /** Crown self-timer: seconds left for a view. A timer for another view is no timer. */
-  const [timer, setTimer] = useState<{ view: string; left: number } | null>(null);
-  const countdown = timer && timer.view === view ? timer.left : null;
+  // The crown: on your own (countdown, spoken aiming, burst) or with a helper, then a check.
+  const [crown, crownDispatch] = useReducer(crownReducer, initialCrownState);
+  const onCrown = view === 'crown' && state.phase === 'capturing';
 
   // Finish: save and show the result.
   useEffect(() => {
@@ -74,11 +77,44 @@ export default function ScanSessionScreen() {
       .catch((e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)));
   }, [state, save, remove, replaces, firstReveal]);
 
-  // Announce each new view with what to do; the crown is always voice-guided.
+  // Announce each new view with what to do; the crown's steps announce themselves.
   useEffect(() => {
-    if (state.phase !== 'capturing') return;
-    if (view === 'crown' || voiceOn) coach.say(`${VIEW_LABEL[view]}. ${viewInstruction(view)}`, Date.now());
+    if (state.phase !== 'capturing' || view === 'crown') return;
+    if (voiceOn) coach.say(`${VIEW_LABEL[view]}. ${viewInstruction(view)}`, Date.now());
   }, [view, state.phase, voiceOn, coach]);
+
+  // Crown: speak each step as it starts (always: you can't see the screen behind your head).
+  useEffect(() => {
+    if (!onCrown) return;
+    const line = crown.step === 'choose' ? `${VIEW_LABEL.crown}. Are you on your own, or is someone helping?` : stepVoice(crown);
+    if (line) coach.say(line, Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per step, not per hint
+  }, [crown.step, onCrown, coach]);
+
+  // Crown countdown: one number a second, out loud. Aiming: a tick so the time-out fires even
+  // if the camera stops sending reports.
+  useEffect(() => {
+    if (!onCrown) return;
+    if (crown.step === 'countdown') {
+      Speech.speak(String(crown.left), { rate: 1 });
+      const t = setTimeout(() => crownDispatch({ type: 'tick', now: Date.now() }), 1000);
+      return () => clearTimeout(t);
+    }
+    if (crown.step === 'aiming') {
+      const t = setInterval(() => crownDispatch({ type: 'tick', now: Date.now() }), 500);
+      return () => clearInterval(t);
+    }
+  }, [onCrown, crown.step, crown.left]);
+
+  // The burst: the camera watches the frames and sends back the best one as a capture.
+  useEffect(() => {
+    if (onCrown && crown.step === 'burst') void camera.current?.startBurst(BURST_MS);
+  }, [onCrown, crown.step]);
+
+  // A light tap each time the aim comes on target.
+  useEffect(() => {
+    if (onCrown && crown.step === 'aiming' && crown.hint === 'ok') void Haptics.selectionAsync();
+  }, [onCrown, crown.step, crown.hint]);
 
   // The green line draws all the way for each view before a photo can be taken, and the finished
   // line stays up for a moment after it ("Got it") before the next view starts.
@@ -97,7 +133,7 @@ export default function ScanSessionScreen() {
   const lastTaken = SCAN_ORDER.slice(0, state.index).filter((v) => state.captures[v]).at(-1);
   function redoLast() {
     if (!lastTaken || held) return;
-    setTimer(null);
+    crownDispatch({ type: 'switchMode' });
     setQueued(null);
     void camera.current?.resetCapture();
     dispatch({ type: 'retake', view: lastTaken });
@@ -110,8 +146,9 @@ export default function ScanSessionScreen() {
   }
 
   // A shot asked for mid-draw, or checks that went green before the line finished, fire now.
+  // The crown has its own flow (burst or helper shutter).
   useEffect(() => {
-    if (!drawn || held) return;
+    if (!drawn || held || view === 'crown') return;
     if (queued === view || liveRef.current?.allPassed) camera.current?.capture();
   }, [drawn, held, queued, view]);
 
@@ -124,22 +161,6 @@ export default function ScanSessionScreen() {
     }, SHOW_CAPTURED_MS);
     return () => clearTimeout(t);
   }, [held]);
-
-  // Crown self-timer: the phone is behind your head, so count down out loud, then shoot.
-  useEffect(() => {
-    if (countdown == null) return;
-    Speech.speak(String(countdown), { rate: 1 });
-    const t = setTimeout(() => {
-      if (countdown <= 1) {
-        // Queue the shot: it fires as soon as the green line has finished drawing.
-        setQueued(view);
-        setTimer(null);
-      } else {
-        setTimer({ view, left: countdown - 1 });
-      }
-    }, 1000);
-    return () => clearTimeout(t);
-  }, [countdown, view]);
 
   async function start(hairState: HairState) {
     void prepareVoiceAudioAsync();
@@ -191,16 +212,28 @@ export default function ScanSessionScreen() {
         style={StyleSheet.absoluteFill}
         view={view}
         baselineFaceWidth={baseline?.faceWidthPx ?? null}
-        active={state.phase === 'capturing'}
-        autoCapture={drawn && !held}
+        active={state.phase === 'capturing' && !(onCrown && crown.step === 'review')}
+        autoCapture={view === 'crown' ? crown.step === 'helper' && drawn : drawn && !held}
         onQuality={({ nativeEvent }) => {
-          dispatch({ type: 'quality', report: nativeEvent, now: Date.now() });
-          coach.update(promptFor(nativeEvent).voice, Date.now(), view === 'crown' || voiceOn);
+          const now = Date.now();
+          dispatch({ type: 'quality', report: nativeEvent, now });
+          if (view !== 'crown') {
+            coach.update(promptFor(nativeEvent).voice, now, voiceOn);
+            return;
+          }
+          crownDispatch({ type: 'quality', report: nativeEvent, now });
+          if (crown.step === 'aiming' && nativeEvent.aim) coach.update(AIM_VOICE[nativeEvent.aim.hint], now, true);
+          else if (crown.step === 'helper') coach.update(promptFor(nativeEvent).voice, now, voiceOn);
         }}
         onCapture={({ nativeEvent }) => {
           setCameraError(null);
-          if (held || nativeEvent.view !== view) return;
-          if (view === 'crown' || voiceOn) coach.say('Got it', Date.now());
+          if (nativeEvent.view !== view) return;
+          if (view === 'crown') {
+            crownDispatch({ type: 'captured', result: nativeEvent });
+            return;
+          }
+          if (held) return;
+          if (voiceOn) coach.say('Got it', Date.now());
           setHeld(nativeEvent);
         }}
         onError={({ nativeEvent }) => setCameraError(nativeEvent.message)}
@@ -217,10 +250,10 @@ export default function ScanSessionScreen() {
         complete={!!held}
         onDrawn={() => setDrawnView(view)}
       />
-      {countdown != null && countdown > 0 ? (
+      {onCrown && crown.step === 'countdown' ? (
         <View pointerEvents="none" style={styles.countdown}>
-          <Text variant="display" accessibilityLiveRegion="assertive">
-            {countdown}
+          <Text variant="display" accessibilityLiveRegion="assertive" testID="crown-countdown">
+            {crown.left}
           </Text>
         </View>
       ) : null}
@@ -245,7 +278,7 @@ export default function ScanSessionScreen() {
         </Text>
         <View style={{ flex: 1 }} />
         <View style={styles.bottom}>
-          <PromptCard prompt={prompt} tip={tip} />
+          {!onCrown || crown.step === 'helper' ? <PromptCard prompt={prompt} tip={tip} /> : null}
           {lastTaken && !held && state.phase === 'capturing' ? (
             <Pressable
               onPress={redoLast}
@@ -257,19 +290,24 @@ export default function ScanSessionScreen() {
               </Text>
             </Pressable>
           ) : null}
-          {live ? <StatusChips chips={statusChips(live)} /> : null}
+          {live && (!onCrown || crown.step === 'helper') ? <StatusChips chips={statusChips(live)} /> : null}
           {view !== 'crown' ? (
             <Button label="Take photo now" variant="secondary" onPress={shoot} />
-          ) : (
-            // The crown always gets captured: auto-capture when the checks pass, or this timer.
-            <Button
-              label={countdown != null ? 'Cancel timer' : 'Take crown photo in 3 seconds'}
-              variant="secondary"
-              onPress={() => setTimer(countdown != null ? null : { view, left: 3 })}
-            />
-          )}
+          ) : onCrown ? (
+            <CrownPanel state={crown} dispatch={crownDispatch} onShutter={() => void camera.current?.capture()} />
+          ) : null}
         </View>
       </SafeAreaView>
+      {onCrown ? (
+        <CrownReview
+          state={crown}
+          onKeep={() => crown.result && dispatch({ type: 'captured', result: crown.result })}
+          onRetake={() => {
+            void camera.current?.resetCapture();
+            crownDispatch({ type: 'retake' });
+          }}
+        />
+      ) : null}
     </View>
   );
 }

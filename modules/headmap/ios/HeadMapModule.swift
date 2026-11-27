@@ -55,6 +55,7 @@ public final class HeadMapModule: Module {
 
       AsyncFunction("capture") { (v: HeadMapCameraView) in v.capture() }
       AsyncFunction("resetCapture") { (v: HeadMapCameraView) in v.resetCapture() }
+      AsyncFunction("startBurst") { (v: HeadMapCameraView, durationMs: Int) in v.startBurst(durationMs: durationMs) }
     }
   }
 }

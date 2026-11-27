@@ -188,6 +188,55 @@ class QualityScorerTest {
     assertEquals(1.0, m.coverage(0.0..0.5, 0.0..1.0), 1e-9)
   }
 
+  /** Hair in a w x h mask covering columns x0 until x1 and rows y0 until y1. */
+  private fun block(x0: Int, x1: Int, y0: Int, y1: Int, w: Int = 20, h: Int = 20): HairMask {
+    val v = FloatArray(w * h)
+    for (y in y0 until y1) for (x in x0 until x1) v[y * w + x] = 1f
+    return HairMask.of(w, h, v, w.toDouble(), h.toDouble())!!
+  }
+
+  @Test fun hairGridAveragesEachCell() {
+    assertEquals(listOf(1.0, 0.0, 1.0, 0.0), block(0, 10, 0, 20).grid(2, 2).values)
+    assertEquals(listOf(0.5, 0.0), block(0, 5, 0, 20).grid(2, 1).values)
+  }
+
+  @Test fun centroidAndShare() {
+    val (c, share) = block(0, 10, 0, 10).centroid()!!
+    assertEquals(0.25, c.x, 1e-9)
+    assertEquals(0.25, c.y, 1e-9)
+    assertEquals(0.25, share, 1e-9)
+    assertNull(block(0, 0, 0, 0).centroid())
+  }
+
+  @Test fun aimPointsThePhoneTowardTheHair() {
+    assertEquals(AimHint.NO_HAIR, scorer.aim(block(0, 0, 0, 0)).hint)
+    assertEquals(AimHint.MOVE_LEFT, scorer.aim(block(0, 8, 4, 16)).hint)
+    assertEquals(AimHint.MOVE_RIGHT, scorer.aim(block(12, 20, 4, 16)).hint)
+    assertEquals(AimHint.MOVE_UP, scorer.aim(block(4, 16, 0, 8)).hint)
+    assertEquals(AimHint.MOVE_DOWN, scorer.aim(block(4, 16, 12, 20)).hint)
+    assertEquals(AimHint.MOVE_CLOSER, scorer.aim(block(6, 14, 6, 14)).hint)
+    assertEquals(AimHint.OK, scorer.aim(block(2, 18, 2, 18)).hint)
+  }
+
+  @Test fun crownReportsCarryAimAndGrid() {
+    val g = Fixture.gray(20, 20, Point(0.0, 0.0), Point(20.0, 20.0))
+    val r = scorer.evaluateWithoutFace(ScanView.CROWN, g, block(2, 18, 2, 18))
+    assertEquals(AimHint.OK, r.aim?.hint)
+    assertEquals(12 * 16, r.hairGrid!!.values.size)
+    val m = r.toMap(20.0, 20.0)
+    assertEquals("ok", (m["aim"] as Map<*, *>)["hint"])
+    assertEquals(12, (m["hairGrid"] as Map<*, *>)["cols"])
+  }
+
+  @Test fun burstPrefersHairThenScoreThenSharpness() {
+    val g = Fixture.gray(20, 20, Point(0.0, 0.0), Point(20.0, 20.0))
+    val hair = scorer.evaluateWithoutFace(ScanView.CROWN, g, block(0, 20, 0, 20))
+    val wall = scorer.evaluateWithoutFace(ScanView.CROWN, g, block(0, 0, 0, 0))
+    assertTrue(hair.burstRank > wall.burstRank)
+    val blurrier = hair.copy(stats = hair.stats!!.copy(sharpness = 1.0))
+    assertTrue(hair.burstRank > blurrier.burstRank)
+  }
+
   @Test fun weightsAddUpTo100() = assertEquals(100, QualityCheck.entries.sumOf { it.weight })
 
   @Test fun reportMapMatchesTheJsShape() {
