@@ -32,13 +32,14 @@ export function BeforeAfter({
   const pan = useMemo(() => {
     const from = { x: 0 };
     return PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      // Keep the drag when a parent scroll view wants it.
+      // Only a sideways drag moves the handle, so a vertical swipe over the picture still
+      // scrolls the screen.
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
       onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: (e) => {
-        from.x = e.nativeEvent.locationX;
-        if (width) setT(clamp01(from.x / width));
+      onPanResponderGrant: (e, g) => {
+        from.x = e.nativeEvent.locationX - g.dx;
+        if (width) setT(clamp01(e.nativeEvent.locationX / width));
       },
       onPanResponderMove: (_, g) => {
         if (width) setT(clamp01((from.x + g.dx) / width));

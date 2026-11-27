@@ -48,9 +48,12 @@ appId: com.onghaig.haircare
 - scrollUntilVisible:
     element: "10 years"
 - tapOn: "10 years"
-# The headline sits under the picture, below the fold on a phone.
+# The headline sits under the picture, below the fold on a phone. Two futures and Try it on
+# now sit below it, so scroll in small steps or a swipe can carry it past the top.
 - scrollUntilVisible:
     element: "Likely at \\d+: N.*"
+    speed: 20
+    visibilityPercentage: 50
 - takeScreenshot: e2e-64-future-you-10y
 - scrollUntilVisible:
     element: "Share your forecast"
