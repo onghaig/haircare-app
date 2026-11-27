@@ -21,6 +21,16 @@ enum class DistanceHint(val raw: String) { OK("ok"), MOVE_CLOSER("moveCloser"), 
 /** Which way to move on screen so the head sits inside the guide outline. */
 enum class CentringHint(val raw: String) { OK("ok"), MOVE_LEFT("moveLeft"), MOVE_RIGHT("moveRight"), MOVE_UP("moveUp"), MOVE_DOWN("moveDown") }
 
+/**
+ * Top and crown views, where you can't see the screen: which way to move the phone so the hair
+ * fills the middle of the frame. Directions are in the camera image (see AimHint in Swift).
+ */
+enum class AimHint(val raw: String) {
+  OK("ok"), NO_HAIR("noHair"), MOVE_CLOSER("moveCloser"), MOVE_LEFT("moveLeft"), MOVE_RIGHT("moveRight"), MOVE_UP("moveUp"), MOVE_DOWN("moveDown")
+}
+
+data class Aim(val hint: AimHint, val centre: Point?, val hairShare: Double)
+
 data class QualityReport(
   val view: ScanView,
   val pose: PoseAngles?,
@@ -35,10 +45,20 @@ data class QualityReport(
   val failed: List<QualityCheck>,
   /** 0 to 100. Scans under 60 are kept but left out of trend lines. */
   val score: Int,
+  /** Coarse hair map of the frame, for the scalp map. Null without a hair mask. */
+  val hairGrid: HairGrid? = null,
+  /** Top and crown views only: where to move the phone. */
+  val aim: Aim? = null,
+  /** Face views: a few landmark positions (pixels) by MediaPipe index, for the scalp map. */
+  val anchors: Map<Int, Point>? = null,
 ) {
   val allPassed: Boolean get() = failed.isEmpty()
   /** The single most important thing to fix right now. */
   val topIssue: QualityCheck? get() = failed.firstOrNull()
+
+  /** Ranks frames in a crown burst: hair in frame first, then the score, then capped sharpness. */
+  val burstRank: Double
+    get() = (if (failed.contains(QualityCheck.HAIR_IN_FRAME)) 0.0 else 1000.0) + score + minOf(stats?.sharpness ?: 0.0, 400.0) / 40
 
   /** The same JSON shape the Swift module sends to JS (HeadMap.types.ts QualityReport). */
   fun toMap(frameWidth: Double, frameHeight: Double): Map<String, Any> {
@@ -66,6 +86,17 @@ data class QualityReport(
       m["curve"] = hl.curve.map { listOf(it.x / frameWidth, it.y / frameHeight) }
       d["hairline"] = m
     }
+    hairGrid?.let { g ->
+      // Two decimals is plenty for a heatmap and keeps the saved scan small.
+      d["hairGrid"] = mapOf("cols" to g.cols, "rows" to g.rows, "values" to g.values.map { Math.round(it * 100) / 100.0 })
+    }
+    d["frameSize"] = listOf(frameWidth, frameHeight)
+    anchors?.let { a -> d["anchors"] = a.entries.associate { (k, p) -> k.toString() to listOf(p.x / frameWidth, p.y / frameHeight) } }
+    aim?.let { a ->
+      val m = mutableMapOf<String, Any>("hint" to a.hint.raw, "hairShare" to a.hairShare)
+      a.centre?.let { m["centre"] = listOf(it.x, it.y) }
+      d["aim"] = m
+    }
     return d
   }
 }
@@ -86,6 +117,12 @@ data class QualityThresholds(
   val centringTolerance: Double = 0.08,
   /** Top and crown views: share of the centre of the frame that must be hair. */
   val minHairCoverage: Double = 0.35,
+  /** Aim: how far the hair centre may sit from the frame centre, as a share of the frame. */
+  val aimTolerance: Double = 0.12,
+  /** Aim: under this share of the frame as hair, there is no hair in view. */
+  val minAimShare: Double = 0.05,
+  /** Aim: under this share, the phone is too far from the head. */
+  val closeAimShare: Double = 0.3,
 )
 
 class QualityScorer(val thresholds: QualityThresholds = QualityThresholds()) {
@@ -114,6 +151,22 @@ class QualityScorer(val thresholds: QualityThresholds = QualityThresholds()) {
     return if (dy < 0) CentringHint.MOVE_DOWN else CentringHint.MOVE_UP
   }
 
+  fun aim(hair: HairMask): Aim {
+    val found = hair.centroid()
+    if (found == null || found.second < thresholds.minAimShare) return Aim(AimHint.NO_HAIR, null, found?.second ?: 0.0)
+    val (c, share) = found
+    val dx = c.x - 0.5
+    val dy = c.y - 0.5
+    val t = thresholds.aimTolerance
+    val hint = when {
+      abs(dx) > t || abs(dy) > t ->
+        if (abs(dx) >= abs(dy)) (if (dx < 0) AimHint.MOVE_LEFT else AimHint.MOVE_RIGHT) else (if (dy < 0) AimHint.MOVE_UP else AimHint.MOVE_DOWN)
+      share < thresholds.closeAimShare -> AimHint.MOVE_CLOSER
+      else -> AimHint.OK
+    }
+    return Aim(hint, c, share)
+  }
+
   private fun report(view: ScanView, ok: Map<QualityCheck, Boolean>, scoreCap: Int? = null, build: (List<QualityCheck>, List<QualityCheck>, Int) -> QualityReport): QualityReport {
     var score = 0
     for (c in QualityCheck.entries) if (ok[c] ?: true) score += c.weight
@@ -139,7 +192,10 @@ class QualityScorer(val thresholds: QualityThresholds = QualityThresholds()) {
     // A sharp photo of something other than hair is not a usable top or crown photo.
     val cap = if (ok[QualityCheck.HAIR_IN_FRAME] == false) 40 else null
     return report(view, ok, cap) { passed, failed, score ->
-      QualityReport(view, null, null, DistanceHint.OK, CentringHint.OK, null, stats, null, passed, failed, score)
+      QualityReport(
+        view, null, null, DistanceHint.OK, CentringHint.OK, null, stats, null, passed, failed, score,
+        hairGrid = hair?.grid(), aim = if (view.checksHairCoverage) hair?.let { aim(it) } else null,
+      )
     }
   }
 
@@ -179,7 +235,8 @@ class QualityScorer(val thresholds: QualityThresholds = QualityThresholds()) {
     if (view.measuresHairline) ok[QualityCheck.HAIRLINE_FOUND] = hairline?.hairlineFound ?: false
 
     return report(view, ok) { passed, failed, score ->
-      QualityReport(view, pose, poseError, distance, centring, lm.faceWidth, stats, hairline, passed, failed, score)
+      QualityReport(view, pose, poseError, distance, centring, lm.faceWidth, stats, hairline, passed, failed, score, hairGrid = hair?.grid(),
+        anchors = LandmarkID.MAP_ANCHORS.associateWith { lm[it] })
     }
   }
 }

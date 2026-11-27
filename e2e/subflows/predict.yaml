@@ -1,17 +1,62 @@
-# Predict: the forecast year by year (unlocked by the test purchase earlier) and the share card.
+# Predict: one forecast with "do nothing" and "your plan", the 10-year chance (unlocked by the
+# test purchase earlier), Compare options, an Rx option's detail, How options work, future you
+# and the share card.
 appId: com.onghaig.haircare
 ---
 - tapOn: "Predict"
 - extendedWaitUntil:
-    visible: "Likely at \\d+: N.*"
+    visible: "Chance of Norwood \\d or worse by \\d+"
     timeout: 20000
+- assertVisible: "Your plan, by what it does"
 - takeScreenshot: e2e-60-predict
+- scrollUntilVisible:
+    element: "Compare all options"
+- tapOn: "Compare all options"
+- extendedWaitUntil:
+    visible: "Oral finasteride: .*in 10"
+    timeout: 20000
+- assertVisible: "SLOWS LOSS"
+- takeScreenshot: e2e-61-compare-options
+- tapOn: "Oral finasteride: .*in 10"
+- extendedWaitUntil:
+    visible: "Talk to a licensed provider"
+    timeout: 20000
+- assertVisible: "Trade-offs"
+- takeScreenshot: e2e-62-option-rx
+- tapOn: "Close"
+- scrollUntilVisible:
+    element: "How these work"
+- tapOn: "How these work"
+- assertVisible: "How options work"
+- takeScreenshot: e2e-63-how-options-work
+# One tap per Back, each waiting for the screen behind it.
+- tapOn:
+    text: "Back"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "Compare options"
+    timeout: 10000
+- tapOn:
+    text: "Back"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    notVisible: "Compare options"
+    timeout: 10000
+# The floating tab bar covers the bottom of the screen, and Maestro counts what is behind it as
+# visible: tapping the year chips as soon as they scroll into view hit the Progress tab instead.
+# So scroll on to the headline under the picture first; the chips are then well above the bar.
+- scrollUntilVisible:
+    element: "Likely at \\d+: N.*"
 - tapOn: "10 years"
-- assertVisible: "Likely at \\d+: N.*"
-- takeScreenshot: e2e-61-predict-10y
+- extendedWaitUntil:
+    visible: "Likely at \\d+: N.*"
+    timeout: 10000
+- takeScreenshot: e2e-64-future-you-10y
 - scrollUntilVisible:
     element: "Share your forecast"
+# It's the last thing on the page: scroll to the end so it clears the tab bar.
+- scroll
 - tapOn: "Share your forecast"
 - assertVisible: "Share image"
-- takeScreenshot: e2e-62-share-card
+- takeScreenshot: e2e-65-share-card
 - tapOn: "Close"

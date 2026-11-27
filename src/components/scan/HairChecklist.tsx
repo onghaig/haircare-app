@@ -15,13 +15,39 @@ const ITEMS: { key: keyof HairState; label: string }[] = [
  * Quick hair-state check before the scan. Answers are saved with the scan, never block it:
  * a "no" just explains a possible jump in the numbers later.
  */
-export function HairChecklist({ onStart, firstScan }: { onStart: (s: HairState) => void; firstScan: boolean }) {
+export function HairChecklist({
+  onStart,
+  firstScan,
+  resume = null,
+  retake = null,
+}: {
+  onStart: (s: HairState, opts?: { practise?: boolean }) => void;
+  firstScan: boolean;
+  /** Picking up a scan left part-way: how many photos are kept and the next view. */
+  resume?: { done: number; next: string } | null;
+  /** Retaking only these views of a scan. */
+  retake?: string[] | null;
+}) {
   const [state, setState] = useState<HairState>({ dry: true, noProduct: true, sameLength: true });
+  if (resume) {
+    return (
+      <View style={styles.wrap}>
+        <Text variant="title">Pick up where you left off</Text>
+        <Text color="textMuted">{`${resume.done} of 5 photos are already saved. Next: ${resume.next}.`}</Text>
+        <View style={{ flex: 1 }} />
+        <Button label={`Continue with ${resume.next}`} onPress={() => onStart(state)} />
+      </View>
+    );
+  }
   const items = firstScan ? ITEMS.filter((i) => i.key !== 'sameLength') : ITEMS;
   return (
     <View style={styles.wrap}>
-      <Text variant="title">Before you scan</Text>
-      <Text color="textMuted">Same time, same spot, same hair. It keeps every scan comparable.</Text>
+      <Text variant="title">{retake ? `Retake ${retake.length === 1 ? '1 view' : `${retake.length} views`}` : 'Before you scan'}</Text>
+      <Text color="textMuted">
+        {retake
+          ? `${retake.join(', ')}. The rest of your scan is kept. Same spot, same hair.`
+          : 'Same time, same spot, same hair. It keeps every scan comparable.'}
+      </Text>
       <Card style={{ paddingVertical: 4 }}>
         {items.map((i, n) => (
           <Pressable
@@ -40,7 +66,14 @@ export function HairChecklist({ onStart, firstScan }: { onStart: (s: HairState) 
         The camera is used only for the scan. Photos are analysed on your phone.
       </Text>
       <View style={{ flex: 1 }} />
-      <Button label="Start scan" onPress={() => onStart(state)} />
+      {firstScan ? (
+        <>
+          <Button label="Try one view first" onPress={() => onStart(state, { practise: true })} />
+          <Button label="Skip to the scan" variant="secondary" onPress={() => onStart(state)} />
+        </>
+      ) : (
+        <Button label={retake ? 'Start the retake' : 'Start scan'} onPress={() => onStart(state)} />
+      )}
     </View>
   );
 }

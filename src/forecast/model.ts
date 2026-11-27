@@ -8,18 +8,42 @@
  *   stage(age)  = clip(1 + r max(0, age - a0), 1, 7)
  *
  * A forecast importance-weights simulated people by how well they match the user's scans,
- * old photos and relatives, then runs them forward. Treatment scales the rate.
+ * old photos and relatives, then runs them forward along one or more paths (sets of actions):
+ * slows-loss options scale the rate, grows-hair options lift the stage while used (see effects.ts).
  * An estimate for a wellness product, not a medical prediction.
  */
 import priors from './data/priors.json';
 import trained from './data/trained-params.json';
+import { combine, hasEffect, liftAt, type EffectCase, type PlanItem } from './effects';
 import { Rng } from './rng';
-import type { Forecast, ModelParams, RelativeStatus, StageRange, UserInput, YearForecast } from './types';
+import type { Forecast, ModelParams, PathYear, RelativeStatus, StageRange, Treatment, UserInput, YearForecast } from './types';
 
 const STATUS: Record<RelativeStatus, number> = { full: 0, thinning: 1, bald: 2 };
 /** Chance a reported relative status is off by a category. */
 const MISCLASS = 0.1;
 const NEVER = 999;
+/** Assumed share of days when someone says they take something but hasn't logged yet. */
+export const ASSUMED_ADHERENCE = 0.9;
+const CASES: EffectCase[] = ['best', 'mid', 'worst'];
+
+/** The user's existing treatment, as plan items. */
+export function planFromTreatment(t: Treatment | undefined, adherence = ASSUMED_ADHERENCE): PlanItem[] {
+  switch (t ?? 'none') {
+    case 'minoxidil':
+      return [{ option: 'minoxidil', adherence }];
+    case 'finasteride':
+      return [{ option: 'finasteride', adherence }];
+    case 'dutasteride':
+      return [{ option: 'dutasteride', adherence }];
+    case 'finasteride+minoxidil':
+      return [
+        { option: 'finasteride', adherence },
+        { option: 'minoxidil', adherence },
+      ];
+    default:
+      return [];
+  }
+}
 
 export const DEFAULT_YEARS = [1, 3, 5, 10, 15] as const;
 
@@ -38,6 +62,8 @@ export interface ForecastOptions {
   seed?: number;
   useFamily?: boolean;
   useHistory?: boolean;
+  /** Other plans to run on the same simulated people, for comparing actions. */
+  paths?: Record<string, PlanItem[]>;
 }
 
 export class ForecastModel {
@@ -47,7 +73,7 @@ export class ForecastModel {
   ) {}
 
   forecast(u: UserInput, opts: ForecastOptions = {}): Forecast {
-    const { years = DEFAULT_YEARS, samples = 200_000, seed = 7, useFamily = true, useHistory = true } = opts;
+    const { years = DEFAULT_YEARS, samples = 200_000, seed = 7, useFamily = true, useHistory = true, paths = {} } = opts;
     if (!(u.age > 0 && u.age < 120)) throw new RangeError(`age must be between 0 and 120, got ${u.age}`);
     const rng = new Rng(seed);
     const n = samples;
@@ -111,8 +137,7 @@ export class ForecastModel {
       sq += w[i] * w[i];
     }
 
-    const effects = priors.treatment_rate_reduction as Record<string, number>;
-    const eff = (effects[u.treatment ?? 'none'] ?? 0) * clip(u.adherence ?? 0.9, 0, 1);
+    const plan = u.plan ?? planFromTreatment(u.treatment, u.adherence ?? ASSUMED_ADHERENCE);
 
     const nowLatent = new Float64Array(n);
     const cur = new Float64Array(n);
@@ -121,37 +146,84 @@ export class ForecastModel {
       cur[i] = clip(nowLatent[i], 1, 7);
     }
 
-    const untreated = new Float64Array(n);
-    const treated = new Float64Array(n);
+    const stageNow = weightedQuantiles(cur, w);
+    const reachStage = reachStageFor(stageNow.p50);
+    const reachAt = reachStage - 0.5;
+    const buf = new Float64Array(n);
+    /** Stages along a plan at year y, for one effect case, into buf. Returns the chance of reaching the headline stage. */
+    const project = (p: readonly PlanItem[], c: EffectCase, y: number): number => {
+      const t = u.age + y;
+      const slow = combine(p, c).slow;
+      const lift = liftAt(p, c, y * 12);
+      let p3 = 0;
+      for (let i = 0; i < n; i++) {
+        const prog = Math.max(0, t - Math.max(onset[i], u.age));
+        const s = clip(nowLatent[i] + rate[i] * (1 - slow) * prog - lift, 1, 7);
+        buf[i] = s;
+        if (s >= reachAt) p3 += w[i];
+      }
+      return p3;
+    };
+    const pathYear = (p: readonly PlanItem[], y: number): { path: PathYear; mid: StageRange } => {
+      const out: Partial<Record<EffectCase, { q: StageRange; p3: number }>> = {};
+      for (const c of CASES) {
+        const p3 = project(p, c, y);
+        out[c] = { q: weightedQuantiles(buf, w), p3 };
+      }
+      const { best, mid, worst } = out as Record<EffectCase, { q: StageRange; p3: number }>;
+      return {
+        mid: mid.q,
+        path: {
+          years: y,
+          age: u.age + y,
+          band: { p10: best.q.p10, p50: mid.q.p50, p90: worst.q.p90 },
+          pReach: { best: best.p3, mid: mid.p3, worst: worst.p3 },
+        },
+      };
+    };
+
+    const effective = hasEffect(plan);
     const byYear: YearForecast[] = years.map((y) => {
       const t = u.age + y;
       let p3 = 0;
       let p5 = 0;
+      const pReach = project([], 'mid', y);
       for (let i = 0; i < n; i++) {
-        const prog = Math.max(0, t - Math.max(onset[i], u.age));
-        untreated[i] = clip(nowLatent[i] + rate[i] * prog, 1, 7);
-        treated[i] = clip(nowLatent[i] + rate[i] * (1 - eff) * prog, 1, 7);
-        if (untreated[i] >= 2.5) p3 += w[i];
-        if (untreated[i] >= 4.5) p5 += w[i];
+        if (buf[i] >= 2.5) p3 += w[i];
+        if (buf[i] >= 4.5) p5 += w[i];
       }
+      const untreated = weightedQuantiles(buf, w);
+      const planned = effective ? pathYear(plan, y) : null;
       return {
         years: y,
         age: t,
-        untreated: weightedQuantiles(untreated, w),
-        withTreatment: eff > 0 ? weightedQuantiles(treated, w) : null,
+        untreated,
+        withTreatment: planned?.mid ?? null,
+        plan: planned?.path ?? null,
         pNorwood3Plus: p3,
         pNorwood5Plus: p5,
+        pReach,
       };
     });
 
+    const extra: Record<string, PathYear[]> = {};
+    for (const [key, p] of Object.entries(paths)) extra[key] = years.map((y) => pathYear(p, y).path);
+
     return {
       ageNow: u.age,
-      stageNow: weightedQuantiles(cur, w),
+      stageNow,
       effectiveSamples: Math.round(1 / sq),
       byYear,
+      paths: extra,
+      reachStage,
       modelVersion: this.version,
     };
   }
+}
+
+/** Norwood 3, or the next whole stage above today's median when that is already 3 or more. Max 7. */
+export function reachStageFor(stageNowP50: number): number {
+  return Math.min(7, Math.max(3, Math.floor(stageNowP50 + 0.5) + 1));
 }
 
 const QUANTILE_BINS = 16_384;

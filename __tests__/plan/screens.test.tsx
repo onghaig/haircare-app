@@ -5,7 +5,8 @@ import { router } from 'expo-router';
 import TodayScreen from '@/app/(tabs)/index';
 import QuickLogScreen from '@/app/log';
 import MassageScreen from '@/app/massage';
-import { dayKey } from '@/plan/tasks';
+import { answer } from '@/plan/log';
+import { addDays, dayKey } from '@/plan/tasks';
 
 import { makeProviders } from '../../test-utils/providers';
 import { record } from '../../test-utils/scanFixtures';
@@ -69,9 +70,30 @@ describe('Today', () => {
   });
 
   it('shows the forecast card once the forecast is ready', async () => {
-    const { wrap } = makeProviders({ profile: adult });
+    const { wrap } = makeProviders({ profile: adult, scans: [record('s', new Date().toISOString())] });
     await render(wrap(<TodayScreen />));
-    expect(await screen.findByText(/^Likely at 33: N/, {}, { timeout: 5000 })).toBeOnTheScreen();
+    expect(await screen.findByText(/^Likely at 29: N.* on your plan$/, {}, { timeout: 5000 })).toBeOnTheScreen();
+  });
+
+  it('says what each task does for the forecast', async () => {
+    const { wrap } = makeProviders({ profile: { ...adult, treatments: ['finasteride', 'minoxidil'] } });
+    await render(wrap(<TodayScreen />));
+    expect(await screen.findByText('= Slows loss. Works best taken every day')).toBeOnTheScreen();
+    expect(screen.getByText('↑ Grows hair. Only works while you use it')).toBeOnTheScreen();
+    expect(screen.getByText('○ Explains shedding. Not in your forecast')).toBeOnTheScreen();
+  });
+
+  it('Premium: plan vs doing nothing, and the week strip for the costliest gap', async () => {
+    let log = {};
+    for (let i = 0; i < 7; i++) log = answer(log, dayKey(addDays(new Date(), -i)), 'minoxidil', i === 1 || i === 4 ? 'skipped' : 'done');
+    const sub = { plan: 'annual' as const, startedAt: '2026-11-26T10:00:00Z', trialEndsAt: null, test: true };
+    const { wrap } = makeProviders({ profile: { ...adult, treatments: ['minoxidil'], subscription: sub }, log, scans: [record('s', new Date().toISOString())] });
+    await render(wrap(<TodayScreen />));
+    expect(await screen.findByTestId('week-strip')).toHaveTextContent(/Minoxidil this week5 of 7/);
+    expect(screen.getByLabelText('5 of the last 7 days done')).toBeOnTheScreen();
+    expect(await screen.findByText(/^Norwood \d by 38: .* in 10 vs .* in 10$/, {}, { timeout: 5000 })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Your plan vs doing nothing' }));
+    expect(router.push).toHaveBeenCalledWith('/predict');
   });
 });
 

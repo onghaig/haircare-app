@@ -6,12 +6,18 @@ appId: com.onghaig.haircare
 - scrollUntilVisible:
     element: "Scan from .*"
 - tapOn: "Scan from .*"
+# The estimated current Norwood stage (a range and a confidence, or why there is none).
+- scrollUntilVisible:
+    element: "Estimated Norwood stage"
+- takeScreenshot: e2e-79-stage-estimate
 - scrollUntilVisible:
     element: "Delete this scan"
 # Redo: confirm, and the new scan starts (closing it keeps the old one).
 - tapOn: "Redo this scan"
 - assertVisible: "Redo this scan\\?"
 - takeScreenshot: e2e-80-redo-confirm
+- scrollUntilVisible:
+    element: "Start the redo"
 - tapOn: "Start the redo"
 - extendedWaitUntil:
     visible: "Before you scan"
@@ -26,12 +32,16 @@ appId: com.onghaig.haircare
     element: "Delete this scan"
 - tapOn: "Delete this scan"
 - assertVisible: "Delete this scan\\?"
+- scrollUntilVisible:
+    element: "Keep this scan"
 - tapOn: "Keep this scan"
 - assertNotVisible: "Delete this scan\\?"
 - scrollUntilVisible:
     element: "Delete this scan"
 - tapOn: "Delete this scan"
 - takeScreenshot: e2e-81-delete-confirm
+- scrollUntilVisible:
+    element: "Delete scan"
 - tapOn: "Delete scan"
 - extendedWaitUntil:
     visible: "Your first scan sets your baseline"

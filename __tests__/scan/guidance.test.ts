@@ -43,8 +43,10 @@ describe('promptFor', () => {
   });
 
   it('names the target pose for each view', () => {
-    expect(promptFor(report(['pose'], { view: 'leftTemple' })).title).toMatch(/45 degrees to the left/);
-    expect(promptFor(report(['pose'], { view: 'rightTemple' })).title).toMatch(/45 degrees to the right/);
+    // MediaPipe yaw is negative when the nose turns to your right, so the left temple (yaw -45)
+    // shows when you turn toward your right shoulder.
+    expect(promptFor(report(['pose'], { view: 'leftTemple' })).title).toMatch(/toward your right shoulder/);
+    expect(promptFor(report(['pose'], { view: 'rightTemple' })).title).toMatch(/toward your left shoulder/);
     expect(promptFor(report(['pose'], { view: 'top' })).title).toMatch(/Tilt your head down/);
   });
 

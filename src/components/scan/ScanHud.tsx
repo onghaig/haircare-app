@@ -6,10 +6,20 @@ import type { Prompt, StatusChip } from '@/scan/guidance';
 import { SCAN_ORDER } from '@/scan/session';
 import { colors, radius, spacing } from '@/theme';
 
-export function ViewProgress({ current, done }: { current: ScanView; done: Partial<Record<ScanView, unknown>> }) {
+export function ViewProgress({
+  current,
+  done,
+  only,
+}: {
+  current: ScanView;
+  done: Partial<Record<ScanView, unknown>>;
+  /** Retaking some views: only those get a dot. */
+  only?: ScanView[] | null;
+}) {
+  const order = only ?? SCAN_ORDER;
   return (
-    <View style={styles.dots} accessible accessibilityLabel={`View ${SCAN_ORDER.indexOf(current) + 1} of ${SCAN_ORDER.length}`}>
-      {SCAN_ORDER.map((v) => (
+    <View style={styles.dots} accessible accessibilityLabel={`View ${order.indexOf(current) + 1} of ${order.length}`}>
+      {order.map((v) => (
         <View
           key={v}
           style={[

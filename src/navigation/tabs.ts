@@ -10,6 +10,16 @@ export const TABS = [
   { route: 'ask', label: 'Ask', job: 'Answer my questions, including about photos', sf: 'bubble.left', md: 'chat_bubble' },
 ] as const;
 
+/**
+ * Tabs that are built but kept out of the tab bar. Ask is still a placeholder, and an empty tab
+ * one tap away reads as a broken app; it comes back when it can answer questions.
+ */
+export const HIDDEN_TABS: readonly TabRoute[] = ['ask'];
+
+export function isTabVisible(route: TabRoute): boolean {
+  return !HIDDEN_TABS.includes(route);
+}
+
 export type TabRoute = (typeof TABS)[number]['route'];
 
 export function tabByRoute(route: TabRoute) {

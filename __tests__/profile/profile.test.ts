@@ -71,6 +71,7 @@ describe('under-18s', () => {
   it('are never offered prescription treatments', () => {
     expect(treatmentOptions(p({ age: 16 }))).not.toContain('finasteride');
     expect(treatmentOptions(p({ age: 16 }))).not.toContain('dutasteride');
+    expect(treatmentOptions(p({ age: 16 }))).not.toContain('oralMinoxidil');
     expect(treatmentOptions(p({ age: 16 }))).toContain('minoxidil');
     expect(treatmentOptions(p({ age: 18 }))).toContain('finasteride');
   });
@@ -81,7 +82,7 @@ describe('risk card', () => {
     const s = p({ zones: ['temples'], family: { father: { status: 'receding' }, mother: { status: 'full' } } });
     expect(familySummary(s)).toEqual({ answered: 2, withLoss: 1 });
     const card = riskCard(s, 3);
-    expect(card.percent).toBe(33);
+    expect(card.confidence).toBe('building');
     expect(card.remaining).toBe(6);
     expect(card.line).toBe('Pattern: temples first. 1 of 2 relatives with loss');
   });

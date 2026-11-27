@@ -45,6 +45,39 @@ class HairMask private constructor(
     return hair.toDouble() / ((x1 - x0) * (y1 - y0))
   }
 
+  /**
+   * Mean hair confidence per cell of a cols x rows grid over the frame, row-major from the top
+   * left. Small enough (a few hundred numbers) to save with each scan for the scalp map.
+   */
+  fun grid(cols: Int = 24, rows: Int = 32): HairGrid {
+    val out = DoubleArray(cols * rows)
+    for (r in 0 until rows) {
+      val y0 = r * height / rows
+      val y1 = maxOf(y0 + 1, (r + 1) * height / rows)
+      for (c in 0 until cols) {
+        val x0 = c * width / cols
+        val x1 = maxOf(x0 + 1, (c + 1) * width / cols)
+        var sum = 0.0
+        var n = 0
+        for (yi in y0 until minOf(y1, height)) for (xi in x0 until minOf(x1, width)) { sum += values[yi * width + xi]; n++ }
+        out[r * cols + c] = if (n > 0) sum / n else 0.0
+      }
+    }
+    return HairGrid(cols, rows, out.toList())
+  }
+
+  /** Where the hair sits in the frame (0 to 1 each way) and what share of the frame is hair. */
+  fun centroid(threshold: Float = 0.5f): Pair<Point, Double>? {
+    var sx = 0.0
+    var sy = 0.0
+    var n = 0
+    for (yi in 0 until height) for (xi in 0 until width) {
+      if (values[yi * width + xi] >= threshold) { sx += xi + 0.5; sy += yi + 0.5; n++ }
+    }
+    if (n == 0) return null
+    return Point(sx / n / width, sy / n / height) to n.toDouble() / (width * height)
+  }
+
   companion object {
     fun of(width: Int, height: Int, values: FloatArray, imageWidth: Double, imageHeight: Double): HairMask? =
       if (width > 0 && height > 0 && values.size == width * height && imageWidth > 0 && imageHeight > 0) {
@@ -52,3 +85,6 @@ class HairMask private constructor(
       } else null
   }
 }
+
+/** Hair confidence averaged over a coarse grid. Values are 0 to 1, row-major from the top left. */
+data class HairGrid(val cols: Int, val rows: Int, val values: List<Double>)
