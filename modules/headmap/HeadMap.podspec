@@ -18,7 +18,8 @@ Pod::Spec.new do |s|
 
   # The pure-Swift core (also a SwiftPM package with its own tests) is compiled into this pod.
   s.source_files = ['ios/**/*.swift', 'core/Sources/HeadMapCore/**/*.swift']
-  s.resource_bundles = { 'HeadMapModels' => ['ios/models/*.{task,tflite}'] }
+  # demo_face.jpg is only present in CI simulator builds (see .github/workflows/ios-build.yml).
+  s.resource_bundles = { 'HeadMapModels' => ['ios/models/*.{task,tflite,jpg}'] }
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

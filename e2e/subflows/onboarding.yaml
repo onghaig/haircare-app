@@ -1,0 +1,51 @@
+# Welcome and the nine onboarding questions, ending on the first scan.
+appId: com.onghaig.haircare
+---
+- assertVisible: "See where your hair is heading.*"
+- takeScreenshot: e2e-01-welcome
+- tapOn: "Start my forecast"
+- assertVisible: "1 of 9"
+- tapOn:
+    id: "age-input"
+- inputText: "24"
+# Android's keyboard stays up over the answers; iOS's number pad doesn't cover them.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+# The first tap after the keyboard closes is sometimes lost on the (slower, ARM-translated)
+# Android E2E app: tap until the answer shows as selected.
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn: "Male"
+      - assertVisible:
+          text: "Male"
+          selected: true
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Your background"
+    timeout: 15000
+- tapOn: "White or European"
+- tapOn: "Continue"
+- assertVisible: "Where are you noticing it\\?"
+- tapOn: "Temples"
+- assertVisible: ".*Pattern: temples first.*"
+- takeScreenshot: e2e-02-tap-the-head
+- tapOn: "Continue"
+- tapOn: "1 to 3 years"
+- tapOn: "Continue"
+- assertVisible: "Who in your family lost their hair\\?"
+- tapOn: "Dad, not answered"
+- tapOn: "Bald or mostly bald"
+- tapOn: "Done"
+- assertVisible: "Dad, Bald"
+- takeScreenshot: e2e-03-family-tree
+- tapOn: "Continue"
+- assertVisible: "Anything you already use\\?"
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "Keep what I have"
+- tapOn: "Continue to your scan"

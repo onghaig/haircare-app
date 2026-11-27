@@ -6,6 +6,8 @@ import PredictScreen from '@/app/(tabs)/predict';
 import ProgressScreen from '@/app/(tabs)/progress';
 import ScanScreen from '@/app/(tabs)/scan';
 
+import { makeProviders } from '../test-utils/providers';
+
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
   return { SafeAreaView: View, useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
@@ -19,7 +21,7 @@ describe.each([
   ['Ask', AskScreen],
 ])('%s tab', (title, Component) => {
   it('renders its title as a header', async () => {
-    await render(<Component />);
+    await render(makeProviders({ profile: { age: 30 } }).wrap(<Component />));
     expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
   });
 });

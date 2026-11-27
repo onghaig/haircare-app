@@ -1,8 +1,10 @@
 import priors from './data/priors.json';
+import type { PlanItem } from './effects';
 
 export type Relation = keyof typeof priors.liability_correlation;
 export type Ancestry = keyof typeof priors.ancestry_liability_shift;
-export type Treatment = keyof typeof priors.treatment_rate_reduction;
+/** What the user already takes, as onboarding records it. Converted to plan items for the model. */
+export type Treatment = 'none' | 'minoxidil' | 'finasteride' | 'dutasteride' | 'finasteride+minoxidil';
 export type ObservationSource = keyof typeof priors.stage_measurement_sd;
 export type RelativeStatus = 'full' | 'thinning' | 'bald';
 
@@ -27,8 +29,10 @@ export interface UserInput {
   observations?: Observation[];
   relatives?: RelativeReport[];
   treatment?: Treatment;
-  /** 0 to 1, from daily check-ins. */
+  /** 0 to 1, from daily check-ins. Applies to `treatment`; ignored when `plan` is given. */
   adherence?: number;
+  /** The user's real plan, each item with its own logged adherence. Replaces `treatment`. */
+  plan?: PlanItem[];
 }
 
 export interface StageRange {
@@ -41,9 +45,33 @@ export interface YearForecast {
   years: number;
   age: number;
   untreated: StageRange;
+  /** The plan at the middle of the assumed effect range. Null when the plan has no effect. */
   withTreatment: StageRange | null;
+  /** The plan as a band over the whole assumed effect range. Null when the plan has no effect. */
+  plan: PathYear | null;
   pNorwood3Plus: number;
   pNorwood5Plus: number;
+  /** Untreated chance of reaching `Forecast.reachStage` or worse. */
+  pReach: number;
+}
+
+/** Chance of reaching the headline stage or worse, at the weakest, middle and strongest assumed effect. */
+export interface ChanceRange {
+  worst: number;
+  mid: number;
+  best: number;
+}
+
+/**
+ * One path (a set of actions) at one point in time. `band.p10` comes from the strongest assumed
+ * effect and `band.p90` from the weakest, so the band covers both people and evidence spread.
+ */
+export interface PathYear {
+  years: number;
+  age: number;
+  band: StageRange;
+  /** Chance of reaching `Forecast.reachStage` or worse along this path. */
+  pReach: ChanceRange;
 }
 
 export interface Forecast {
@@ -52,6 +80,13 @@ export interface Forecast {
   /** How many of the simulated people effectively match this user. Low means low confidence. */
   effectiveSamples: number;
   byYear: YearForecast[];
+  /** Extra paths asked for in the options (for comparing actions), by key, aligned with byYear. */
+  paths: Record<string, PathYear[]>;
+  /**
+   * The headline stage: Norwood 3, or the next whole stage above where the user is today when
+   * they're already at or past 3, so the chance compares paths instead of reading "10 in 10".
+   */
+  reachStage: number;
   modelVersion: string;
 }
 
