@@ -45,6 +45,18 @@ class HeadMapModule : Module() {
       }
     }
 
+    /** Shrinks a photo to `width` pixels wide (upright, JPEG) in the cache and returns its URI. */
+    Function("shrinkImageSync") { uri: String, width: Double ->
+      val file = fileFor(uri) ?: throw CodedException("ImageUnreadable", "Could not read the image at $uri", null)
+      val bitmap = HeadMapEngine.decodeUpright(file) ?: throw CodedException("ImageUnreadable", "Could not read the image at $uri", null)
+      val w = minOf(width.toInt(), bitmap.width).coerceAtLeast(1)
+      val h = Math.round(bitmap.height.toDouble() / bitmap.width * w).toInt().coerceAtLeast(1)
+      val small = android.graphics.Bitmap.createScaledBitmap(bitmap, w, h, true)
+      val out = File(context.cacheDir, "shrink-${java.util.UUID.randomUUID()}.jpg")
+      out.outputStream().use { small.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
+      Uri.fromFile(out).toString()
+    }
+
     View(HeadMapCameraView::class) {
       Events("onQuality", "onAligned", "onCapture", "onError")
 
