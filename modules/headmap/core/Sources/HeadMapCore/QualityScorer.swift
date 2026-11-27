@@ -51,6 +51,9 @@ public struct QualityReport: Equatable, Sendable {
   public var hairGrid: HairGrid? = nil
   /// Top and crown views only: where to move the phone.
   public var aim: Aim? = nil
+  /// Face views: a few landmark positions (pixels) by MediaPipe index, so the scalp map can fit
+  /// this photo's camera to a head model.
+  public var anchors: [Int: Point]? = nil
   public var passed: [QualityCheck]
   public var failed: [QualityCheck]
   /// 0 to 100. Scans under 60 are kept but left out of trend lines.
@@ -204,6 +207,7 @@ public struct QualityScorer: Sendable {
       view: view, pose: pose, poseError: poseError, distance: distance, centring: centring, faceWidth: lm.faceWidth, stats: stats, hairline: hairline,
       passed: order.filter { ok[$0] == true }, failed: order.filter { ok[$0] == false }, score: score)
     report.hairGrid = hair?.grid()
+    report.anchors = Dictionary(uniqueKeysWithValues: LandmarkID.mapAnchors.map { ($0, lm[$0]) })
     return report
   }
 }

@@ -11,6 +11,8 @@ object LandmarkID {
   const val EYE_RIGHT_OUTER = 33
   const val EYE_LEFT_OUTER = 263
   const val COUNT = 478
+  /** Landmarks saved with each face photo for the scalp map (see Landmarks.swift). */
+  val MAP_ANCHORS = listOf(468, 473, 9, 1, 152, 234, 454, 10)
 }
 
 /** Face landmarks in image pixel coordinates. Port of Landmarks.swift. */

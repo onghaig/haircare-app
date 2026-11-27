@@ -192,6 +192,10 @@ extension QualityReport {
       // Two decimals is plenty for a heatmap and keeps the saved scan small.
       d["hairGrid"] = ["cols": g.cols, "rows": g.rows, "values": g.values.map { ($0 * 100).rounded() / 100 }]
     }
+    d["frameSize"] = [frameWidth, frameHeight]
+    if let a = anchors {
+      d["anchors"] = Dictionary(uniqueKeysWithValues: a.map { (String($0.key), [$0.value.x / frameWidth, $0.value.y / frameHeight]) })
+    }
     if let a = aim {
       var m: [String: Any] = ["hint": a.hint.rawValue, "hairShare": a.hairShare]
       if let c = a.centre { m["centre"] = [c.x, c.y] }

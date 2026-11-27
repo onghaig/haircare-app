@@ -234,7 +234,7 @@ final class QualityScorerTests: XCTestCase {
     let g = Fixture.gray(width: 20, height: 20, faceMin: Point(0, 0), faceMax: Point(20, 20))
     let r = scorer.evaluateWithoutFace(view: .crown, gray: g, hair: block(2, 18, 2, 18))
     XCTAssertEqual(r.aim?.hint, .ok)
-    XCTAssertEqual(try XCTUnwrap(r.hairGrid).values.count, 12 * 16)
+    XCTAssertEqual(try XCTUnwrap(r.hairGrid).values.count, 24 * 32)
   }
 
   func testBurstPrefersHairThenScoreThenSharpness() {
@@ -245,6 +245,11 @@ final class QualityScorerTests: XCTestCase {
     var blurrier = hair
     blurrier.stats?.sharpness = 1
     XCTAssertGreaterThan(hair.burstRank, blurrier.burstRank)
+  }
+
+  func testFaceReportsCarryMapAnchors() throws {
+    let r = frame()
+    XCTAssertEqual(Set(try XCTUnwrap(r.anchors).keys), Set(LandmarkID.mapAnchors))
   }
 
   func testWeightsAddUpTo100() {

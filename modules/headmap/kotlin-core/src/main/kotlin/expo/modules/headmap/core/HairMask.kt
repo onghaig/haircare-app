@@ -49,7 +49,7 @@ class HairMask private constructor(
    * Mean hair confidence per cell of a cols x rows grid over the frame, row-major from the top
    * left. Small enough (a few hundred numbers) to save with each scan for the scalp map.
    */
-  fun grid(cols: Int = 12, rows: Int = 16): HairGrid {
+  fun grid(cols: Int = 24, rows: Int = 32): HairGrid {
     val out = DoubleArray(cols * rows)
     for (r in 0 until rows) {
       val y0 = r * height / rows

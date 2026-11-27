@@ -60,6 +60,10 @@ export interface QualityReport {
   hairGrid?: HairGrid;
   /** Top and crown views only. Directions are in the camera image (for the crown, your left is left). */
   aim?: { hint: AimHint; hairShare: number; centre?: [number, number] };
+  /** Size in pixels of the frame the normalised positions refer to. */
+  frameSize?: [number, number];
+  /** Face views: a few landmarks (normalised 0..1) by MediaPipe index, for the scalp map. */
+  anchors?: Record<string, [number, number]>;
 }
 
 export interface CaptureResult {

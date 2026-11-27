@@ -23,7 +23,7 @@ appId: com.onghaig.haircare
 - assertVisible: "Left temple"
 # Redo the photo just taken: back to the front view, then on again.
 - tapOn:
-    text: "Redo last photo.*"
+    id: "redo-last-photo"
     retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 1 of 5"

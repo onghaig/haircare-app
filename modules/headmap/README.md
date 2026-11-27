@@ -15,8 +15,11 @@ checks run at frame rate on device. Nothing leaves the phone during a scan.
   Selfie Multiclass (hair mask), both Apache-2.0, both on device.
 - **Core** (`core/`, a SwiftPM package compiled into the pod): hairline measurement, quality
   checks and scoring, capture gating, the coarse hair grid saved with each photo for the scalp
-  map (`hairGrid`, 12 x 16 cells), and aiming hints for the top and crown (`aim`: where the hair
-  sits in the frame, so the app can say "move the phone up" when you can't see the screen). Pure Swift with no UIKit or MediaPipe, so `swift test` runs
+  map (`hairGrid`, 24 x 32 cells), and aiming hints for the top and crown (`aim`: where the hair
+  sits in the frame, so the app can say "move the phone up" when you can't see the screen).
+  Face photos also carry `anchors` (eight landmarks: irises, glabella, nose tip, chin, face
+  edges, forehead top) and every report carries `frameSize`, so the scalp map can fit each
+  photo's camera to a model head. Pure Swift with no UIKit or MediaPipe, so `swift test` runs
   on any Mac or Linux machine.
 - **Android** (`android/`): the same module for Android, with the same name, props, events and
   JSON reports, so the JS side is shared. CameraX (`HeadMapCameraView.kt`: front camera mirrored,
