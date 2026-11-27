@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "Haircare",
+    "slug": "haircare-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "haircare",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.onghaig.haircare",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Your camera scans your hairline the same way every time. Scans are analysed on your phone."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#07090A",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.onghaig.haircare"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#07090A",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose family photos so Haircare can compare their hairlines with yours. Photos stay on your phone.",
+          "cameraPermission": "Your camera scans your hairline the same way every time. Scans are analysed on your phone.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "backgroundColor": "#07090A",
+    "extra": {
+      "visualizeEndpoint": ""
+    }
+  }
+}
