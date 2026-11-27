@@ -327,7 +327,17 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
     val feed = DemoFeed(source, iv)
     demo = feed
     val timer = Executors.newSingleThreadScheduledExecutor()
-    timer.scheduleWithFixedDelay({ analysis.execute { analyseDemoFrame(feed) } }, 300, 150, TimeUnit.MILLISECONDS)
+    // One demo frame in the queue at a time. When analysis is slower than the timer (the emulator
+    // runs it through ARM translation) the queue would otherwise grow without end, and a photo
+    // request would wait behind it.
+    val queued = java.util.concurrent.atomic.AtomicBoolean(false)
+    timer.scheduleWithFixedDelay({
+      if (queued.compareAndSet(false, true)) {
+        analysis.execute {
+          try { analyseDemoFrame(feed) } finally { queued.set(false) }
+        }
+      }
+    }, 300, 150, TimeUnit.MILLISECONDS)
     feed.timer = timer
   }
 
