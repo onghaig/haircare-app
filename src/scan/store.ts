@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
 import type { ScanRecord } from './session';
+import { isUpload } from './upload';
 
 /** Where scans live. On device: the app's private documents folder, never synced by default. */
 export interface ScanStore {
@@ -15,13 +16,14 @@ function sortByDate(r: ScanRecord[]): ScanRecord[] {
   return [...r].sort((a, b) => a.takenAt.localeCompare(b.takenAt));
 }
 
-/** The first scan good enough for trends. Everything is compared with it. */
+/** The first guided scan good enough for trends. Everything is compared with it. Library photos never are. */
 export function baselineOf(records: ScanRecord[]): ScanRecord | undefined {
-  return sortByDate(records).find((r) => !r.lowConfidence);
+  return sortByDate(records).find((r) => !r.lowConfidence && !isUpload(r));
 }
 
+/** The latest guided scan. Library photos are history, so they don't reset the weekly scan. */
 export function latestOf(records: ScanRecord[]): ScanRecord | undefined {
-  return sortByDate(records).at(-1);
+  return sortByDate(records.filter((r) => !isUpload(r))).at(-1);
 }
 
 /** Days until the next weekly scan is due (0 = today or overdue). */

@@ -38,8 +38,13 @@ export interface MetricChange {
   verdict: ChangeVerdict;
 }
 
-/** Scans good enough for trends, oldest first, that have hairline numbers. */
+/** Guided scans good enough for trends, oldest first, that have hairline numbers. The verdict uses these. */
 export function trendScans(records: ScanRecord[]): ScanRecord[] {
+  return timelineScans(records).filter((r) => r.source !== 'upload');
+}
+
+/** Like `trendScans`, plus library photos with hairline numbers, at the dates they were taken. For the chart only. */
+export function timelineScans(records: ScanRecord[]): ScanRecord[] {
   return [...records]
     .filter((r) => !r.lowConfidence && usableForTrends(r.quality) && r.hairline)
     .sort((a, b) => a.takenAt.localeCompare(b.takenAt));

@@ -10,7 +10,8 @@ import { useProfile } from '@/profile/ProfileProvider';
 import { useScans } from '@/scan/ScanProvider';
 import { estimateStage } from '@/scan/stageEstimate';
 import { retakeSeconds } from '@/reveal/trust';
-import { SCAN_ORDER, VIEW_LABEL, weakReason, weakViews } from '@/scan/session';
+import { SCAN_ORDER, VIEW_LABEL, weakReason, weakViews, type ScanRecord } from '@/scan/session';
+import type { ScanView } from '@modules/headmap';
 import { colors, spacing } from '@/theme';
 
 type Confirm = 'delete' | 'redo' | null;
@@ -53,6 +54,8 @@ export default function ScanResultScreen() {
     );
   }
 
+  if (scan.source === 'upload') return <UploadResult scan={scan} />;
+
   const isBaseline = baseline?.id === scan.id;
   const weak = scan.lowConfidence ? weakViews(scan) : [];
   const good = SCAN_ORDER.filter((v) => !weak.includes(v));
@@ -67,7 +70,7 @@ export default function ScanResultScreen() {
     if (toReveal) router.replace('/reveal/analysing');
     else router.dismissTo('/scan');
   }
-  const othersLeft = records.filter((r) => r.id !== scan.id && !r.lowConfidence).length;
+  const othersLeft = records.filter((r) => r.id !== scan.id && !r.lowConfidence && r.source !== 'upload').length;
 
   async function deleteScan() {
     if (!scan) return;
@@ -210,6 +213,74 @@ export default function ScanResultScreen() {
             <Button label="Redo this scan" variant="secondary" onPress={() => setConfirm('redo')} style={{ flex: 1 }} />
             <Button label="Delete this scan" variant="destructive" onPress={() => setConfirm('delete')} style={{ flex: 1 }} />
           </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const UPLOAD_VIEW_NAME: Partial<Record<ScanView, string>> = { front: 'Hairline', top: 'Top of head', crown: 'Crown' };
+
+/** A photo you added from your library: what it measured, when it was taken, and delete. */
+function UploadResult({ scan }: { scan: ScanRecord }) {
+  const { remove } = useScans();
+  const { profile } = useProfile();
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const view = (Object.keys(scan.views) as ScanView[])[0];
+  const date = new Date(scan.takenAt).toLocaleDateString(undefined, {
+    ...(scan.dateFrom === 'you' ? {} : { day: 'numeric' }),
+    month: scan.dateFrom === 'you' ? 'long' : 'short',
+    year: 'numeric',
+  });
+
+  async function deletePhoto() {
+    setBusy(true);
+    setError(null);
+    try {
+      await remove(scan.id);
+      router.dismissTo('/scan');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text variant="title" accessibilityRole="header">
+          Photo added
+        </Text>
+        <Text color="textMuted" testID="upload-when">
+          {`${view ? `${UPLOAD_VIEW_NAME[view] ?? VIEW_LABEL[view]}, ` : ''}${scan.dateFrom === 'you' ? `around ${date} (your date)` : `taken ${date}`}. It shows on your hairline trend but doesn’t change your baseline or verdict.`}
+        </Text>
+        <StageEstimateCard estimate={estimateStage(scan, profile)} />
+        <HairlineNumbers scan={scan} />
+        <Text variant="caption" color="textMuted">
+          Measured from one photo with no guide, so it’s rougher than a scan. Estimates for tracking, not a diagnosis.
+        </Text>
+        {view === 'top' || view === 'crown' ? (
+          <Button
+            label="See your scalp map"
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/scan/panorama', params: { id: scan.id } })}
+          />
+        ) : null}
+        <Button label="Done" onPress={() => router.dismissTo('/scan')} />
+        {confirm ? (
+          <Card style={[styles.confirm, styles.confirmDelete]} accessibilityLiveRegion="polite">
+            <Text variant="headline" accessibilityRole="header">
+              Delete this photo?
+            </Text>
+            <Text color="textMuted">It’s removed from this app, not from your photo library.</Text>
+            {error ? <Text color="warning">{`Couldn’t delete this photo: ${error}`}</Text> : null}
+            <Button label={busy ? 'Deleting…' : 'Delete photo'} variant="destructive" disabled={busy} onPress={deletePhoto} />
+            <Button label="Keep this photo" variant="secondary" disabled={busy} onPress={() => setConfirm(false)} />
+          </Card>
+        ) : (
+          <Button label="Delete this photo" variant="destructive" onPress={() => setConfirm(true)} />
         )}
       </ScrollView>
     </SafeAreaView>

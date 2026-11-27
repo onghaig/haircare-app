@@ -15,7 +15,7 @@ function formatDate(iso: string) {
 export default function ScanTab() {
   const { records, latest, baseline, loaded, draft } = useScans();
   const due = daysUntilNextScan(records, new Date());
-  const first = records.length === 0;
+  const first = !records.some((r) => r.source !== 'upload');
 
   return (
     <Screen title="Scan">
@@ -48,6 +48,8 @@ export default function ScanTab() {
         />
       ) : null}
 
+      <Button label="Add a past photo" variant="secondary" onPress={() => router.push('/scan/upload')} />
+
       {loaded && records.length > 0 ? (
         <View style={{ gap: spacing.sm }}>
           <Text variant="headline">History</Text>
@@ -56,21 +58,31 @@ export default function ScanTab() {
               key={r.id}
               onPress={() => router.push({ pathname: '/scan/[id]', params: { id: r.id } })}
               accessibilityRole="button"
-              accessibilityLabel={`Scan from ${formatDate(r.takenAt)}, ${r.lowConfidence ? 'quality not measured' : `quality ${r.quality}`}`}>
+              accessibilityLabel={
+                r.source === 'upload'
+                  ? `Your photo from ${formatDate(r.takenAt)}`
+                  : `Scan from ${formatDate(r.takenAt)}, ${r.lowConfidence ? 'quality not measured' : `quality ${r.quality}`}`
+              }>
               <Card style={styles.row}>
                 <View style={{ flex: 1 }}>
                   <Text>{formatDate(r.takenAt)}</Text>
                   <Text variant="caption" color="textMuted">
-                    {r.id === baseline?.id
+                    {r.source === 'upload'
+                      ? r.dateFrom === 'you'
+                        ? 'Your photo, date you picked'
+                        : 'Your photo'
+                      : r.id === baseline?.id
                       ? 'Baseline'
                       : r.lowConfidence
                         ? 'Couldn’t be measured, not counted'
                         : `${Object.keys(r.views).length} views`}
                   </Text>
                 </View>
-                <Text variant={r.lowConfidence ? 'caption' : 'headline'} color={r.lowConfidence ? 'warning' : 'text'}>
-                  {r.lowConfidence ? 'Retake' : r.quality}
-                </Text>
+                {r.source === 'upload' ? null : (
+                  <Text variant={r.lowConfidence ? 'caption' : 'headline'} color={r.lowConfidence ? 'warning' : 'text'}>
+                    {r.lowConfidence ? 'Retake' : r.quality}
+                  </Text>
+                )}
               </Card>
             </Pressable>
           ))}
