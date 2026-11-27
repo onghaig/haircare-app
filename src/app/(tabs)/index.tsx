@@ -60,7 +60,13 @@ export default function TodayScreen() {
   }
 
   return (
-    <Screen title="Today">
+    <Screen
+      title="Today"
+      action={
+        <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push('/settings')} style={styles.settings}>
+          <Text color="accent">Settings</Text>
+        </Pressable>
+      }>
       <View style={styles.header}>
         <Text color="textMuted">{now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}</Text>
         <View accessible accessibilityLabel={`${done} of ${total} done today`}>
@@ -187,6 +193,7 @@ export default function TodayScreen() {
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  settings: { minHeight: minTouchTarget, justifyContent: 'center', paddingLeft: spacing.sm },
   hero: { gap: spacing.sm, backgroundColor: colors.surfaceRaised, borderColor: colors.accentDim },
   row: { flexDirection: 'row', alignItems: 'center' },
   tap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 56 },

@@ -25,7 +25,7 @@ export function SubScreen({ title, close = false, children }: { title: string; c
         </Text>
         {close ? <CloseButton /> : null}
       </View>
-      <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">{children}</ScrollView>
     </SafeAreaView>
   );
 }
