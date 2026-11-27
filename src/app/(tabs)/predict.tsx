@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Chips } from '@/components/onboarding/Controls';
-import { FuturePreview } from '@/components/reveal/FuturePreview';
+import { FutureLook } from '@/components/reveal/FutureLook';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { ForecastModel, type Forecast, type Treatment } from '@/forecast';
 import { isPremium } from '@/paywall/purchases';
@@ -61,7 +61,7 @@ export default function PredictScreen() {
         })}
       </View>
 
-      <FuturePreview stage={likelyRange(y).p50} age={y.age} locked={locked} />
+      <FutureLook stage={likelyRange(y).p50} age={y.age} years={years} locked={locked} />
 
       {locked ? (
         <Card style={{ gap: spacing.sm }}>

@@ -1,4 +1,5 @@
 import { BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 
@@ -6,6 +7,7 @@ import { Face } from '@/components/head/Face';
 import { Text } from '@/components/ui';
 import { faceForStage } from '@/reveal/reveal';
 import { alpha, colors, radius, spacing } from '@/theme';
+import { AI_ILLUSTRATION_LABEL } from '@/visualize/preview';
 
 export const ILLUSTRATION_LABEL = 'Illustration based on your forecast, not a medical prediction';
 
@@ -13,16 +15,32 @@ export const ILLUSTRATION_LABEL = 'Illustration based on your forecast, not a me
  * The projected look at N years, kept blurred until unlocked. Drawn from the forecast's median
  * stage, so it is never worse than the model predicts. Always labelled as an illustration.
  */
-export function FuturePreview({ stage, age, locked = true }: { stage: number; age: number; locked?: boolean }) {
+export function FuturePreview({
+  stage,
+  age,
+  locked = true,
+  photoUri,
+}: {
+  stage: number;
+  age: number;
+  locked?: boolean;
+  /** The user's own photo, AI-restyled to this stage. Without it, the drawing shows. */
+  photoUri?: string;
+}) {
   const { recede, top } = faceForStage(stage);
+  const label = photoUri ? AI_ILLUSTRATION_LABEL : ILLUSTRATION_LABEL;
   return (
     <View
       style={styles.wrap}
       accessible
-      accessibilityLabel={`You at age ${age}, projected. ${locked ? 'Locked.' : ''} ${ILLUSTRATION_LABEL}`}>
-      <Svg width="100%" height="100%" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
-        <Face id="future" recede={recede} top={top} shoulders />
-      </Svg>
+      accessibilityLabel={`You at age ${age}, projected. ${locked ? 'Locked.' : ''} ${label}`}>
+      {photoUri ? (
+        <Image source={{ uri: photoUri }} style={styles.fill} contentFit="cover" testID="future-photo" />
+      ) : (
+        <Svg width="100%" height="100%" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
+          <Face id="future" recede={recede} top={top} shoulders />
+        </Svg>
+      )}
       {locked ? (
         <>
           <BlurView intensity={55} tint="dark" style={styles.fill} testID="future-blur" />
@@ -40,7 +58,7 @@ export function FuturePreview({ stage, age, locked = true }: { stage: number; ag
         </>
       ) : null}
       <Text variant="caption" style={[styles.label, styles.shadow]}>
-        {ILLUSTRATION_LABEL}
+        {label}
       </Text>
     </View>
   );

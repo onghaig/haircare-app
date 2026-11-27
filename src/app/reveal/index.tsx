@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FuturePreview } from '@/components/reveal/FuturePreview';
+import { FutureLook } from '@/components/reveal/FutureLook';
 import { Button, Card, Text } from '@/components/ui';
 import { isPremium } from '@/paywall/purchases';
 import { useProfile } from '@/profile/ProfileProvider';
@@ -90,7 +90,7 @@ export default function RevealScreen() {
             <Text variant="headline">
               You in {years} year{years === 1 ? '' : 's'}
             </Text>
-            <FuturePreview stage={preview.untreated.p50} age={preview.age} locked={!premium} />
+            <FutureLook stage={preview.untreated.p50} age={preview.age} years={years} locked={!premium} />
             <View style={styles.segment} accessibilityRole="tablist">
               {PREVIEW_YEARS.map((y) => (
                 <Pressable

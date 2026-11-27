@@ -84,6 +84,20 @@ app with Xcode 26, and runs the end-to-end flows in `e2e/` with
 illustrated demo face (`e2e/assets/demo_face.jpg`) that goes through the real on-device
 analysis. Device builds never include it, and real photo capture is only checked on a phone. When native iOS code changes, the sideload `.ipa` is rebuilt too.
 
+## AI "future you" preview (optional backend)
+
+The reveal and Predict tab can show the user's own front photo with their hair restyled by an
+AI image model to the forecast's most likely Norwood stage for that year, instead of the drawn
+illustration. It's off until a backend is deployed: one Cloudflare Worker in
+[`server/visualize`](server/visualize/README.md) that holds the Gemini API key (never the app or
+this repo) and stores nothing. Set its URL as `expo.extra.visualizeEndpoint` in `app.json`.
+
+The app asks for consent before the first photo is sent, never offers it to under-18s, sends a
+768 px JPEG only, keeps results on the phone (deleted with their scan, or all at once when the
+user turns it off), and labels them "AI illustration based on your forecast, not a medical
+prediction". The provider is behind one interface (`src/visualize/provider.ts`), so another
+model or service is a drop-in change.
+
 ## Layout
 
 | Path | What it holds |
@@ -93,6 +107,8 @@ analysis. Device builds never include it, and real photo capture is only checked
 | `src/components/ui/` | Shared UI: `Text`, `Button`, `Card`, `Screen` |
 | `src/navigation/tabs.ts` | Tab order, labels, icons and each tab's one job |
 | `src/forecast/` | On-device forecast engine (port of the Python v0 model) |
+| `src/visualize/` | AI preview: provider interface, consent rules, on-phone cache, the `useAiPreview` hook |
+| `server/visualize/` | The AI preview backend: one Cloudflare Worker calling Gemini's image model |
 | `src/scan/` | Scan session state machine, guidance copy, voice coach, change detection, local scan storage |
 | `src/app/scan/` | Guided scan (full-screen, voice-guided, "Redo last photo" for the view just taken), scan result (redo or delete the scan, each behind a confirmation; deleting removes its photos and measurements from the phone, and trends re-baseline from what is left), and the hair panorama (every angle of one scan, drag to turn) |
 | `src/app/onboarding/` | Welcome and the nine onboarding questions |

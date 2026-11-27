@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import type { ScanRecord } from './session';
+import { useAiPreviewServices } from '@/visualize/AiPreviewProvider';
+
 import { baselineOf, FileScanStore, latestOf, type ScanStore } from './store';
 
 interface ScanContextValue {
@@ -18,6 +20,7 @@ export function ScanProvider({ store, children }: { store?: ScanStore; children:
   const [s] = useState<ScanStore>(() => store ?? new FileScanStore());
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const previews = useAiPreviewServices().store;
 
   useEffect(() => {
     let live = true;
@@ -44,9 +47,11 @@ export function ScanProvider({ store, children }: { store?: ScanStore; children:
   const remove = useCallback(
     async (id: string) => {
       await s.remove(id);
+      // AI previews made from this scan's photo go with it.
+      previews.removeForScan(id);
       setRecords(await s.list());
     },
-    [s],
+    [s, previews],
   );
 
   const value = useMemo(

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="expo.modules.headmap.core.HairlineMeasurerTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-27T00:14:01.420Z" hostname="vm" time="0.135">
+  <properties/>
+  <testcase name="convertsToMillimetresWithA63mmPupilDistance()" classname="expo.modules.headmap.core.HairlineMeasurerTest" time="0.036"/>
+  <testcase name="detectsRecedingTemples()" classname="expo.modules.headmap.core.HairlineMeasurerTest" time="0.011"/>
+  <testcase name="fringeOnTheForeheadFailsTheForeheadCheck()" classname="expo.modules.headmap.core.HairlineMeasurerTest" time="0.007"/>
+  <testcase name="lowResolutionMaskStillWorks()" classname="expo.modules.headmap.core.HairlineMeasurerTest" time="0.006"/>
+  <testcase name="levelFaceMeasuresCentreAndTemples()" classname="expo.modules.headmap.core.HairlineMeasurerTest" time="0.007"/>
+  <testcase name="cameraDistanceCancelsOut()" classname="expo.modules.headmap.core.HairlineMeasurerTest" time="0.012"/>
+  <testcase name="curveFollowsTheHairlineInImageCoordinates()" classname="expo.modules.headmap.core.HairlineMeasurerTest" time="0.015"/>
+  <testcase name="tiltedHeadGivesTheSameResult()" classname="expo.modules.headmap.core.HairlineMeasurerTest" time="0.031"/>
+  <testcase name="noHairFound()" classname="expo.modules.headmap.core.HairlineMeasurerTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

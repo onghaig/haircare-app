@@ -53,6 +53,9 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "backgroundColor": "#07090A"
+    "backgroundColor": "#07090A",
+    "extra": {
+      "visualizeEndpoint": ""
+    }
   }
 }
