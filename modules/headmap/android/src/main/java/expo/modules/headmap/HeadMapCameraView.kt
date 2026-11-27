@@ -366,7 +366,11 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
   }
 
   private fun emitError(e: Throwable) {
-    val message = e.message ?: e.javaClass.simpleName
+    android.util.Log.e("HeadMap", "Camera problem", e)
+    // Show the root cause: an initializer error's own message is empty.
+    var root = e
+    while (root.cause != null && root.cause !== root) root = root.cause!!
+    val message = root.message ?: e.message ?: root.javaClass.simpleName
     post {
       if (!isAttachedToWindow) pendingError = message else onError(mapOf("message" to message))
     }

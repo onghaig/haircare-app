@@ -30,7 +30,7 @@ maestro test e2e/app.yaml --format junit --output e2e-results/report.xml --test-
 status=$?
 if [ $status -ne 0 ]; then
   echo "--- crash and native-library lines from logcat ---"
-  adb logcat -d -b crash,main 2>/dev/null | grep -E "AndroidRuntime|FATAL|DEBUG  :|linker|dlopen|native.bridge|ndk_translation|haircare" | tail -120 || true
+  adb logcat -d -b crash,main 2>/dev/null | grep -E "AndroidRuntime|FATAL|DEBUG  :|linker|dlopen|native.bridge|ndk_translation|haircare|HeadMap|Caused by|^\S+ \S+ +[0-9]+ +[0-9]+ E " | tail -120 || true
 fi
 
 touch e2e-results/.stop
