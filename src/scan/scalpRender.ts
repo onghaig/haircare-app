@@ -46,6 +46,6 @@ export async function renderScalpImage(scan: ScanRecord): Promise<string | null>
   if (Object.keys(photos).length === 0) return null;
   const map = renderScalp(sources, photos, MAP_PX);
   if (!dir.exists) dir.create({ intermediates: true });
-  await out.write(encodeBmp(map));
+  out.writeSync(encodeBmp(map));
   return out.uri;
 }
