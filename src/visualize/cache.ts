@@ -29,7 +29,7 @@ export class FilePreviewStore implements PreviewStore {
     if (!this.root.exists) this.root.create({ intermediates: true });
     const ext = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : mimeType.includes('webp') ? 'webp' : 'png';
     const f = this.file(key, ext);
-    await f.write(imageBase64, { encoding: 'base64' });
+    f.writeSync(imageBase64, { encoding: 'base64' });
     return f.uri;
   }
 
