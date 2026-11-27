@@ -102,6 +102,8 @@ export interface ViewPhoto {
 export interface HairAnalyser {
   id: string;
   analyse(photos: ViewPhoto[], hairState: HairState | null): HairAnalysis;
+  /** The same, pausing with `pause()` between steps so the screen stays responsive. Optional. */
+  analyseAsync?(photos: ViewPhoto[], hairState: HairState | null, pause: () => Promise<void>): Promise<HairAnalysis>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -304,18 +306,37 @@ export interface ViewMetrics {
 /** Fine detail at or under this (levels) is sensor noise, not strands. */
 const TEXTURE_FLOOR = 1.2;
 
+/** Runs a measurement to the end in one go (tests, and analysers that don't need to pause). */
+export function drain<T>(steps: Generator<void, T>): T {
+  for (;;) {
+    const next = steps.next();
+    if (next.done) return next.value;
+  }
+}
+
 export function measureView(p: ViewPhoto): ViewMetrics {
+  return drain(measureViewSteps(p));
+}
+
+/**
+ * The measurement, as steps: it yields every few dozen rows so a caller on the JS thread can
+ * let the screen draw between steps (see `analyseAsync`).
+ */
+export function* measureViewSteps(p: ViewPhoto): Generator<void, ViewMetrics> {
   const img = toWork(p.rgb);
+  yield;
   const { w, h, r, g, b, l } = img;
   const cells = cellsOf(p.grid);
   const l1 = blur121(l, w, h);
   const sL = integral(l, w, h);
+  yield;
 
   // Gradients on the lightly blurred image, and the structure tensor's parts.
   const jxx = new Float32Array(w * h);
   const jyy = new Float32Array(w * h);
   const jxy = new Float32Array(w * h);
   for (let y = 1; y < h - 1; y++) {
+    if (y % 96 === 0) yield;
     for (let x = 1; x < w - 1; x++) {
       const i = y * w + x;
       const gx = l1[i - w + 1] + 2 * l1[i + 1] + l1[i + w + 1] - l1[i - w - 1] - 2 * l1[i - 1] - l1[i + w - 1];
@@ -328,6 +349,7 @@ export function measureView(p: ViewPhoto): ViewMetrics {
   const sxx = integral(jxx, w, h);
   const syy = integral(jyy, w, h);
   const sxy = integral(jxy, w, h);
+  yield;
 
   // Interior hair: texture, colour, shine and greys.
   let n = 0;
@@ -344,6 +366,7 @@ export function measureView(p: ViewPhoto): ViewMetrics {
   let greys = 0;
   // Every other pixel each way: a quarter of the work, and the windows overlap anyway.
   for (let y = 4; y < h - 4; y += 2) {
+    if (y % 64 === 0) yield;
     for (let x = 4; x < w - 4; x += 2) {
       const ci = cellAt(cells, x, y, w, h);
       if (cells.kind[ci] !== 'interior') continue;
@@ -403,7 +426,9 @@ export function measureView(p: ViewPhoto): ViewMetrics {
 
   // Greys: thin bright colourless strands. A broad shine band is bright but not thin, so the
   // pixel must stand out from its own neighbourhood too.
+  yield;
   for (let y = 4; y < h - 4; y += 2) {
+    if (y % 128 === 0) yield;
     for (let x = 4; x < w - 4; x += 2) {
       if (cells.kind[cellAt(cells, x, y, w, h)] !== 'interior') continue;
       const i = y * w + x;
@@ -420,6 +445,7 @@ export function measureView(p: ViewPhoto): ViewMetrics {
   let edgeCells = 0;
   let blended = 0;
   for (let ci = 0; ci < cells.kind.length; ci++) {
+    if (ci % 96 === 0) yield;
     if (cells.kind[ci] !== 'edge' || n === 0) continue;
     const bx = cellBox(cells, ci, w, h);
     const px: { d: number; i: number }[] = [];
@@ -727,10 +753,29 @@ function roundMetrics(m: ViewMetrics): ViewMetrics {
   return out as unknown as ViewMetrics;
 }
 
+const isQualityView = (p: ViewPhoto) => p.view === 'front' || p.view === 'top' || p.view === 'crown';
+
 export const ruleAnalyser: HairAnalyser = {
   id: 'rules-v1',
   analyse(photos, hairState) {
-    const metrics = photos.filter((p) => p.view === 'front' || p.view === 'top' || p.view === 'crown').map(measureView);
+    const metrics = photos.filter(isQualityView).map(measureView);
+    const density = measureDensity(photos);
+    return { ...summarise(metrics, density, hairState), analyser: ruleAnalyser.id, metrics: metrics.map(roundMetrics) };
+  },
+  async analyseAsync(photos, hairState, pause) {
+    const metrics: ViewMetrics[] = [];
+    for (const p of photos.filter(isQualityView)) {
+      const steps = measureViewSteps(p);
+      for (;;) {
+        const next = steps.next();
+        if (next.done) {
+          metrics.push(next.value);
+          break;
+        }
+        await pause();
+      }
+    }
+    await pause();
     const density = measureDensity(photos);
     return { ...summarise(metrics, density, hairState), analyser: ruleAnalyser.id, metrics: metrics.map(roundMetrics) };
   },

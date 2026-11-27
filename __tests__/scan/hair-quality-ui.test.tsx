@@ -4,7 +4,7 @@ import { Text } from 'react-native';
 import { HairQualityCard } from '@/components/scan/HairQualityCard';
 import { hairScore, ruleAnalyser, type HairAnalysis } from '@/scan/hairAnalysis';
 import { needsHairAnalysis } from '@/scan/hairRunner';
-import { HAIR_READ_DELAY_MS, ScanProvider, useScans } from '@/scan/ScanProvider';
+import { HAIR_READ_DELAY_MS, HAIR_READ_STARTUP_DELAY_MS, ScanProvider, useScans } from '@/scan/ScanProvider';
 import { estimateStage, densityStage } from '@/scan/stageEstimate';
 import { MemoryScanStore } from '@/scan/store';
 import { emptyProfile } from '@/profile/types';
@@ -68,7 +68,7 @@ describe('reading hair after a scan is saved', () => {
     expect(needsHairAnalysis(record('b', '2026-11-20T09:00:00Z'))).toBe(false);
   });
 
-  it('saves the reading on the scan in the background', async () => {
+  it('reads scans already saved at startup, after a wait, and saves the reading on the scan', async () => {
     jest.useFakeTimers();
     const store = new MemoryScanStore([withPhotos()]);
     const hair = analysis(0);
@@ -86,10 +86,48 @@ describe('reading hair after a scan is saved', () => {
     await act(async () => {
       jest.advanceTimersByTime(HAIR_READ_DELAY_MS + 10);
     });
+    expect(readHair).not.toHaveBeenCalled();
+    await act(async () => {
+      jest.advanceTimersByTime(HAIR_READ_STARTUP_DELAY_MS);
+    });
     jest.useRealTimers();
     await waitFor(() => expect(screen.getByText('read')).toBeTruthy());
     expect(readHair).toHaveBeenCalledTimes(1);
     expect((await store.list())[0].hair?.analyser).toBe('rules-v1');
+  });
+
+  it('leaves a scan just taken alone until a screen asks for it', async () => {
+    jest.useFakeTimers();
+    const store = new MemoryScanStore([]);
+    const hair = analysis(0);
+    const readHair = jest.fn(async () => hair);
+    let api: ReturnType<typeof useScans> | null = null;
+    function Probe() {
+      api = useScans();
+      return <Text>{api.records[0]?.hair ? 'read' : `${api.records.length} scans`}</Text>;
+    }
+    await render(
+      <ScanProvider store={store} drafts={{ load: async () => null, save: async () => {}, clear: async () => {} }} readHair={readHair}>
+        <Probe />
+      </ScanProvider>,
+    );
+    await screen.findByText('0 scans');
+    await act(async () => {
+      await api!.save(withPhotos());
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(HAIR_READ_STARTUP_DELAY_MS * 2);
+    });
+    expect(readHair).not.toHaveBeenCalled();
+    await act(async () => {
+      api!.requestHairRead('a');
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(HAIR_READ_DELAY_MS + 10);
+    });
+    jest.useRealTimers();
+    await waitFor(() => expect(screen.getByText('read')).toBeTruthy());
+    expect(readHair).toHaveBeenCalledTimes(1);
   });
 });
 

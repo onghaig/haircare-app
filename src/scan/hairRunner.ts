@@ -19,7 +19,8 @@ export function needsHairAnalysis(scan: ScanRecord): boolean {
   });
 }
 
-const yieldToUi = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+// A short real pause, not 0 ms: the screen needs a frame or two to draw and take taps.
+const yieldToUi = () => new Promise<void>((resolve) => setTimeout(resolve, 16));
 
 /**
  * Reads hair quality and density from a scan's clear front, top and crown photos, on the phone.
@@ -40,5 +41,6 @@ export async function analyseScanHair(scan: ScanRecord): Promise<HairAnalysis | 
   }
   if (!photos.length) return null;
   await yieldToUi();
-  return hairAnalyser().analyse(photos, scan.hairState);
+  const a = hairAnalyser();
+  return a.analyseAsync ? a.analyseAsync(photos, scan.hairState, yieldToUi) : a.analyse(photos, scan.hairState);
 }
