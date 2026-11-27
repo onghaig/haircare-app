@@ -12,12 +12,17 @@ appId: com.onghaig.haircare
       id: "panorama-viewer"
     direction: LEFT
 - takeScreenshot: e2e-71-panorama-turned
-# Tap thumbs by id: a label tap can land on the neighbouring thumb.
+# Tap thumbs by id: a label tap can land on the neighbouring thumb. Let the swipe settle first,
+# and wait for the turn rather than asserting at once.
+- waitForAnimationToEnd:
+    timeout: 2000
 - tapOn:
     id: "panorama-thumb-crown"
-- assertVisible:
-    id: "panorama-angle"
-    text: "Back"
+- extendedWaitUntil:
+    visible:
+      id: "panorama-angle"
+      text: "Back"
+    timeout: 5000
 - tapOn:
     id: "panorama-thumb-top"
 - takeScreenshot: e2e-72-panorama-top
