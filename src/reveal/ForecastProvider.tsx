@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { ForecastModel, type Forecast } from '@/forecast';
+import { ForecastModel, type Forecast, type UserInput } from '@/forecast';
 import { planItems, userPlan, type PlanEntry } from '@/options/plan';
 import { usePlan } from '@/plan/PlanProvider';
 import { toForecastInput } from '@/profile/forecastInput';
@@ -13,6 +13,10 @@ interface ForecastContextValue {
   forecast: Forecast | null;
   /** "Your plan": what the user really does, from the log. The forecast's plan path runs this. */
   plan: PlanEntry[];
+  /** What the forecast ran on, for what-if runs that compare other plans. */
+  input: UserInput | null;
+  /** Sample count of the main forecast. What-if runs never use more. */
+  samples: number;
 }
 
 const ForecastContext = createContext<ForecastContextValue | null>(null);
@@ -52,7 +56,7 @@ export function ForecastProvider({ samples = 200_000, children }: { samples?: nu
     };
   }, [key, samples]);
 
-  const value = useMemo(() => ({ forecast: result && result.key === key ? result.forecast : null, plan }), [result, key, plan]);
+  const value = useMemo(() => ({ forecast: result && result.key === key ? result.forecast : null, plan, input, samples }), [result, key, plan, input, samples]);
   return <ForecastContext.Provider value={value}>{children}</ForecastContext.Provider>;
 }
 

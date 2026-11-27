@@ -71,6 +71,7 @@ describe('under-18s', () => {
   it('are never offered prescription treatments', () => {
     expect(treatmentOptions(p({ age: 16 }))).not.toContain('finasteride');
     expect(treatmentOptions(p({ age: 16 }))).not.toContain('dutasteride');
+    expect(treatmentOptions(p({ age: 16 }))).not.toContain('oralMinoxidil');
     expect(treatmentOptions(p({ age: 16 }))).toContain('minoxidil');
     expect(treatmentOptions(p({ age: 18 }))).toContain('finasteride');
   });
