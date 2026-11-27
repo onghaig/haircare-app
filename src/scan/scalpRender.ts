@@ -14,18 +14,19 @@ const PHOTO_PX = 400;
 /** Bump when the head model or rendering changes, so old cached maps are redrawn. */
 export const RENDER_VERSION = 1;
 
-async function shrink(uri: string): Promise<string> {
+async function shrink(uri: string, px: number): Promise<string> {
   // Native and synchronous where available: the async image and file calls can stall on the
   // iOS simulator. The image manipulator is the fallback.
-  const native = shrinkImageSync(uri, PHOTO_PX);
+  const native = shrinkImageSync(uri, px);
   if (native) return native;
-  const ref = await ImageManipulator.manipulate(uri).resize({ width: PHOTO_PX }).renderAsync();
+  const ref = await ImageManipulator.manipulate(uri).resize({ width: px }).renderAsync();
   const saved = await ref.saveAsync({ format: SaveFormat.JPEG, compress: 0.9 });
   return saved.uri;
 }
 
-async function loadRgb(uri: string): Promise<Rgb> {
-  const small = new File(await shrink(uri));
+/** A photo shrunk to about `px` wide and decoded to RGB. */
+export async function loadRgb(uri: string, px = PHOTO_PX): Promise<Rgb> {
+  const small = new File(await shrink(uri, px));
   const bytes = small.bytesSync();
   try {
     small.delete();

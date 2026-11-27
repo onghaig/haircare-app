@@ -1,6 +1,7 @@
 import type { CaptureResult, HairGrid, QualityCheck, QualityReport, ScanView } from '@modules/headmap';
 
 import { MIN_TREND_QUALITY } from './change';
+import type { HairAnalysis } from './hairAnalysis';
 
 /**
  * The guided scan as a pure state machine: hair-state checklist, then five views in order,
@@ -209,6 +210,8 @@ export interface ScanRecord {
   } | null;
   /** From the front view, for the next scan's distance check. */
   faceWidthPx?: number;
+  /** Hair quality and scalp show-through, read on the phone after the scan is saved. */
+  hair?: HairAnalysis;
 }
 
 export function buildScanRecord(
