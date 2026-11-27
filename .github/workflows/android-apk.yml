@@ -140,6 +140,10 @@ jobs:
         working-directory: android
         run: |
           set +e
+          # Store the native libraries extracted on install. Otherwise React Native's SoLoader
+          # looks inside the APK under the emulator's own ABI (lib/x86_64), finds nothing and the
+          # app dies on launch ("couldn't find DSO to load: libreactnative.so").
+          sed -i "s/^expo.useLegacyPackaging=.*/expo.useLegacyPackaging=true/" gradle.properties && grep -q "^expo.useLegacyPackaging=true" gradle.properties || echo "expo.useLegacyPackaging=true" >> gradle.properties
           # Maven Central rate-limits shared CI runners (HTTP 429). Retry only download failures.
           for i in 1 2 3; do
             ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon > build.log 2>&1
