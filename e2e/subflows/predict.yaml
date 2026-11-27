@@ -29,8 +29,7 @@ appId: com.onghaig.haircare
 - tapOn: "How these work"
 - assertVisible: "How options work"
 - takeScreenshot: e2e-63-how-options-work
-# One tap per Back, each waiting for the screen behind it: a retried tap goes back one screen too
-# far, past Predict to the previous tab.
+# One tap per Back, each waiting for the screen behind it.
 - tapOn:
     text: "Back"
     retryTapIfNoChange: false
@@ -43,17 +42,20 @@ appId: com.onghaig.haircare
 - extendedWaitUntil:
     notVisible: "Compare options"
     timeout: 10000
-# Make sure we're on Predict (tapping its own tab there is harmless).
-- tapOn: "Predict"
-- scrollUntilVisible:
-    element: "10 years"
-- tapOn: "10 years"
-# The headline sits under the picture, below the fold on a phone.
+# The floating tab bar covers the bottom of the screen, and Maestro counts what is behind it as
+# visible: tapping the year chips as soon as they scroll into view hit the Progress tab instead.
+# So scroll on to the headline under the picture first; the chips are then well above the bar.
 - scrollUntilVisible:
     element: "Likely at \\d+: N.*"
+- tapOn: "10 years"
+- extendedWaitUntil:
+    visible: "Likely at \\d+: N.*"
+    timeout: 10000
 - takeScreenshot: e2e-64-future-you-10y
 - scrollUntilVisible:
     element: "Share your forecast"
+# It's the last thing on the page: scroll to the end so it clears the tab bar.
+- scroll
 - tapOn: "Share your forecast"
 - assertVisible: "Share image"
 - takeScreenshot: e2e-65-share-card
