@@ -23,7 +23,11 @@ jobs:
   build:
     # Expo SDK 58 / React Native 0.88 need Xcode 26; macos-15 ships Xcode 16.
     runs-on: macos-26
-    timeout-minutes: 60
+    # The simulator build alone can take 35 minutes when the runners are busy, which left the
+    # end-to-end flows too little of a 60-minute budget.
+    timeout-minutes: 100
+    permissions:
+      contents: write # only for the ci-demo branch below
     steps:
       - uses: actions/checkout@v4
       - name: Xcode version
@@ -38,6 +42,8 @@ jobs:
       - name: Swift core tests on macOS
         working-directory: modules/headmap/core
         run: swift test
+      - name: Add the simulator demo face (simulator builds only; the sideload .ipa never has it)
+        run: cp e2e/assets/demo_face.jpg modules/headmap/ios/models/demo_face.jpg
       - name: Generate the iOS project
         run: npx expo prebuild --platform ios --no-install
       - name: Install pods
@@ -71,11 +77,66 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" ios/build/Build/Products/Release-iphonesimulator/Haircare.app
-      - name: End-to-end flows (Maestro)
+      - name: End-to-end flows (Maestro), recorded as a demo video
+        env:
+          # The XCUITest driver can take minutes to start on a busy runner (default is 2 minutes).
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: '360000'
         run: |
           mkdir -p e2e-results
-          maestro --device "$UDID" test e2e/ --format junit --output e2e-results/report.xml \
-            --test-output-dir e2e-results
+          xcrun simctl io "$UDID" recordVideo --codec h264 --force e2e-results/demo.mp4 &
+          REC=$!
+          sleep 2
+          set +e
+          # The XCUITest driver sometimes never comes up on a runner. That is not an app failure,
+          # so try once more (only for that error).
+          for attempt in 1 2; do
+            maestro --device "$UDID" test e2e/app.yaml --format junit --output e2e-results/report.xml \
+              --test-output-dir e2e-results 2>&1 | tee e2e-results/maestro.log
+            status=${PIPESTATUS[0]}
+            [ $status -eq 0 ] && break
+            grep -q "iOS driver not ready in time" e2e-results/maestro.log || break
+            echo "Maestro's iOS driver did not start (attempt $attempt); retrying"
+          done
+          sleep 2
+          kill -INT $REC
+          wait $REC
+          ls -lh e2e-results/demo.mp4 || true
+          exit $status
+      - name: Publish the demo video and screenshots to the ci-demo branch
+        # Artifacts download from Azure blob storage, which some networks block; this is plain git,
+        # so the latest run of each PR branch is always viewable on GitHub under ci-demo/<branch>/.
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          [ -f e2e-results/demo.mp4 ] || exit 0
+          out=$(mktemp -d)
+          avconvert --source e2e-results/demo.mp4 --output "$out/demo.mp4" --preset PresetMediumQuality --replace \
+            || cp e2e-results/demo.mp4 "$out/demo.mp4"
+          find e2e-results -name '*.png' -exec cp {} "$out/" \;
+          ls -lh "$out"
+          # GitHub rejects files over 100 MB.
+          [ "$(stat -f%z "$out/demo.mp4")" -lt 95000000 ] || rm "$out/demo.mp4"
+          git config --global user.name github-actions
+          git config --global user.email 41898282+github-actions[bot]@users.noreply.github.com
+          for attempt in 1 2 3 4; do
+            rm -rf ../ci-demo
+            git fetch -q origin ci-demo && git worktree add -q ../ci-demo FETCH_HEAD || { git worktree add -q --detach ../ci-demo && git -C ../ci-demo checkout -q --orphan tmp && git -C ../ci-demo rm -rfq . ; }
+            rm -rf "../ci-demo/$BRANCH" && mkdir -p "../ci-demo/$BRANCH" && cp "$out"/* "../ci-demo/$BRANCH/"
+            git -C ../ci-demo add -A
+            git -C ../ci-demo commit -qm "E2E demo for $BRANCH at ${GITHUB_SHA::7}" || exit 0
+            git -C ../ci-demo push -q origin HEAD:refs/heads/ci-demo && exit 0
+            git worktree remove --force ../ci-demo
+            sleep $((attempt * 5))
+          done
+          exit 1
+      - name: Upload the demo video
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-video
+          path: e2e-results/demo.mp4
+          if-no-files-found: ignore
       - name: Upload e2e screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
