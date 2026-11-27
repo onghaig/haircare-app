@@ -58,6 +58,19 @@ capabilities aren't available with a free account; nothing in the app needs them
 Only rebuild the `.ipa` when native code changes (anything in `modules/`, or a new package
 with native code). For JS-only changes, use Expo Go or the `dev-client` variant.
 
+### 4. Android: install the APK (free, no Play account)
+
+1. On GitHub: **Actions > Android APK > Run workflow**.
+2. After about 15 to 20 minutes, download the `Haircare-apk` artifact from the run page and
+   unzip it to get `Haircare.apk`.
+3. Copy it to the phone (or download it there) and open it. Allow **Install unknown apps** for
+   the browser or file manager when Android asks.
+
+It's a release build with the JS bundled in, signed with the Android debug key, for 64-bit ARM
+phones. What works: onboarding, the forecast reveal, Today, Progress and Predict. The hairline
+scan camera is Swift-only for now, so on Android the scan screen says so and offers the forecast
+instead; the Kotlin version of the scan is a later milestone.
+
 ### Later, when you have a paid Apple Developer account ($99/year)
 
 You'll need one for TestFlight and the App Store. EAS builds and signs in the cloud, so you

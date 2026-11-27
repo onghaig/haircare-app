@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -149,6 +149,29 @@ export default function ScanSessionScreen() {
       if (p !== 'granted') return;
     }
     dispatch({ type: 'start', hairState, now: Date.now() });
+  }
+
+  // The scan camera is Swift-only for now. On Android, say so plainly instead of a dead camera,
+  // and let a first-time user still see their forecast (it's built from their answers).
+  if (Platform.OS === 'android' && !isHeadMapAvailable) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <CloseButton />
+        <View style={styles.center}>
+          <Text variant="title" accessibilityRole="header" style={{ textAlign: 'center' }}>
+            Scanning isn’t on Android yet
+          </Text>
+          <Text color="textMuted" style={{ textAlign: 'center' }}>
+            The hairline scan runs on iPhone for now. Your forecast comes from your answers and family history, so you can still see it.
+          </Text>
+          {firstReveal ? (
+            <Button label="See your forecast" onPress={() => router.replace('/reveal/analysing')} />
+          ) : (
+            <Button label="Back" onPress={() => router.back()} />
+          )}
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (state.phase === 'checklist' || permission === 'denied') {

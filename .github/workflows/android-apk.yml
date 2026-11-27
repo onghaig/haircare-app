@@ -1,0 +1,72 @@
+name: Android APK
+
+# Builds an installable .apk on a Linux runner and uploads it as a workflow artifact, so the app
+# can be sideloaded on an Android phone. No Play Console account and no Mac needed. The release
+# build is signed with the Android debug key (Expo's default), which any phone accepts with
+# "Install unknown apps" allowed. See README > "Android: install the APK".
+#
+# The hairline scan camera is Swift-only for now, so on Android the scan says so and the rest
+# of the app (onboarding, forecast, Today, Progress, Predict) works.
+on:
+  pull_request:
+    paths:
+      - 'app.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'modules/**/android/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - name: Generate the Android project
+        run: npx expo prebuild --platform android --no-install
+      - name: Build the release APK (64-bit ARM, which every current Android phone uses)
+        working-directory: android
+        run: |
+          set +e
+          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon > build.log 2>&1
+          status=$?
+          echo "::group::Errors"
+          grep -nE "error:|FAILURE|What went wrong|BUILD (SUCCESSFUL|FAILED)" -A6 build.log | head -150
+          echo "::endgroup::"
+          tail -40 build.log
+          exit $status
+      - name: Check and name the APK
+        working-directory: android
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -f "$APK"
+          # A standalone build must carry its own JS bundle, or it opens to a red screen.
+          unzip -l "$APK" | grep -q "assets/index.android.bundle" || { echo "JS bundle missing from the APK"; exit 1; }
+          cp "$APK" Haircare.apk
+          ls -lh Haircare.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Haircare-apk
+          path: android/Haircare.apk
+          retention-days: 14
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-log
+          path: android/build.log
