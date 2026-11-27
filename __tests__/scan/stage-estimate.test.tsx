@@ -1,24 +1,19 @@
 import { render, screen } from '@testing-library/react-native';
 
-import type { HairGrid } from '@modules/headmap';
 import { StageEstimateCard } from '@/components/scan/StageEstimateCard';
 import { toForecastInput } from '@/profile/forecastInput';
 import { emptyProfile, type Profile } from '@/profile/types';
 import { backStage, estimateStage, frontStage, measuredGrader, setStageGrader, type StageGrader } from '@/scan/stageEstimate';
 
 import { record } from '../../test-utils/scanFixtures';
+import { synthViews } from '../../test-utils/synthHead';
 
-const flat = (v: number): HairGrid => ({ cols: 12, rows: 16, values: Array(192).fill(v) });
-
-function scan({ recession = 0.05, centre = 62, crown = 0.8, top = 0.8, score = 90 } = {}) {
+/** A scan of the synthetic head: hairline measures as given, bald on top above `baldAbove` mm. */
+function scan({ recession = 0.05, centre = 62, baldAbove = Infinity, score = 90 } = {}) {
   return record('s', '2026-11-20T09:00:00Z', {
     quality: score,
     hairline: { centreMM: centre, templeRecessionIPD: recession },
-    views: {
-      front: { uri: 'f', score },
-      top: { uri: 't', score, hairGrid: flat(top) },
-      crown: { uri: 'c', score, hairGrid: flat(crown) },
-    },
+    views: synthViews('s', { baldAbove, score }),
   });
 }
 const profile: Profile = { ...emptyProfile(), age: 28 };
@@ -37,10 +32,14 @@ describe('measured Norwood estimate', () => {
     expect(frontStage(scan({ recession: 0.2 }))!.stage).toBe(2);
     expect(frontStage(scan({ recession: 0.35 }))!.stage).toBe(3);
     expect(frontStage(scan({ recession: 0.05, centre: 85 }))!.stage).toBe(4);
-    expect(backStage(scan({ crown: 0.5 }))!.stage).toBe(3);
-    expect(backStage(scan({ crown: 0.2 }))!.stage).toBe(5);
-    expect(backStage(scan({ crown: 0.1, top: 0.1 }))!.stage).toBe(7);
-    expect(estimateStage(scan({ recession: 0.35, crown: 0.4 }), profile)!.stage).toBe(4);
+    // Hair loss on top shows on the mapped top and crown, and the stage climbs with it.
+    const full = backStage(scan())!.stage;
+    const thinning = backStage(scan({ baldAbove: 110 }))!.stage;
+    const bald = backStage(scan({ baldAbove: 70 }))!.stage;
+    expect(full).toBe(1);
+    expect(thinning).toBeGreaterThanOrEqual(3);
+    expect(bald).toBeGreaterThan(thinning);
+    expect(estimateStage(scan({ recession: 0.35, baldAbove: 110 }), profile)!.stage).toBeGreaterThanOrEqual(3);
   });
 
   it('always gives a range, wider when fewer signals are usable', () => {

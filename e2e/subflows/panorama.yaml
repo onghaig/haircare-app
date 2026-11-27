@@ -9,6 +9,11 @@ appId: com.onghaig.haircare
 - assertVisible: "Your scalp map"
 - assertVisible:
     id: "scalp-map"
+# The photos are mapped onto the head model on the phone; give it a moment.
+- extendedWaitUntil:
+    visible:
+      id: "scalp-map-image"
+    timeout: 30000
 - takeScreenshot: e2e-69a-scalp-map
 - tapOn: "Hair only"
 - takeScreenshot: e2e-69b-scalp-map-hair

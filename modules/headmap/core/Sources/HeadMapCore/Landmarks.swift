@@ -11,6 +11,9 @@ public enum LandmarkID {
   public static let eyeRightOuter = 33
   public static let eyeLeftOuter = 263
   public static let count = 478
+  /// Landmarks saved with each face photo for the scalp map: irises, glabella, nose tip, chin,
+  /// both face edges and the top of the forehead.
+  public static let mapAnchors = [468, 473, 9, 1, 152, 234, 454, 10]
 }
 
 /// Face landmarks in image pixel coordinates.

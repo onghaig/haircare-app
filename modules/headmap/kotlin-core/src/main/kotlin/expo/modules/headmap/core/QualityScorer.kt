@@ -49,6 +49,8 @@ data class QualityReport(
   val hairGrid: HairGrid? = null,
   /** Top and crown views only: where to move the phone. */
   val aim: Aim? = null,
+  /** Face views: a few landmark positions (pixels) by MediaPipe index, for the scalp map. */
+  val anchors: Map<Int, Point>? = null,
 ) {
   val allPassed: Boolean get() = failed.isEmpty()
   /** The single most important thing to fix right now. */
@@ -88,6 +90,8 @@ data class QualityReport(
       // Two decimals is plenty for a heatmap and keeps the saved scan small.
       d["hairGrid"] = mapOf("cols" to g.cols, "rows" to g.rows, "values" to g.values.map { Math.round(it * 100) / 100.0 })
     }
+    d["frameSize"] = listOf(frameWidth, frameHeight)
+    anchors?.let { a -> d["anchors"] = a.entries.associate { (k, p) -> k.toString() to listOf(p.x / frameWidth, p.y / frameHeight) } }
     aim?.let { a ->
       val m = mutableMapOf<String, Any>("hint" to a.hint.raw, "hairShare" to a.hairShare)
       a.centre?.let { m["centre"] = listOf(it.x, it.y) }
@@ -231,7 +235,8 @@ class QualityScorer(val thresholds: QualityThresholds = QualityThresholds()) {
     if (view.measuresHairline) ok[QualityCheck.HAIRLINE_FOUND] = hairline?.hairlineFound ?: false
 
     return report(view, ok) { passed, failed, score ->
-      QualityReport(view, pose, poseError, distance, centring, lm.faceWidth, stats, hairline, passed, failed, score, hairGrid = hair?.grid())
+      QualityReport(view, pose, poseError, distance, centring, lm.faceWidth, stats, hairline, passed, failed, score, hairGrid = hair?.grid(),
+        anchors = LandmarkID.MAP_ANCHORS.associateWith { lm[it] })
     }
   }
 }

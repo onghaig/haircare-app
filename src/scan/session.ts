@@ -122,6 +122,9 @@ export interface ScanViewRecord {
   score: number;
   /** Coarse hair map of the photo, for the scalp map. Scans from before it existed have none. */
   hairGrid?: HairGrid;
+  /** Face landmarks (normalised) and the frame size, to place this photo on the head model. */
+  anchors?: Record<string, [number, number]>;
+  frameSize?: [number, number];
 }
 
 export interface ScanRecord {
@@ -153,7 +156,14 @@ export function buildScanRecord(s: ScanSessionState, id: string, takenAt: Date):
     const c = s.captures[v];
     if (!c) continue;
     const score = c.report?.score ?? 0;
-    views[v] = c.report?.hairGrid ? { uri: c.uri, score, hairGrid: c.report.hairGrid } : { uri: c.uri, score };
+    const r = c.report;
+    views[v] = {
+      uri: c.uri,
+      score,
+      ...(r?.hairGrid ? { hairGrid: r.hairGrid } : {}),
+      ...(r?.anchors ? { anchors: r.anchors } : {}),
+      ...(r?.frameSize ? { frameSize: r.frameSize } : {}),
+    };
     scores.push(score);
   }
   const quality = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;

@@ -2,7 +2,7 @@ import { selfReportedStage } from '@/profile/forecastInput';
 import type { Profile } from '@/profile/types';
 
 import { MIN_TREND_QUALITY } from './change';
-import { ZONES, zoneCoverage } from './scalpMap';
+import { scanHairMap } from './scalpMap';
 import type { ScanRecord } from './session';
 
 /**
@@ -62,22 +62,17 @@ export function frontStage(scan: ScanRecord): { stage: number; signal: string } 
   return { stage, signal };
 }
 
-function coverage(scan: ScanRecord, view: 'top' | 'crown'): number | null {
-  const v = scan.views[view];
-  if (!v?.hairGrid || v.score < MIN_TREND_QUALITY) return null;
-  return zoneCoverage(ZONES.find((z) => z.view === view)!, v.hairGrid);
-}
-
-/** Top and crown: how much of the middle of each photo the camera saw as hair. */
+/** Top and crown: how much of each zone of the scalp map the camera saw as hair. */
 export function backStage(scan: ScanRecord): { stage: number; signal: string } | null {
-  const crown = coverage(scan, 'crown');
-  const top = coverage(scan, 'top');
+  const { zones } = scanHairMap(scan, 32);
+  const crown = zones.crown;
+  const top = zones.top;
   if (crown == null && top == null) return null;
   const level = (c: number) => (c >= 0.6 ? 0 : c >= 0.45 ? 1 : c >= 0.3 ? 2 : c >= 0.15 ? 3 : 4);
   const k = crown != null ? level(crown) : 0;
   const t = top != null ? level(top) : 0;
-  // Crown thinning alone reads as 3 (vertex) up to 5; thinning on top as well goes to 6 and 7.
-  const stage = Math.max(k === 0 ? 1 : 2 + k, t === 0 ? 1 : t >= 3 && k >= 3 ? 3 + t : 1 + t);
+  // Thinning on the crown or the top alone reads as 3 (vertex) up to 6; both thin goes to 7.
+  const stage = Math.min(7, Math.max(k === 0 ? 1 : 2 + k, t === 0 ? 1 : 2 + t, t >= 3 && k >= 3 ? 7 : 1));
   const signal =
     stage <= 1
       ? 'Your crown and top look well covered in these photos.'

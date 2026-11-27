@@ -7,7 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScalpMap } from '@/components/scan/ScalpMap';
 import { Text } from '@/components/ui';
 import { availableViews, DEG_PER_POINT, layersAt, nearestView, RING, stepAngle, TOP, wrap } from '@/scan/panorama';
-import { compareZone, comparisonText, mapZones } from '@/scan/scalpMap';
+import type { MapZone } from '@/scan/headModel';
+import { compareZone, comparisonText, MAP_ZONE_LABEL, MAP_ZONES, scanHairMap } from '@/scan/scalpMap';
 import { useScans } from '@/scan/ScanProvider';
 import type { ScanRecord } from '@/scan/session';
 import { colors, minTouchTarget, radius, spacing } from '@/theme';
@@ -76,8 +77,8 @@ function Segments({ options, value, onChange }: { options: { key: string; label:
 function MapView({ scan, baseline }: { scan: ScanRecord; baseline?: ScanRecord }) {
   const { width } = useWindowDimensions();
   const [layer, setLayer] = useState<'photos' | 'hair' | 'both'>('both');
-  const [selected, setSelected] = useState<string | null>(null);
-  const zones = mapZones(scan);
+  const [selected, setSelected] = useState<MapZone | null>(null);
+  const maps = useMemo(() => ({ now: scanHairMap(scan), then: baseline ? scanHairMap(baseline) : undefined }), [scan, baseline]);
   const size = Math.min(width - spacing.lg * 2, 360);
   return (
     <ScrollView contentContainerStyle={{ gap: spacing.md, alignItems: 'center' }}>
@@ -92,23 +93,23 @@ function MapView({ scan, baseline }: { scan: ScanRecord; baseline?: ScanRecord }
         onChange={(k) => setLayer(k as 'photos' | 'hair' | 'both')}
       />
       <Text variant="caption" color="textMuted" style={{ textAlign: 'center' }}>
-        Your scan photos laid out from above, forehead at the top. Green is the hair the camera picked out. It depends on light and
-        angle, so it is an estimate to compare with your own scans, not a medical measurement.
+        Your five photos mapped onto a model head and seen from above, forehead at the top. Green is the hair the camera picked out.
+        It depends on light and angle, so it is an estimate to compare with your own scans, not a medical measurement.
       </Text>
       <View style={styles.zoneList}>
-        {zones.map((z) => (
+        {MAP_ZONES.map((z) => (
           <Pressable
-            key={z.view}
+            key={z}
             accessibilityRole="button"
-            accessibilityState={{ selected: selected === z.view }}
-            onPress={() => setSelected(selected === z.view ? null : z.view)}
-            style={[styles.zoneRow, selected === z.view && styles.thumbOn]}
-            testID={`zone-row-${z.view}`}>
+            accessibilityState={{ selected: selected === z }}
+            onPress={() => setSelected(selected === z ? null : z)}
+            style={[styles.zoneRow, selected === z && styles.thumbOn]}
+            testID={`zone-row-${z}`}>
             <Text variant="headline" style={{ width: 90 }}>
-              {z.label}
+              {MAP_ZONE_LABEL[z]}
             </Text>
             <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-              {comparisonText(compareZone(z, scan, baseline))}
+              {comparisonText(compareZone(z, scan, baseline, maps))}
             </Text>
           </Pressable>
         ))}

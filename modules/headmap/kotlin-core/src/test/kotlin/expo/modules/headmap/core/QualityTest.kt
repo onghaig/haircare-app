@@ -222,10 +222,10 @@ class QualityScorerTest {
     val g = Fixture.gray(20, 20, Point(0.0, 0.0), Point(20.0, 20.0))
     val r = scorer.evaluateWithoutFace(ScanView.CROWN, g, block(2, 18, 2, 18))
     assertEquals(AimHint.OK, r.aim?.hint)
-    assertEquals(12 * 16, r.hairGrid!!.values.size)
+    assertEquals(24 * 32, r.hairGrid!!.values.size)
     val m = r.toMap(20.0, 20.0)
     assertEquals("ok", (m["aim"] as Map<*, *>)["hint"])
-    assertEquals(12, (m["hairGrid"] as Map<*, *>)["cols"])
+    assertEquals(24, (m["hairGrid"] as Map<*, *>)["cols"])
   }
 
   @Test fun burstPrefersHairThenScoreThenSharpness() {
@@ -235,6 +235,14 @@ class QualityScorerTest {
     assertTrue(hair.burstRank > wall.burstRank)
     val blurrier = hair.copy(stats = hair.stats!!.copy(sharpness = 1.0))
     assertTrue(hair.burstRank > blurrier.burstRank)
+  }
+
+  @Test fun faceReportsCarryMapAnchorsAndFrameSize() {
+    val r = frame()
+    assertEquals(LandmarkID.MAP_ANCHORS.toSet(), r.anchors!!.keys)
+    val m = r.toMap(640.0, 480.0)
+    assertEquals(listOf(640.0, 480.0), m["frameSize"])
+    assertEquals(8, (m["anchors"] as Map<*, *>).size)
   }
 
   @Test fun weightsAddUpTo100() = assertEquals(100, QualityCheck.entries.sumOf { it.weight })
