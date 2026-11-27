@@ -23,3 +23,14 @@ jest.mock('expo-sharing', () => ({
 }));
 
 jest.mock('react-native-view-shot', () => ({ captureRef: jest.fn(async () => 'file:///tmp/share.png') }));
+
+// Native image manipulation (the AI preview's photo shrink) has no Jest implementation.
+jest.mock('expo-image-manipulator', () => ({
+  SaveFormat: { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' },
+  ImageManipulator: {
+    manipulate: jest.fn(() => ({
+      resize: jest.fn().mockReturnThis(),
+      renderAsync: jest.fn(async () => ({ saveAsync: jest.fn(async () => ({ uri: 'file:///small.jpg', base64: 'U01BTEw=' })) })),
+    })),
+  },
+}));

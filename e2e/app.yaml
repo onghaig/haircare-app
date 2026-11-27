@@ -7,6 +7,10 @@ appId: com.onghaig.haircare
     clearState: true
     permissions:
       camera: allow
+# Android emulators sometimes show a system "isn't responding" dialog right after boot.
+- tapOn:
+    text: "Wait"
+    optional: true
 - runFlow: subflows/onboarding.yaml
 - runFlow: subflows/scan.yaml
 - runFlow: subflows/reveal.yaml

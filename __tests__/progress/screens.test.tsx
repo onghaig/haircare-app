@@ -67,13 +67,15 @@ describe('Verdict story', () => {
     await render(wrap(<VerdictScreen />));
     expect(await screen.findByText('Month 2: Holding steady')).toBeOnTheScreen();
     expect(screen.getByLabelText('Page 1 of 7')).toBeOnTheScreen();
-    const titles = ['Before and after', 'The numbers', 'What you did', 'What might explain it', 'You vs your forecast', 'Next month'];
+    const titles = ['Before and after', 'The numbers', 'What you did', 'What might explain it', 'Too early to tell', 'Next month'];
     for (const t of titles) {
       await fireEvent.press(screen.getByRole('button', { name: 'Next' }));
-      expect(screen.getByRole('header', { name: t })).toBeOnTheScreen();
+      // The scans-vs-forecast card waits for the forecast.
+      expect(await screen.findByRole('header', { name: t }, { timeout: 5000 })).toBeOnTheScreen();
     }
     await fireEvent.press(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.getByRole('header', { name: 'You vs your forecast' })).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Too early to tell' })).toBeOnTheScreen();
+    expect(screen.getByTestId('versus-chart')).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Next' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
     expect(router.back).toHaveBeenCalled();

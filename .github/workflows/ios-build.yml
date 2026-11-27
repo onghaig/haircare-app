@@ -23,7 +23,9 @@ jobs:
   build:
     # Expo SDK 58 / React Native 0.88 need Xcode 26; macos-15 ships Xcode 16.
     runs-on: macos-26
-    timeout-minutes: 60
+    # The simulator build alone can take 35 minutes when the runners are busy, which left the
+    # end-to-end flows too little of a 60-minute budget.
+    timeout-minutes: 100
     permissions:
       contents: write # only for the ci-demo branch below
     steps:

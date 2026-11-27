@@ -75,13 +75,20 @@ export function reportSchedule(baseline: ScanRecord, now: Date): { due: Date | n
   return { due: new Date(due), next: new Date(due + VERDICT_EVERY_DAYS * DAY), month: 2 + k };
 }
 
-/** Share of days in the window with anything on the plan done. Used when there's no medication to track. */
+/**
+ * Share of days with anything on the plan done, used when there's no medication to track. Counted
+ * over the days since the first logged day, so someone on day 5 isn't shown 5 of 30.
+ */
 export function planDays(book: LogBook, today: Date, days = 30): number {
   let active = 0;
+  let span = 0;
   for (let i = 0; i < days; i++) {
-    if (Object.values(book[dayKey(addDays(today, -i))]?.answers ?? {}).includes('done')) active++;
+    const d = book[dayKey(addDays(today, -i))];
+    if (!d) continue;
+    span = i + 1;
+    if (Object.values(d.answers ?? {}).includes('done')) active++;
   }
-  return active / days;
+  return span ? active / span : 0;
 }
 
 /** Medication days done out of days answered, or plan days when there's no medication. */

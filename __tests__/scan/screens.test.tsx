@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Platform } from 'react-native';
 
 import ScanTab from '@/app/(tabs)/scan';
 import ScanResultScreen from '@/app/scan/[id]';
@@ -66,7 +65,9 @@ describe('Scan result', () => {
 
   it('explains a low-confidence scan', async () => {
     await render(withScans(<ScanResultScreen />, [record('b', '2026-10-08T10:00:00Z', { quality: 45, lowConfidence: true })]));
-    expect(await screen.findByText(/won.t count toward your trends/)).toBeOnTheScreen();
+    expect(await screen.findByText(/never counted in your trends/)).toBeOnTheScreen();
+    expect(screen.getByLabelText('Scan quality not measured yet')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: /^Retake \d views?$/ })).toBeOnTheScreen();
   });
 });
 
@@ -149,7 +150,7 @@ describe('Scan session', () => {
     expect(screen.queryByText('About the same length as last scan')).toBeNull();
     await fireEvent.press(screen.getByRole('checkbox', { name: 'My hair is dry' }));
     expect(screen.getByRole('checkbox', { name: 'My hair is dry' })).not.toBeChecked();
-    await fireEvent.press(screen.getByRole('button', { name: 'Start scan' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Skip to the scan' }));
     await waitFor(() => expect(screen.getByText('Front: hairline')).toBeOnTheScreen());
     expect(screen.getByText('Line up with the outline')).toBeOnTheScreen();
     // Without a native build the camera explains itself instead of showing black.
@@ -164,27 +165,3 @@ describe('Scan session', () => {
   });
 });
 
-describe('Scan session on Android', () => {
-  const os = Platform.OS;
-  beforeEach(() => Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true }));
-  afterEach(() => Object.defineProperty(Platform, 'OS', { value: os, configurable: true }));
-
-  it('says scanning is iPhone-only for now and still opens the first forecast', async () => {
-    await render(
-      <ProfileProvider store={new MemoryProfileStore(emptyProfile())}>
-        <ScanProvider store={new MemoryScanStore()}>
-          <ScanSessionScreen />
-        </ScanProvider>
-      </ProfileProvider>,
-    );
-    expect(await screen.findByRole('header', { name: 'Scanning isn’t on Android yet' })).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole('button', { name: 'See your forecast' }));
-    expect(router.replace).toHaveBeenCalledWith('/reveal/analysing');
-  });
-
-  it('goes back after the forecast has been seen', async () => {
-    await render(withScans(<ScanSessionScreen />));
-    await fireEvent.press(await screen.findByRole('button', { name: 'Back' }));
-    expect(router.back).toHaveBeenCalled();
-  });
-});

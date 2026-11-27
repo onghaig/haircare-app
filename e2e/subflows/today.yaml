@@ -1,9 +1,11 @@
-# Today: the daily plan, the guided massage and the quick log.
+# Today: the daily plan (each task says what it does for the forecast), the guided massage and the quick log.
 appId: com.onghaig.haircare
 ---
 - tapOn: "Today"
 - assertVisible: "Scalp massage"
 - assertVisible: "Quick log"
+# Each task's "what it does" line is part of its checkbox for screen readers (a hint on iOS),
+# so Maestro can't match it as text there. Jest checks the copy; the screenshot shows it.
 - takeScreenshot: e2e-40-today
 - tapOn: "Scalp massage"
 - assertVisible: "Full, 4 min"

@@ -1,5 +1,5 @@
 import { ForecastModel } from '@/forecast';
-import { basedOn, chanceLabel, headline, isYearFree, scenarioInput, scenariosFor, shareMessage, yearLabel } from '@/predict/predict';
+import { basedOn, chanceLabel, chanceRangeLabel, chanceTenths, headline, isYearFree, scenarioInput, scenariosFor, shareMessage, yearLabel } from '@/predict/predict';
 import { toForecastInput } from '@/profile/forecastInput';
 import { emptyProfile } from '@/profile/types';
 
@@ -45,4 +45,19 @@ it('shares a range and an age, never a treatment name', () => {
   expect(msg).toMatch(/^My hairline forecast for age 33: N/);
   expect(msg).toMatch(/not a diagnosis/);
   expect(msg).not.toMatch(/finasteride/i);
+});
+
+describe('chance ranges', () => {
+  it('shows a plan as a range of tenths over its assumed effect', () => {
+    expect(chanceRangeLabel({ best: 0.42, mid: 0.5, worst: 0.55 })).toBe('4 to 6 in 10');
+    expect(chanceTenths({ best: 0.42, mid: 0.5, worst: 0.55 })).toEqual({ lo: 4, hi: 6 });
+  });
+  it('widens a single chance by the calibration margin', () => {
+    expect(chanceRangeLabel(0.6)).toBe('5 to 7 in 10');
+  });
+  it('handles the ends without false precision', () => {
+    expect(chanceRangeLabel(0)).toBe('Up to 1 in 10');
+    expect(chanceRangeLabel({ best: 0, mid: 0.05, worst: 0.12 })).toBe('Up to 2 in 10');
+    expect(chanceRangeLabel(1)).toBe('More than 9 in 10');
+  });
 });

@@ -6,6 +6,7 @@ import { PlanProvider } from '@/plan/PlanProvider';
 import { ProfileProvider } from '@/profile/ProfileProvider';
 import { ForecastProvider } from '@/reveal/ForecastProvider';
 import { ScanProvider } from '@/scan/ScanProvider';
+import { AiPreviewProvider } from '@/visualize/AiPreviewProvider';
 import { colors } from '@/theme';
 
 const theme = {
@@ -27,8 +28,9 @@ export default function RootLayout() {
       <PurchasesProvider>
       <ProfileProvider>
         <PlanProvider>
-        <ForecastProvider>
-          <ScanProvider>
+        <AiPreviewProvider>
+        <ScanProvider>
+          <ForecastProvider>
             <Stack
               screenOptions={{
                 headerShown: false,
@@ -44,6 +46,11 @@ export default function RootLayout() {
               <Stack.Screen name="log" options={{ presentation: 'modal' }} />
               <Stack.Screen name="verdict" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="share" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="privacy" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="options/index" />
+              <Stack.Screen name="options/how" />
+              <Stack.Screen name="options/[id]" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="ai-preview" options={{ presentation: 'modal' }} />
               <Stack.Screen
                 name="scan/session"
                 options={{
@@ -54,8 +61,9 @@ export default function RootLayout() {
               <Stack.Screen name="scan/[id]" options={{ presentation: 'modal' }} />
               <Stack.Screen name="scan/panorama" options={{ presentation: 'fullScreenModal' }} />
             </Stack>
-          </ScanProvider>
-        </ForecastProvider>
+          </ForecastProvider>
+        </ScanProvider>
+        </AiPreviewProvider>
         </PlanProvider>
       </ProfileProvider>
       </PurchasesProvider>
