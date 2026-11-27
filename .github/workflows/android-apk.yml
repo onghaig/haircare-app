@@ -132,13 +132,17 @@ jobs:
         run: cp e2e/assets/demo_face.jpg modules/headmap/ios/models/demo_face.jpg
       - name: Generate the Android project
         run: npx expo prebuild --platform android --no-install
-      - name: Build the release APK for the x86_64 emulator
+      # MediaPipe's tasks-vision AAR ships ARM libraries only. An x86_64 APK installs without
+      # libmediapipe_tasks_vision_jni.so, so every frame fails analysis and the scan records no
+      # measurements. Build ARM64 instead: the API 34 x86_64 emulator image runs it through its
+      # built-in ARM translation, so the E2E exercises the real on-device analysis.
+      - name: Build the release APK (ARM64, run on the emulator through ARM translation)
         working-directory: android
         run: |
           set +e
           # Maven Central rate-limits shared CI runners (HTTP 429). Retry only download failures.
           for i in 1 2 3; do
-            ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon > build.log 2>&1
+            ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon > build.log 2>&1
             status=$?
             [ $status -eq 0 ] && break
             grep -qE "status code 429|Could not GET|could not resolve plugin artifact|Could not resolve all" build.log || break
@@ -147,6 +151,8 @@ jobs:
           grep -nE "^e: |error:|FAILURE|What went wrong|BUILD (SUCCESSFUL|FAILED)" -A6 build.log | head -200
           tail -20 build.log
           exit $status
+      - name: List the APK's native libraries (MediaPipe must be among them)
+        run: unzip -l android/app/build/outputs/apk/release/app-release.apk | grep -E 'lib/.*\.so$' | awk '{print $4}' | sort
       - name: Install Maestro
         run: |
           curl -fsSL "https://get.maestro.mobile.dev" | bash
