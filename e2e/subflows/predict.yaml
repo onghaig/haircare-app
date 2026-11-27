@@ -29,8 +29,22 @@ appId: com.onghaig.haircare
 - tapOn: "How these work"
 - assertVisible: "How options work"
 - takeScreenshot: e2e-63-how-options-work
-- tapOn: "Back"
-- tapOn: "Back"
+# One tap per Back, each waiting for the screen behind it: a retried tap goes back one screen too
+# far, past Predict to the previous tab.
+- tapOn:
+    text: "Back"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    visible: "Compare options"
+    timeout: 10000
+- tapOn:
+    text: "Back"
+    retryTapIfNoChange: false
+- extendedWaitUntil:
+    notVisible: "Compare options"
+    timeout: 10000
+# Make sure we're on Predict (tapping its own tab there is harmless).
+- tapOn: "Predict"
 - scrollUntilVisible:
     element: "10 years"
 - tapOn: "10 years"
