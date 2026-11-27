@@ -8,12 +8,16 @@
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "@modules/*": [
+        "./modules/*"
       ]
     },
     "types": [
       "jest",
       "node"
-    ]
+    ],
+    "resolveJsonModule": true
   },
   "include": [
     "**/*.ts",

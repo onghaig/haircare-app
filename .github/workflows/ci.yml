@@ -27,3 +27,13 @@ jobs:
         run: npx expo export --platform ios --output-dir /tmp/expo-export
         env:
           EXPO_OFFLINE: 1
+
+  swift-core:
+    name: Swift scan core tests
+    runs-on: ubuntu-latest
+    container: swift:6.0-jammy
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift test (HeadMapCore)
+        working-directory: modules/headmap/core
+        run: swift test

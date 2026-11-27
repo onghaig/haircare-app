@@ -18,6 +18,8 @@ export const colors = {
   warning: '#F2B35A',
   /** Markers on charts, for example treatment start dates. */
   info: '#6AA8FF',
+  /** Destructive actions only: delete a scan, delete photos. */
+  danger: '#FF7A6B',
 } as const;
 
 export type ColorToken = keyof typeof colors;
@@ -39,3 +41,24 @@ export type TypeVariant = keyof typeof type;
 
 /** Minimum touch target, per Apple HIG. */
 export const minTouchTarget = 44;
+
+/**
+ * Illustration palette for the drawn heads and the family tree. Not for UI chrome: skin and hair
+ * tones are picked per person, these are the defaults and the fixed details.
+ */
+export const illustration = {
+  skin: '#C79A7E',
+  skinShade: '#3A2217',
+  skinDeep: '#2A160E',
+  hair: '#2B1E17',
+  hairLight: '#6B5444',
+  lips: '#7A3D33',
+  eyeWhite: '#F4EDE6',
+  iris: '#3A2A20',
+  shirt: '#2D3A45',
+  shirtShade: '#1D262E',
+  crownHair: '#4A3528',
+  crownHairDeep: '#22170F',
+  photoBackdrop: '#26302D',
+  greyHair: '#D9D4CF',
+} as const;
