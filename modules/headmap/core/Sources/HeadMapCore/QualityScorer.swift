@@ -123,7 +123,10 @@ public struct QualityScorer: Sendable {
     }
     let (lo, hi) = lm.boundingBox
     let stats = gray.flatMap { ImageStats.compute(gray: $0, faceMin: lo, faceMax: hi) }
-    let hairline = (view.measuresHairline ? hair : nil).map { measurer.measure(landmarks: lm, hair: $0) }
+    let hairline = (view.tracesHairline ? hair : nil).map { h -> HairlineMeasure in
+      let m = measurer.measure(landmarks: lm, hair: h)
+      return view.measuresHairline ? m : HairlineMeasurer.templeTrace(m, landmarks: lm, view: view)
+    }
     let poseError = pose?.maxDeviation(from: view.targetPose)
     let frameWidth = hair?.imageWidth ?? gray.map { Double($0.width) } ?? lm.faceWidth * 2
     let frameHeight = hair?.imageHeight ?? gray.map { Double($0.height) } ?? frameWidth * 16 / 9
