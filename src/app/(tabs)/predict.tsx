@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { MinePill, EvidencePill, RolePill, RxPill } from '@/components/options/Pills';
 import { ForecastFan } from '@/components/predict/ForecastFan';
-import { FuturePreview } from '@/components/reveal/FuturePreview';
+import { FutureLook } from '@/components/reveal/FutureLook';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import type { Forecast, YearForecast } from '@/forecast';
 import { inPlan, showsRx, visibleOptions } from '@/options/catalog';
@@ -213,7 +213,7 @@ function FutureYou({ forecast, premium }: { forecast: Forecast; premium: boolean
           ))}
         </View>
       ) : null}
-      <FuturePreview stage={range(y).p50} age={y.age} locked={locked} />
+      <FutureLook stage={range(y).p50} age={y.age} years={years} locked={locked} />
       {locked ? (
         <Button label="Unlock your forecast" onPress={() => router.push('/paywall')} />
       ) : (

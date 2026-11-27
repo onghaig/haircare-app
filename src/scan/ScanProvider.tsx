@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import { FileDraftStore, isDraftFresh, type DraftStore, type ScanDraft } from './draft';
 import type { ScanRecord } from './session';
+import { useAiPreviewServices } from '@/visualize/AiPreviewProvider';
+
 import { baselineOf, FileScanStore, latestOf, type ScanStore } from './store';
 
 interface ScanContextValue {
@@ -58,6 +60,7 @@ export function ScanProvider({
     await d.clear();
     setDraft(null);
   }, [d]);
+  const previews = useAiPreviewServices().store;
 
   useEffect(() => {
     let live = true;
@@ -84,9 +87,11 @@ export function ScanProvider({
   const remove = useCallback(
     async (id: string) => {
       await s.remove(id);
+      // AI previews made from this scan's photo go with it.
+      previews.removeForScan(id);
       setRecords(await s.list());
     },
-    [s],
+    [s, previews],
   );
 
   const value = useMemo(

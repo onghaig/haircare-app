@@ -88,6 +88,11 @@ export interface Profile {
   /** Set once the user subscribes (or starts a trial). */
   subscription?: Subscription;
   reminders?: ReminderSettings;
+  /**
+   * The AI "future you" preview sends one front photo to the preview service. Set when the user
+   * agrees (consentAt) or says no (declinedAt). Never offered to under-18s.
+   */
+  aiPreview?: { consentAt?: string; declinedAt?: string };
 }
 
 export const emptyProfile = (): Profile => ({
