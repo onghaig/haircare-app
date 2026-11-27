@@ -15,18 +15,18 @@ describe('hairline templates', () => {
     }
   });
 
-  // Pinned: the preview is mirrored, so your left temple is on the left of the screen. This was
-  // flipped twice before; checked on a phone, the left temple view's line belongs on screen-left.
-  it('draws the left temple line on the left of the screen and the right temple line on the right', () => {
+  // Pinned: checked on a real phone, the left temple view's line belongs on screen-right and the
+  // right temple view's on screen-left (the earlier screen-left pin showed it on the wrong side).
+  it('draws the left temple line on the right of the screen and the right temple line on the left', () => {
     const meanX = (pts: readonly (readonly [number, number])[]) => pts.reduce((s, p) => s + p[0], 0) / pts.length;
-    expect(meanX(TEMPLATES.leftTemple)).toBeLessThan(100);
-    expect(meanX(TEMPLATES.rightTemple)).toBeGreaterThan(100);
+    expect(meanX(TEMPLATES.leftTemple)).toBeGreaterThan(100);
+    expect(meanX(TEMPLATES.rightTemple)).toBeLessThan(100);
     expect(meanX(TEMPLATES.leftTemple) + meanX(TEMPLATES.rightTemple)).toBeCloseTo(200);
     // On screen too, through the guide frame.
     const left = highlightPoints('leftTemple', undefined, W, H).points;
     const right = highlightPoints('rightTemple', undefined, W, H).points;
-    expect(meanX(left)).toBeLessThan(W / 2);
-    expect(meanX(right)).toBeGreaterThan(W / 2);
+    expect(meanX(left)).toBeGreaterThan(W / 2);
+    expect(meanX(right)).toBeLessThan(W / 2);
   });
 
   it('switches the temple views to the detected temple hairline, like the front view', () => {

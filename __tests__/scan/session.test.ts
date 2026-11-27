@@ -31,8 +31,30 @@ describe('scan session', () => {
       expect(currentView(s)).toBe(v);
       s = scanReducer(s, { type: 'captured', result: capture(v) });
     }
-    expect(s.phase).toBe('done');
+    // Then the whole-head panorama, then done.
+    expect(s.phase).toBe('panorama');
     expect(Object.keys(s.captures)).toHaveLength(5);
+    s = scanReducer(s, { type: 'panoramaDone', frames: [] });
+    expect(s.phase).toBe('done');
+  });
+
+  it('keeps the panorama frames in the saved scan', () => {
+    let s = started();
+    for (const v of SCAN_ORDER) s = scanReducer(s, { type: 'captured', result: capture(v) });
+    s = scanReducer(s, {
+      type: 'panoramaDone',
+      frames: [{ uri: 'file:///p0.jpg', cell: 0, azimuth: 15, elevation: 17, mode: 'face', report: report('front') }],
+    });
+    const r = buildScanRecord(s, 'p', new Date());
+    expect(r.panorama).toHaveLength(1);
+    expect(r.panorama?.[0]).toMatchObject({ uri: 'file:///p0.jpg', cell: 0, mode: 'face' });
+  });
+
+  it('retaking some views skips the panorama and keeps the old one', () => {
+    let s = scanReducer(initialScanState, { type: 'resume', hairState: hair, only: ['front'], now: 0 });
+    expect(s.withPanorama).toBe(false);
+    s = scanReducer(s, { type: 'captured', result: capture('front') });
+    expect(s.phase).toBe('done');
   });
 
   it('ignores reports and captures for a view that is not current', () => {
@@ -92,7 +114,7 @@ describe('buildScanRecord', () => {
           : {}),
       });
     });
-    return s;
+    return scanReducer(s, { type: 'panoramaDone', frames: [] });
   }
 
   it('averages the view scores and takes the hairline from the front view', () => {

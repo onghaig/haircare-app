@@ -2,6 +2,7 @@ import { selfReportedStage } from '@/profile/forecastInput';
 import type { Profile } from '@/profile/types';
 
 import { MIN_TREND_QUALITY } from './change';
+import { crownEstimate, lossLevel } from './crown';
 import { scanHairMap } from './scalpMap';
 import type { ScanRecord } from './session';
 
@@ -10,8 +11,9 @@ import type { ScanRecord } from './session';
  *
  * There is no trained photo grader yet (no licensed, graded photo set), so the first grader
  * maps what the scan measures (temple recession and hairline height on the front photo, hair
- * coverage and how much scalp shows through on the top and crown photos) onto the Norwood scale
- * by hand, and blends in what you told us in onboarding. The thresholds are not validated against graded photos, so it always
+ * coverage and how much scalp shows through on the top photo and on the one overhead crown photo)
+ * onto the Norwood scale by hand, and blends in what you told us in onboarding. The thresholds are
+ * not validated against graded photos, so it always
  * shows a range, and the confidence never goes above moderate.
  *
  * Graders are swappable: a trained model can implement `StageGrader` and replace this one with
@@ -73,10 +75,13 @@ export function frontStage(scan: ScanRecord): { stage: number; signal: string } 
 /** Top and crown: how much of each zone of the scalp map the camera saw as hair. */
 export function backStage(scan: ScanRecord): { stage: number; signal: string } | null {
   const { zones } = scanHairMap(scan, 32);
-  const crown = zones.crown;
+  // The crown comes from its one overhead photo when it is clear enough; the head map otherwise.
+  const crownView = scan.views.crown;
+  const direct = crownView && crownView.score >= MIN_TREND_QUALITY ? crownEstimate(crownView.hairGrid) : null;
+  const crown = direct?.coverage ?? zones.crown;
   const top = zones.top;
   if (crown == null && top == null) return null;
-  const level = (c: number) => (c >= 0.6 ? 0 : c >= 0.45 ? 1 : c >= 0.3 ? 2 : c >= 0.15 ? 3 : 4);
+  const level = lossLevel;
   const k = crown != null ? level(crown) : 0;
   const t = top != null ? level(top) : 0;
   // Thinning on the crown or the top alone reads as 3 (vertex) up to 6; both thin goes to 7.

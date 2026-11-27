@@ -1,4 +1,4 @@
-import type { CaptureResult, HairGrid, QualityCheck, QualityReport, ScanView } from '@modules/headmap';
+import type { CaptureResult, HairGrid, PanoramaFrame, QualityCheck, QualityReport, ScanView } from '@modules/headmap';
 
 import { MIN_TREND_QUALITY } from './change';
 import type { HairAnalysis } from './hairAnalysis';
@@ -33,7 +33,8 @@ export interface HairState {
 }
 
 export interface ScanSessionState {
-  phase: 'checklist' | 'capturing' | 'done';
+  /** `panorama`: after the five photos, the whole-head panorama (full scans only). */
+  phase: 'checklist' | 'capturing' | 'panorama' | 'done';
   index: number;
   hairState: HairState | null;
   captures: Partial<Record<ScanView, CaptureResult>>;
@@ -50,6 +51,10 @@ export interface ScanSessionState {
   viewSince: number | null;
   /** Every check has been green at least once this session (ends the practice round). */
   everPassed: boolean;
+  /** Whether this session ends with the whole-head panorama (not for retaking some views). */
+  withPanorama: boolean;
+  /** The panorama's frames, once it is done (empty if it was skipped). */
+  panorama: PanoramaFrame[] | null;
 }
 
 export type ScanAction =
@@ -66,7 +71,9 @@ export type ScanAction =
       only?: ScanView[] | null;
       now: number;
     }
-  | { type: 'dismissTip' };
+  | { type: 'dismissTip' }
+  /** The panorama finished (or was skipped, with no frames). */
+  | { type: 'panoramaDone'; frames: PanoramaFrame[] };
 
 export const initialScanState: ScanSessionState = {
   phase: 'checklist',
@@ -81,7 +88,14 @@ export const initialScanState: ScanSessionState = {
   only: null,
   viewSince: null,
   everPassed: false,
+  withPanorama: false,
+  panorama: null,
 };
+
+/** After the last photo: the panorama if this session has one, else done. */
+function afterPhotos(s: Pick<ScanSessionState, 'withPanorama' | 'panorama'>): ScanSessionState['phase'] {
+  return s.withPanorama && !s.panorama ? 'panorama' : 'done';
+}
 
 /** The views this session still has to take, in scan order. */
 export function viewsToTake(s: Pick<ScanSessionState, 'only' | 'captures'>): ScanView[] {
@@ -100,18 +114,21 @@ export function currentView(s: ScanSessionState): ScanView {
 export function scanReducer(s: ScanSessionState, a: ScanAction): ScanSessionState {
   switch (a.type) {
     case 'start':
-      return { ...initialScanState, phase: 'capturing', hairState: a.hairState, startedAt: a.now };
+      return { ...initialScanState, phase: 'capturing', hairState: a.hairState, startedAt: a.now, withPanorama: true };
 
     case 'resume': {
       const base = { only: a.only?.length ? a.only : null, captures: a.captures ?? {} };
       const index = nextIndex(base);
+      // A whole scan picked up later still ends with the panorama; retaking some views doesn't.
+      const withPanorama = !base.only;
       return {
         ...initialScanState,
         ...base,
         hairState: a.hairState,
         startedAt: a.now,
         index,
-        phase: index >= SCAN_ORDER.length ? 'done' : 'capturing',
+        withPanorama,
+        phase: index >= SCAN_ORDER.length ? afterPhotos({ withPanorama, panorama: null }) : 'capturing',
       };
     }
 
@@ -149,7 +166,7 @@ export function scanReducer(s: ScanSessionState, a: ScanAction): ScanSessionStat
         ...s,
         captures,
         index,
-        phase: index >= SCAN_ORDER.length ? 'done' : 'capturing',
+        phase: index >= SCAN_ORDER.length ? afterPhotos(s) : 'capturing',
         live: null,
         stuck: null,
         tip: null,
@@ -174,6 +191,10 @@ export function scanReducer(s: ScanSessionState, a: ScanAction): ScanSessionStat
 
     case 'dismissTip':
       return { ...s, tip: null };
+
+    case 'panoramaDone':
+      if (s.phase !== 'panorama') return s;
+      return { ...s, phase: 'done', panorama: a.frames };
   }
 }
 
@@ -218,6 +239,21 @@ export interface ScanRecord {
   faceWidthPx?: number;
   /** Hair quality and scalp show-through, read on the phone after the scan is saved. */
   hair?: HairAnalysis;
+  /** The whole-head panorama: the best frame of each head region (scans from before it have none). */
+  panorama?: PanoramaFrameRecord[];
+}
+
+export interface PanoramaFrameRecord {
+  uri: string;
+  /** Head region, 0..24 (see headCoverage.ts). */
+  cell: number;
+  azimuth: number;
+  elevation: number;
+  mode: 'face' | 'back';
+  score: number;
+  hairGrid?: HairGrid;
+  anchors?: Record<string, [number, number]>;
+  frameSize?: [number, number];
 }
 
 export function buildScanRecord(
@@ -276,6 +312,23 @@ export function buildScanRecord(
         ? null
         : (base?.hairline ?? null),
     faceWidthPx: front?.faceWidthPx ?? (s.captures.front ? undefined : base?.faceWidthPx),
+    ...(s.panorama?.length
+      ? {
+          panorama: s.panorama.map((f) => ({
+            uri: f.uri,
+            cell: f.cell,
+            azimuth: f.azimuth,
+            elevation: f.elevation,
+            mode: f.mode,
+            score: f.report?.score ?? 0,
+            ...(f.report?.hairGrid ? { hairGrid: f.report.hairGrid } : {}),
+            ...(f.report?.anchors ? { anchors: f.report.anchors } : {}),
+            ...(f.report?.frameSize ? { frameSize: f.report.frameSize } : {}),
+          })),
+        }
+      : base?.panorama
+        ? { panorama: base.panorama }
+        : {}),
   };
 }
 
@@ -297,7 +350,7 @@ export function weakReason(scan: ScanRecord, view: ScanView): string {
     case 'backlight':
       return 'Too much light behind you. Turn to face the light.';
     case 'sharpness':
-      return view === 'crown' ? 'A little blurry. Hold the phone still for the burst.' : 'A little blurry. Hold still for a second.';
+      return view === 'crown' ? 'A little blurry. Hold the phone still when the countdown ends.' : 'A little blurry. Hold still for a second.';
     case 'foreheadVisible':
     case 'hairlineFound':
       return 'Your hairline was hidden. Push your hair back off your forehead.';

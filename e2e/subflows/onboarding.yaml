@@ -3,8 +3,15 @@ appId: com.onghaig.haircare
 ---
 - assertVisible: "See where your hair is heading.*"
 - takeScreenshot: e2e-01-welcome
-- tapOn: "Start my forecast"
-- assertVisible: "1 of 9"
+# Right after a slow simulator boot the first tap can be lost (seen on iOS CI): the welcome
+# stayed up. Tap until the first question shows.
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn: "Start my forecast"
+      - extendedWaitUntil:
+          visible: "1 of 9"
+          timeout: 5000
 - tapOn:
     id: "age-input"
 - inputText: "24"

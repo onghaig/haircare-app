@@ -1,17 +1,19 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Ring } from '@/components/onboarding/Controls';
 import { TrendChart } from '@/components/progress/TrendChart';
 import { HairlineNumbers } from '@/components/scan/HairlineNumbers';
+import { ScalpMap } from '@/components/scan/ScalpMap';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { shortDate } from '@/paywall/plans';
 import { usePlan } from '@/plan/PlanProvider';
 import { dailyTasks } from '@/plan/tasks';
 import { useProfile } from '@/profile/ProfileProvider';
 import { consistency, latestReport, metricChanges, overallVerdict, reportSchedule, timelineScans, trendScans, VERDICT_TITLE } from '@/progress/verdict';
+import { canMap } from '@/scan/scalpMap';
 import { useScans } from '@/scan/ScanProvider';
 import type { ScanRecord } from '@/scan/session';
 import { colors, radius, spacing } from '@/theme';
@@ -124,11 +126,24 @@ export default function ProgressScreen() {
   );
 }
 
+/**
+ * Each scan as its top-down scalp map (all its photos placed on one head, seen from above), which
+ * shows the whole head at once. Scans that can't be placed on the head show the front photo.
+ */
 function Photo({ scan, label }: { scan: ScanRecord; label: string }) {
   const uri = scan.views.front?.uri;
+  const [size, setSize] = useState(0);
   return (
-    <View style={styles.photoCol}>
-      {uri ? (
+    <View style={styles.photoCol} onLayout={(e) => setSize(Math.floor(e.nativeEvent.layout.width))}>
+      {canMap(scan) && size > 0 ? (
+        <Pressable
+          onPress={() => router.push({ pathname: '/scan/panorama', params: { id: scan.id } })}
+          accessibilityRole="button"
+          accessibilityLabel={`${label} top-down map of your scalp. Opens the full map.`}
+          testID={`progress-map-${label.toLowerCase()}`}>
+          <ScalpMap scan={scan} layer="photos" size={size} />
+        </Pressable>
+      ) : uri ? (
         <Image source={{ uri }} style={styles.photo} contentFit="cover" accessibilityLabel={`${label} front photo`} />
       ) : (
         <View style={styles.photo} />

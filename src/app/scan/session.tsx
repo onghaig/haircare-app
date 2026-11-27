@@ -1,7 +1,6 @@
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,18 +12,21 @@ import {
   requestCameraPermissionAsync,
   type CaptureResult,
   type HeadMapCameraViewRef,
+  type PanoramaProgress,
   type ScanView,
 } from '@modules/headmap';
 import { CrownPanel, CrownReview } from '@/components/scan/CrownPanel';
 import { HairChecklist } from '@/components/scan/HairChecklist';
 import { HeadGuide } from '@/components/scan/HeadGuide';
+import { PanoramaPanel, type PanoramaPart } from '@/components/scan/PanoramaPanel';
 import { FINISH_MS, ScanFinish } from '@/components/scan/ScanFinish';
 import { PromptCard, StatusChips, ViewProgress } from '@/components/scan/ScanHud';
 import { Button, CloseButton as RoundClose, Text } from '@/components/ui';
-import { cameraErrorMessage, MANUAL_AFTER_MS, promptFor, statusChips, viewInstruction } from '@/scan/guidance';
+import { cameraErrorMessage, HAIR_BACK, MANUAL_AFTER_MS, promptFor, statusChips, viewInstruction } from '@/scan/guidance';
 import { useProfile } from '@/profile/ProfileProvider';
-import { AIM_VOICE, BURST_MS, crownReducer, initialCrownState, stepVoice } from '@/scan/crown';
+import { BURST_MS, crownReducer, initialCrownState, stepVoice } from '@/scan/crown';
 import { draftRemaining } from '@/scan/draft';
+import { CELL_COUNT, coverage, FACE_CELLS, nextMove, PANO_STALL_MS, panoramaIntro } from '@/scan/headCoverage';
 import { useScans } from '@/scan/ScanProvider';
 import {
   buildScanRecord,
@@ -38,7 +40,7 @@ import {
   VIEW_LABEL,
   viewsToTake,
 } from '@/scan/session';
-import { VoiceCoach } from '@/scan/voice';
+import { gotIt, loadNaturalVoice, speakNaturally, viewIntro, VoiceCoach } from '@/scan/voice';
 import { colors, radius, spacing } from '@/theme';
 
 function newId() {
@@ -76,11 +78,22 @@ export default function ScanSessionScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(true);
   const camera = useRef<HeadMapCameraViewRef>(null);
-  const coach = useMemo(() => new VoiceCoach((line) => Speech.speak(line, { rate: 0.95 })), []);
+  const coach = useMemo(() => new VoiceCoach((line) => speakNaturally(line)), []);
+  // Pick the most natural voice on the phone once (enhanced or premium when installed). Not
+  // awaited: until it answers, the default voice speaks.
+  useEffect(() => loadNaturalVoice(), []);
   const view = currentView(state);
-  // The crown: on your own (countdown, spoken aiming, burst) or with a helper, then a check.
+  // The crown: one photo from high above on a spoken countdown, then a check with a density estimate.
   const [crown, crownDispatch] = useReducer(crownReducer, initialCrownState);
   const onCrown = view === 'crown' && state.phase === 'capturing';
+  // The whole-head panorama, after the five photos: the face sweep, then the back of the head.
+  const onPanorama = state.phase === 'panorama';
+  const [part, setPart] = useState<PanoramaPart>('face');
+  const [pano, setPano] = useState<PanoramaProgress | null>(null);
+  const [panoNewAt, setPanoNewAt] = useState(0);
+  const [panoFinishing, setPanoFinishing] = useState(false);
+  const panoFilled = pano?.filled ?? [];
+  const panoCount = useRef(0);
 
   // Finish: save and show the result. Once per scan: a later state change must not start a
   // second save (with a new id) while the first is still running.
@@ -120,63 +133,87 @@ export default function ScanSessionScreen() {
   }, [state, save, remove, clearDraft, replaces, firstReveal, base]);
 
   useEffect(() => {
-    if (state.phase !== 'capturing') return;
+    if (state.phase !== 'capturing' && state.phase !== 'panorama') return;
     const t = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(t);
   }, [state.phase]);
+
+  // Panorama start: a clean slate, the face sweep first. Without the scan engine there is no
+  // camera to sweep with, so the scan finishes with the five photos.
+  useEffect(() => {
+    if (!onPanorama) return;
+    if (!isHeadMapAvailable) {
+      dispatch({ type: 'panoramaDone', frames: [] });
+      return;
+    }
+    // Once per scan: the panorama state starts clean, and the native frames are cleared here.
+    void camera.current?.resetPanorama().then(() => setPanoNewAt(Date.now()));
+  }, [onPanorama]);
+
+  // Each part says what to do as it starts (always: you can't see the screen turning your head).
+  useEffect(() => {
+    if (onPanorama && isHeadMapAvailable) coach.say(panoramaIntro(part), Date.now());
+  }, [onPanorama, part, coach]);
+
+  function finishPanorama() {
+    if (panoFinishing) return;
+    setPanoFinishing(true);
+    void camera.current?.finishPanorama();
+  }
+
+  function nextPart() {
+    setPart('back');
+    setPanoNewAt(Date.now());
+  }
+
+  const panoHint = onPanorama ? nextMove(part, panoFilled, { azimuth: pano?.mode === part ? pano?.azimuth : undefined }) : null;
+  // A hint once it has held for a moment, repeated now and then while nothing new fills.
+  useEffect(() => {
+    if (onPanorama && !panoFinishing) coach.update(panoHint, clock, true);
+  }, [onPanorama, panoFinishing, panoHint, clock, coach]);
+  const panoStalled = onPanorama && panoNewAt > 0 && clock - panoNewAt >= PANO_STALL_MS;
 
   // Practice: the first time every check goes green, that's the lesson learned.
   useEffect(() => {
     if (!practicePassed) return;
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    if (voiceOn) coach.say('That’s it. Every view works like this.', Date.now());
+    if (voiceOn) coach.say('That’s it. Every view works just like that.', Date.now());
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when practice passes
   }, [practicePassed]);
 
   // Announce each new view with what to do; the crown's steps announce themselves.
   useEffect(() => {
     if (state.phase !== 'capturing' || view === 'crown') return;
-    if (voiceOn) coach.say(`${VIEW_LABEL[view]}. ${viewInstruction(view)}`, Date.now());
+    if (voiceOn) coach.say(viewIntro(view, viewInstruction(view)), Date.now());
   }, [view, state.phase, voiceOn, coach]);
 
-  // Crown: speak each step as it starts (always: you can't see the screen behind your head).
+  // Crown: speak each step as it starts (always: you can't see the screen above your head).
   useEffect(() => {
     if (!onCrown) return;
-    const line = crown.step === 'choose' ? `${VIEW_LABEL.crown}. Are you on your own, or is someone helping?` : stepVoice(crown);
+    const line = stepVoice(crown);
     if (line) coach.say(line, Date.now());
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per step, not per hint
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per step
   }, [crown.step, onCrown, coach]);
 
-  // Crown countdown: one number a second, out loud. Aiming: a tick so the time-out fires even
-  // if the camera stops sending reports.
+  // Crown countdown: one number a second, out loud.
   useEffect(() => {
-    if (!onCrown) return;
-    if (crown.step === 'countdown') {
-      Speech.speak(String(crown.left), { rate: 1 });
-      const t = setTimeout(() => crownDispatch({ type: 'tick', now: Date.now() }), 1000);
-      return () => clearTimeout(t);
-    }
-    if (crown.step === 'aiming') {
-      const t = setInterval(() => crownDispatch({ type: 'tick', now: Date.now() }), 500);
-      return () => clearInterval(t);
-    }
+    if (!onCrown || crown.step !== 'countdown') return;
+    speakNaturally(String(crown.left));
+    const t = setTimeout(() => crownDispatch({ type: 'tick' }), 1000);
+    return () => clearTimeout(t);
   }, [onCrown, crown.step, crown.left]);
 
-  // The burst: the camera watches the frames and sends back the best one as a capture.
+  // The photo: a short burst, and the camera sends back the sharpest frame as the capture.
   useEffect(() => {
     if (onCrown && crown.step === 'burst') void camera.current?.startBurst(BURST_MS);
   }, [onCrown, crown.step]);
-
-  // A light tap each time the aim comes on target.
-  useEffect(() => {
-    if (onCrown && crown.step === 'aiming' && crown.hint === 'ok') void Haptics.selectionAsync();
-  }, [onCrown, crown.step, crown.hint]);
 
   // The green line draws all the way for each view before a photo can be taken, and the finished
   // line stays up for a moment after it ("Got it") before the next view starts.
   const [drawnView, setDrawnView] = useState<ScanView | null>(null);
   const noGuide = size.width <= 0 || size.height <= 0;
-  const drawn = noGuide || drawnView === view;
+  // Temples take the photo as soon as the hairline is clearly in the shot, without waiting for the line.
+  const drawn = noGuide || drawnView === view || view === 'leftTemple' || view === 'rightTemple';
   const [held, setHeld] = useState<CaptureResult | null>(null);
   const [queued, setQueued] = useState<ScanView | null>(null);
   const live = state.live;
@@ -186,10 +223,12 @@ export default function ScanSessionScreen() {
   });
 
   // The last photo taken, for "Redo last photo" (with retakes, not always the view before).
-  const lastTaken = SCAN_ORDER.slice(0, state.index).filter((v) => state.captures[v]).at(-1);
+  const lastTaken = SCAN_ORDER.slice(0, state.index)
+    .filter((v) => state.captures[v])
+    .at(-1);
   function redoLast() {
     if (!lastTaken || held) return;
-    crownDispatch({ type: 'switchMode' });
+    crownDispatch({ type: 'reset' });
     setQueued(null);
     void camera.current?.resetCapture();
     dispatch({ type: 'retake', view: lastTaken });
@@ -206,6 +245,8 @@ export default function ScanSessionScreen() {
 
   const taken = SCAN_ORDER.filter((v) => state.captures[v]);
   function close() {
+    // The five photos are in: closing keeps them, with as much of the head as the panorama has.
+    if (onPanorama) return finishPanorama();
     if (state.phase === 'capturing' && !practice && taken.length > 0 && !only) setLeaving(true);
     else router.back();
   }
@@ -225,7 +266,7 @@ export default function ScanSessionScreen() {
   }
 
   // A shot asked for mid-draw, or checks that went green before the line finished, fire now.
-  // The crown has its own flow (burst or helper shutter).
+  // The crown has its own flow (countdown and burst).
   useEffect(() => {
     if (!drawn || held || view === 'crown') return;
     if (queued === view || liveRef.current?.allPassed) camera.current?.capture();
@@ -282,7 +323,14 @@ export default function ScanSessionScreen() {
         ) : (
           <HairChecklist
             firstScan={records.length === 0 && !resumable}
-            resume={resumable ? { done: SCAN_ORDER.length - draftRemaining(resumable).length, next: VIEW_LABEL[draftRemaining(resumable)[0] ?? 'front'].split(':')[0] } : null}
+            resume={
+              resumable
+                ? {
+                    done: SCAN_ORDER.length - draftRemaining(resumable).length,
+                    next: VIEW_LABEL[draftRemaining(resumable)[0] ?? 'front'].split(':')[0],
+                  }
+                : null
+            }
             retake={only ? only.map((v) => VIEW_LABEL[v].split(':')[0]) : null}
             onStart={start}
           />
@@ -317,20 +365,30 @@ export default function ScanSessionScreen() {
       <HeadMapCameraView
         ref={camera}
         style={StyleSheet.absoluteFill}
-        view={view}
+        view={onPanorama ? (part === 'face' ? 'front' : 'crown') : view}
         baselineFaceWidth={baseline?.faceWidthPx ?? null}
-        active={state.phase === 'capturing' && !(onCrown && crown.step === 'review') && !leaving}
-        autoCapture={practice ? false : view === 'crown' ? crown.step === 'helper' && drawn : drawn && !held}
+        active={(state.phase === 'capturing' && !(onCrown && crown.step === 'review') && !leaving) || (onPanorama && !panoFinishing)}
+        autoCapture={practice || view === 'crown' || onPanorama ? false : drawn && !held}
+        panorama={onPanorama ? part : 'off'}
+        onPanorama={({ nativeEvent }) => {
+          if (!onPanorama || nativeEvent.mode !== part) return;
+          if (nativeEvent.filled.length > panoCount.current) {
+            setPanoNewAt(Date.now());
+            void Haptics.selectionAsync().catch(() => {});
+          }
+          panoCount.current = nativeEvent.filled.length;
+          setPano(nativeEvent);
+          // On: the front and sides done moves to the back; the whole head done finishes.
+          if (nativeEvent.filled.length >= CELL_COUNT) finishPanorama();
+          else if (part === 'face' && coverage(nativeEvent.filled, FACE_CELLS).complete) nextPart();
+        }}
+        onPanoramaDone={({ nativeEvent }) => {
+          if (onPanorama) dispatch({ type: 'panoramaDone', frames: nativeEvent.frames });
+        }}
         onQuality={({ nativeEvent }) => {
           const now = Date.now();
           dispatch({ type: 'quality', report: nativeEvent, now });
-          if (view !== 'crown') {
-            coach.update(promptFor(nativeEvent).voice, now, voiceOn);
-            return;
-          }
-          crownDispatch({ type: 'quality', report: nativeEvent, now });
-          if (crown.step === 'aiming' && nativeEvent.aim) coach.update(AIM_VOICE[nativeEvent.aim.hint], now, true);
-          else if (crown.step === 'helper') coach.update(promptFor(nativeEvent).voice, now, voiceOn);
+          if (view !== 'crown' && state.phase === 'capturing') coach.update(promptFor(nativeEvent).voice, now, voiceOn);
         }}
         onCapture={({ nativeEvent }) => {
           setCameraError(null);
@@ -340,7 +398,7 @@ export default function ScanSessionScreen() {
             return;
           }
           if (held || practice) return;
-          if (voiceOn) coach.say('Got it', Date.now());
+          if (voiceOn) coach.say(gotIt(), Date.now());
           setHeld(manualShot.current ? { ...nativeEvent, manual: true } : nativeEvent);
           manualShot.current = false;
         }}
@@ -348,20 +406,24 @@ export default function ScanSessionScreen() {
           // The raw message goes to the log for us; people see plain words (see the prompt).
           console.warn('[scan] camera error', nativeEvent.message);
           setCameraError(nativeEvent.message);
+          // Saving the panorama failed: let "Finish" try again.
+          setPanoFinishing(false);
         }}
       />
-      {ghost && view !== 'crown' ? (
+      {ghost && view !== 'crown' && !onPanorama ? (
         <Image source={{ uri: ghost }} style={[StyleSheet.absoluteFill, { opacity: 0.28 }]} contentFit="cover" pointerEvents="none" />
       ) : null}
-      <HeadGuide
-        view={view}
-        aligned={!!held || !!live?.allPassed}
-        width={size.width}
-        height={size.height}
-        hairline={live?.hairline}
-        complete={!!held}
-        onDrawn={() => setDrawnView(view)}
-      />
+      {onPanorama ? null : (
+        <HeadGuide
+          view={view}
+          aligned={!!held || !!live?.allPassed}
+          width={size.width}
+          height={size.height}
+          hairline={live?.hairline}
+          complete={!!held}
+          onDrawn={() => setDrawnView(view)}
+        />
+      )}
       {onCrown && crown.step === 'countdown' ? (
         <View pointerEvents="none" style={styles.countdown}>
           <Text variant="display" accessibilityLiveRegion="assertive" testID="crown-countdown">
@@ -377,19 +439,23 @@ export default function ScanSessionScreen() {
             <Text variant="caption" style={[styles.pill, { fontWeight: '600' }]}>
               Practice
             </Text>
+          ) : onPanorama ? (
+            <Text variant="caption" style={[styles.pill, { fontWeight: '600' }]}>
+              Whole head
+            </Text>
           ) : (
             <ViewProgress current={view} done={state.captures} only={only} />
           )}
-          {view === 'crown' ? (
-            // You can't see the screen behind your head, so the crown always talks.
+          {view === 'crown' || onPanorama ? (
+            // You can't see the screen with the phone above your head, so the crown always talks.
             <View
               accessible
               accessibilityRole="text"
-              accessibilityLabel="Voice stays on for the crown"
+              accessibilityLabel={onPanorama ? 'Voice stays on for the whole head' : 'Voice stays on for the crown'}
               accessibilityState={{ disabled: true }}
               style={styles.pill}>
               <Text variant="caption" style={{ fontWeight: '600' }}>
-                Voice on for the crown
+                {onPanorama ? 'Voice on' : 'Voice on for the crown'}
               </Text>
             </View>
           ) : (
@@ -406,11 +472,29 @@ export default function ScanSessionScreen() {
           )}
         </View>
         <Text variant="headline" style={styles.viewTitle}>
-          {practice ? 'Practice: front view' : VIEW_LABEL[view]}
+          {practice ? 'Practice: front view' : onPanorama ? 'Your whole head' : VIEW_LABEL[view]}
         </Text>
+        {HAIR_BACK[view] && state.phase === 'capturing' ? (
+          <Text variant="caption" style={styles.hairBack} testID="hair-back">
+            {`${HAIR_BACK[view]}, so the hairline shows`}
+          </Text>
+        ) : null}
         <View style={{ flex: 1 }} />
         <View style={styles.bottom}>
-          {!onCrown || crown.step === 'helper' ? <PromptCard prompt={prompt} tip={tip} /> : null}
+          {onPanorama ? (
+            <PanoramaPanel
+              part={part}
+              filled={panoFilled}
+              current={pano?.mode === part ? pano?.cell : undefined}
+              hint={panoHint}
+              stalled={panoStalled}
+              finishing={panoFinishing}
+              onNext={nextPart}
+              onFinish={finishPanorama}
+            />
+          ) : !onCrown ? (
+            <PromptCard prompt={prompt} tip={tip} />
+          ) : null}
           {practice ? (
             <View style={styles.practice} testID="scan-practice">
               <Text variant="headline">{practicePassed ? 'That’s it. Every view works like this.' : 'Try one view first'}</Text>
@@ -419,7 +503,11 @@ export default function ScanSessionScreen() {
                   ? 'When every check is green, the photo takes itself. Nothing here was saved.'
                   : 'Line up with the outline until every check below turns green. Nothing is saved.'}
               </Text>
-              <Button label={practicePassed ? 'Start the real scan' : 'Skip practice'} variant={practicePassed ? 'primary' : 'secondary'} onPress={endPractice} />
+              <Button
+                label={practicePassed ? 'Start the real scan' : 'Skip practice'}
+                variant={practicePassed ? 'primary' : 'secondary'}
+                onPress={endPractice}
+              />
             </View>
           ) : null}
           {lastTaken && !held && state.phase === 'capturing' && !practice ? (
@@ -434,18 +522,22 @@ export default function ScanSessionScreen() {
               </Text>
             </Pressable>
           ) : null}
-          {live && (!onCrown || crown.step === 'helper') ? <StatusChips chips={statusChips(live)} /> : null}
+          {live && !onCrown && !onPanorama ? <StatusChips chips={statusChips(live)} /> : null}
           {practice ? null : view !== 'crown' ? (
             showManual ? (
               <Button label="Having trouble? Take it anyway" variant="secondary" onPress={shoot} />
             ) : null
           ) : onCrown ? (
-            <CrownPanel state={crown} dispatch={crownDispatch} onShutter={() => void camera.current?.capture()} />
+            <CrownPanel state={crown} dispatch={crownDispatch} />
           ) : null}
         </View>
       </SafeAreaView>
       {state.phase === 'done' && !saveError ? (
-        <ScanFinish captures={state.captures} curve={state.captures.front?.report?.hairline?.curve ?? base?.hairline?.curve} saving={saving} />
+        <ScanFinish
+          captures={state.captures}
+          curve={state.captures.front?.report?.hairline?.curve ?? base?.hairline?.curve}
+          saving={saving}
+        />
       ) : null}
       {leaving ? (
         <LeaveSheet
@@ -533,6 +625,17 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   viewTitle: { textAlign: 'center', marginTop: spacing.sm },
+  hairBack: {
+    alignSelf: 'center',
+    marginTop: spacing.xs,
+    fontWeight: '600',
+    color: colors.accent,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
   bottom: { padding: spacing.lg, gap: spacing.md },
   practice: { backgroundColor: 'rgba(0,0,0,0.72)', borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
