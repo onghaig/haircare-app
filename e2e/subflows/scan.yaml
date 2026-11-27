@@ -20,12 +20,17 @@ appId: com.onghaig.haircare
 - assertNotVisible: "(The scan couldn’t start|No camera found|The camera is busy)"
 # Each shot waits for the green line to finish drawing, then holds "Got it" before the next view.
 # One tap per view: a retried tap would queue a shot for the next view too.
+# The shutter shows only while a check fails; when every check passes the view captures itself.
 - extendedWaitUntil:
-    visible: "Having trouble\\? Take it anyway"
-    timeout: 20000
-- tapOn:
-    text: "Having trouble\\? Take it anyway"
-    retryTapIfNoChange: false
+    visible: "(Having trouble\\? Take it anyway|View 2 of 5)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Having trouble\\? Take it anyway"
+    commands:
+      - tapOn:
+          text: "Having trouble\\? Take it anyway"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 2 of 5"
     timeout: 30000
@@ -42,43 +47,63 @@ appId: com.onghaig.haircare
     visible: "View 1 of 5"
     timeout: 30000
 - takeScreenshot: e2e-12a-redo-last-photo
+# The shutter shows only while a check fails; when every check passes the view captures itself.
 - extendedWaitUntil:
-    visible: "Having trouble\\? Take it anyway"
-    timeout: 20000
-- tapOn:
-    text: "Having trouble\\? Take it anyway"
-    retryTapIfNoChange: false
+    visible: "(Having trouble\\? Take it anyway|View 2 of 5)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Having trouble\\? Take it anyway"
+    commands:
+      - tapOn:
+          text: "Having trouble\\? Take it anyway"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 2 of 5"
     timeout: 30000
 - takeScreenshot: e2e-12-left-temple
+# The shutter shows only while a check fails; when every check passes the view captures itself.
 - extendedWaitUntil:
-    visible: "Having trouble\\? Take it anyway"
-    timeout: 20000
-- tapOn:
-    text: "Having trouble\\? Take it anyway"
-    retryTapIfNoChange: false
+    visible: "(Having trouble\\? Take it anyway|View 3 of 5)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Having trouble\\? Take it anyway"
+    commands:
+      - tapOn:
+          text: "Having trouble\\? Take it anyway"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 3 of 5"
     timeout: 30000
 - assertVisible: "Right temple"
+# The shutter shows only while a check fails; when every check passes the view captures itself.
 - extendedWaitUntil:
-    visible: "Having trouble\\? Take it anyway"
-    timeout: 20000
-- tapOn:
-    text: "Having trouble\\? Take it anyway"
-    retryTapIfNoChange: false
+    visible: "(Having trouble\\? Take it anyway|View 4 of 5)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Having trouble\\? Take it anyway"
+    commands:
+      - tapOn:
+          text: "Having trouble\\? Take it anyway"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 4 of 5"
     timeout: 30000
 - assertVisible: "Top of head"
 - takeScreenshot: e2e-13-top-down
+# The shutter shows only while a check fails; when every check passes the view captures itself.
 - extendedWaitUntil:
-    visible: "Having trouble\\? Take it anyway"
-    timeout: 20000
-- tapOn:
-    text: "Having trouble\\? Take it anyway"
-    retryTapIfNoChange: false
+    visible: "(Having trouble\\? Take it anyway|View 5 of 5)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Having trouble\\? Take it anyway"
+    commands:
+      - tapOn:
+          text: "Having trouble\\? Take it anyway"
+          retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 5 of 5"
     timeout: 30000
