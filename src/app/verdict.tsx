@@ -5,12 +5,15 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Ring } from '@/components/onboarding/Controls';
+import { VersusChart } from '@/components/progress/VersusChart';
 import { Button, Card, Text } from '@/components/ui';
 import { shortDate } from '@/paywall/plans';
 import { usePlan } from '@/plan/PlanProvider';
 import { dailyTasks } from '@/plan/tasks';
 import { useProfile } from '@/profile/ProfileProvider';
-import { deltaLabel, latestReport, VERDICT_TITLE, type VerdictReport } from '@/progress/verdict';
+import { deltaLabel, latestReport, trendScans, VERDICT_TITLE, type VerdictReport } from '@/progress/verdict';
+import { pathTitle, versusPaths, type VersusPaths } from '@/progress/versusPaths';
+import { useForecast } from '@/reveal/ForecastProvider';
 import { useScans } from '@/scan/ScanProvider';
 import { colors, minTouchTarget, radius, spacing } from '@/theme';
 
@@ -25,7 +28,7 @@ interface Page {
   body: ReactNode;
 }
 
-function pages(r: VerdictReport): Page[] {
+function pages(r: VerdictReport, vs: VersusPaths | null): Page[] {
   const s = r.summary;
   const did: string[] = [];
   if (r.treatmentShare != null) did.push(`Treatment taken on about ${Math.round(r.treatmentShare * 10) * 10}% of days`);
@@ -90,7 +93,28 @@ function pages(r: VerdictReport): Page[] {
       ),
     },
     { title: 'What might explain it', body: <Bullets items={r.explanations} /> },
-    { title: 'You vs your forecast', body: <Text color="textMuted">{r.versusForecast}</Text> },
+    vs
+      ? {
+          title: pathTitle(vs),
+          body: (
+            <View style={{ gap: spacing.sm }}>
+              <Text>{vs.sentence}</Text>
+              <VersusChart v={vs} />
+              <Text variant="caption" color="textMuted">
+                Ticks show scan noise, about {vs.noiseMM} mm at the centre.
+              </Text>
+              {r.treatmentShare != null && vs.hasPlan ? (
+                <View style={styles.spread}>
+                  <Text variant="headline">{Math.round(r.treatmentShare * 100)}%</Text>
+                  <Text variant="caption" color="textMuted" style={{ flex: 1, textAlign: 'right' }}>
+                    of treatment days done. Your plan’s band already uses this number.
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          ),
+        }
+      : { title: 'You vs your forecast', body: <Text color="textMuted">{r.versusForecast}</Text> },
     { title: 'Next month', body: <Bullets items={r.adjustments} /> },
   ];
 }
@@ -119,7 +143,9 @@ export default function VerdictScreen() {
     .filter((t) => t.kind === 'medication')
     .map((t) => t.id);
   const report = latestReport(records, book, profile, medIds, now);
-  const list = report ? pages(report) : [];
+  const { forecast } = useForecast();
+  const vs = useMemo(() => (forecast && report ? versusPaths(forecast, trendScans(records).filter((s) => new Date(s.takenAt) <= now)) : null), [forecast, report, records, now]);
+  const list = report ? pages(report, vs) : [];
   const page = list[Math.min(i, list.length - 1)];
   const last = i >= list.length - 1;
 

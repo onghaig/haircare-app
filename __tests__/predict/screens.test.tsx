@@ -6,6 +6,9 @@ import { captureRef } from 'react-native-view-shot';
 import PredictScreen from '@/app/(tabs)/predict';
 import ShareScreen from '@/app/share';
 
+import { answer } from '@/plan/log';
+import { addDays, dayKey } from '@/plan/tasks';
+
 import { makeProviders } from '../../test-utils/providers';
 
 jest.mock('expo-router', () => ({
@@ -30,36 +33,56 @@ const wait = { timeout: 8000 };
 beforeEach(() => jest.clearAllMocks());
 
 describe('Predict tab', () => {
-  it('shows year 1 free and locks later years behind the paywall', async () => {
-    const { wrap } = makeProviders({ profile: adult });
+  it('free: year 1 of both bands, the options list with evidence, 10-year numbers locked', async () => {
+    const { wrap } = makeProviders({ profile: { ...adult, treatments: ['minoxidil'] } });
     await render(wrap(<PredictScreen />));
-    expect(await screen.findByTestId('predict-headline', {}, wait)).toHaveTextContent(/^Likely at 29: N/);
-    expect(screen.getByLabelText(/^Age 38: locked/)).toBeOnTheScreen();
+    expect(await screen.findByTestId('predict-headline', {}, wait)).toHaveTextContent(/^Your plan: N.* at 29\. Doing nothing: N.*\.$/);
+    expect(screen.getByLabelText(/Years after 1 locked/)).toBeOnTheScreen();
+    expect(screen.queryByText(/Chance of Norwood/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Oral finasteride' })).toBeOnTheScreen();
+    expect(screen.getAllByLabelText('Evidence: Strong').length).toBeGreaterThan(0);
+    await fireEvent.press(screen.getByRole('button', { name: 'See what each option does for you' }));
+    expect(router.push).toHaveBeenCalledWith('/paywall');
     await fireEvent.press(screen.getByRole('tab', { name: '10 years' }));
     expect(screen.getByTestId('future-blur')).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole('button', { name: 'Unlock your forecast' }));
-    expect(router.push).toHaveBeenCalledWith('/paywall');
     await fireEvent.press(screen.getByRole('button', { name: 'Share your forecast' }));
     expect(router.push).toHaveBeenCalledWith({ pathname: '/share', params: { years: '1' } });
   });
 
-  it('unlocks every year and the treatment what-if for Premium', async () => {
-    const { wrap } = makeProviders({ profile: premium });
+  it('Premium: the 10-year chance on your plan and doing nothing, split by what the plan does', async () => {
+    const { wrap } = makeProviders({ profile: { ...premium, treatments: ['minoxidil'] } });
     await render(wrap(<PredictScreen />));
-    await fireEvent.press(await screen.findByRole('tab', { name: '10 years' }, wait));
-    expect(screen.getByTestId('predict-headline')).toHaveTextContent(/^Likely at 38: N/);
-    expect(screen.queryByTestId('future-blur')).toBeNull();
-    await fireEvent.press(screen.getByRole('radio', { name: 'Finasteride' }));
-    expect(await screen.findByTestId('what-if-result', {}, wait)).toHaveTextContent(/^Finasteride: N.* at 38, versus N.* on your current plan\.$/);
-    expect(screen.getByText(/Talk to a doctor/)).toBeOnTheScreen();
+    expect(await screen.findByTestId('predict-headline', {}, wait)).toHaveTextContent(/in 10on your plan$/);
+    expect(screen.getByTestId('predict-untreated')).toHaveTextContent(/in 10doing nothing$/);
+    expect(screen.getByText(/^Chance of Norwood \d or worse by 38$/)).toBeOnTheScreen();
+    const byRole = screen.getByTestId('plan-by-role');
+    expect(byRole).toHaveTextContent(/Grows hair.*Minoxidil/);
+    expect(byRole).toHaveTextContent(/Slows loss.*Nothing in your plan/);
+    await fireEvent.press(screen.getByRole('link', { name: 'Options to discuss' }));
+    expect(router.push).toHaveBeenCalledWith('/options');
+    await fireEvent.press(screen.getByRole('tab', { name: 'Do nothing' }));
+    expect(screen.getByTestId('future-headline')).toHaveTextContent(/doing nothing$/);
+    expect(screen.queryByText(/recommended/i)).toBeNull();
   });
 
-  it('has no treatment what-if for under-18s', async () => {
+  it('nudges the logged gap in the real routine', async () => {
+    const today = new Date();
+    let log = {};
+    for (let i = 0; i < 7; i++) log = answer(log, dayKey(addDays(today, -i)), 'minoxidil', i === 2 || i === 5 ? 'skipped' : 'done');
+    const { wrap } = makeProviders({ profile: { ...premium, treatments: ['minoxidil'] }, log });
+    await render(wrap(<PredictScreen />));
+    expect(await screen.findByTestId('predict-nudge', {}, wait)).toHaveTextContent('You do minoxidil 5 of 7 days. It only works while you keep it up.');
+  });
+
+  it('under-18s get the outlook: no prescriptions, no 10-year odds', async () => {
     const { wrap } = makeProviders({ profile: { ...premium, age: 16 } });
     await render(wrap(<PredictScreen />));
-    expect(await screen.findByTestId('predict-headline', {}, wait)).toBeOnTheScreen();
-    expect(screen.queryByText('What if?')).toBeNull();
-    expect(screen.queryByText(/Finasteride/)).toBeNull();
+    expect(await screen.findByTestId('predict-headline', {}, wait)).toHaveTextContent(/^Likely at 17: N/);
+    expect(screen.getByText('Your outlook')).toBeOnTheScreen();
+    expect(screen.getByText('Scalp massage')).toBeOnTheScreen();
+    expect(screen.queryByText(/finasteride|minoxidil|Rx/i)).toBeNull();
+    expect(screen.queryByText(/in 10/)).toBeNull();
+    expect(screen.queryByTestId('future-blur')).toBeNull();
   });
 });
 

@@ -75,6 +75,7 @@ const TREATMENT_LABEL: Record<TreatmentChoice, string> = {
   finasteride: 'Finasteride',
   dutasteride: 'Dutasteride',
   minoxidil: 'Minoxidil',
+  oralMinoxidil: 'Oral minoxidil',
   ketoconazole: 'Ketoconazole shampoo',
   microneedling: 'Microneedling',
   none: 'None yet',

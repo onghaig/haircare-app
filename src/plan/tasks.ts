@@ -15,7 +15,7 @@ export function addDays(d: Date, n: number): Date {
   return out;
 }
 
-export type TaskId = 'finasteride' | 'dutasteride' | 'minoxidil' | 'ketoconazole' | 'massage' | 'quickLog' | 'scan';
+export type TaskId = 'finasteride' | 'dutasteride' | 'minoxidil' | 'oralMinoxidil' | 'ketoconazole' | 'massage' | 'quickLog' | 'scan';
 export type TaskKind = 'medication' | 'care' | 'massage' | 'log' | 'scan';
 
 export interface Task {
@@ -47,6 +47,9 @@ export function dailyTasks(profile: Profile, date: Date, scans: ScanRecord[]): T
   }
   if (adult && t.has('minoxidil')) {
     out.push({ id: 'minoxidil', kind: 'medication', title: 'Minoxidil', detail: 'Did you apply it today?', answer: 'yesSkip' });
+  }
+  if (adult && t.has('oralMinoxidil')) {
+    out.push({ id: 'oralMinoxidil', kind: 'medication', title: 'Oral minoxidil', detail: 'Did you take it today?', answer: 'yesSkip' });
   }
   if (t.has('ketoconazole') && KETO_DAYS.includes(date.getDay())) {
     out.push({ id: 'ketoconazole', kind: 'care', title: 'Ketoconazole shampoo day', detail: 'Leave it on for 3 to 5 minutes', answer: 'tick' });

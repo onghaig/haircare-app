@@ -45,6 +45,7 @@ export type TreatmentChoice =
   | 'finasteride'
   | 'dutasteride'
   | 'minoxidil'
+  | 'oralMinoxidil'
   | 'ketoconazole'
   | 'microneedling'
   | 'none';

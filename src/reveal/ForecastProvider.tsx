@@ -1,9 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { ForecastModel, type Forecast } from '@/forecast';
-import { adherence } from '@/plan/log';
+import { ForecastModel, type Forecast, type UserInput } from '@/forecast';
+import { planItems, userPlan, type PlanEntry } from '@/options/plan';
 import { usePlan } from '@/plan/PlanProvider';
-import { dailyTasks } from '@/plan/tasks';
 import { toForecastInput } from '@/profile/forecastInput';
 import { useProfile } from '@/profile/ProfileProvider';
 import { useOptionalScans } from '@/scan/ScanProvider';
@@ -12,6 +11,12 @@ import { estimateStage } from '@/scan/stageEstimate';
 interface ForecastContextValue {
   /** Null while computing, or until the profile has an age. */
   forecast: Forecast | null;
+  /** "Your plan": what the user really does, from the log. The forecast's plan path runs this. */
+  plan: PlanEntry[];
+  /** What the forecast ran on, for what-if runs that compare other plans. */
+  input: UserInput | null;
+  /** Sample count of the main forecast. What-if runs never use more. */
+  samples: number;
 }
 
 const ForecastContext = createContext<ForecastContextValue | null>(null);
@@ -27,15 +32,14 @@ export function ForecastProvider({ samples = 200_000, children }: { samples?: nu
   const { book } = usePlan();
   const latest = useOptionalScans()?.latest;
   const scanStage = useMemo(() => estimateStage(latest, profile)?.stage ?? null, [latest, profile]);
+  // Daily check-ins drive "your plan": each item at the share of days it's really done.
+  const plan = useMemo(() => userPlan(profile, book, new Date()), [profile, book]);
   const input = useMemo(() => {
     const base = toForecastInput(profile, scanStage);
     if (!base) return null;
-    // Daily check-ins scale the treatment effect (spec: adherence a in the projection).
-    const now = new Date();
-    const meds = dailyTasks(profile, now, []).filter((t) => t.kind === 'medication').map((t) => t.id);
-    const a = adherence(book, now, meds);
-    return a == null ? base : { ...base, adherence: Math.round(a * 20) / 20 };
-  }, [profile, book, scanStage]);
+    const { treatment: _t, ...rest } = base;
+    return { ...rest, plan: planItems(plan) };
+  }, [profile, scanStage, plan]);
   const key = input ? JSON.stringify(input) : null;
   const [result, setResult] = useState<{ key: string; forecast: Forecast } | null>(null);
 
@@ -52,7 +56,7 @@ export function ForecastProvider({ samples = 200_000, children }: { samples?: nu
     };
   }, [key, samples]);
 
-  const value = useMemo(() => ({ forecast: result && result.key === key ? result.forecast : null }), [result, key]);
+  const value = useMemo(() => ({ forecast: result && result.key === key ? result.forecast : null, plan, input, samples }), [result, key, plan, input, samples]);
   return <ForecastContext.Provider value={value}>{children}</ForecastContext.Provider>;
 }
 

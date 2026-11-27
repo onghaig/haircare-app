@@ -44,6 +44,9 @@ export default function RootLayout() {
               <Stack.Screen name="log" options={{ presentation: 'modal' }} />
               <Stack.Screen name="verdict" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="share" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="options/index" />
+              <Stack.Screen name="options/how" />
+              <Stack.Screen name="options/[id]" options={{ presentation: 'modal' }} />
               <Stack.Screen
                 name="scan/session"
                 options={{

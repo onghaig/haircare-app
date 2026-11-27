@@ -29,10 +29,10 @@ export function isMinor(p: Profile): boolean {
 }
 
 /** No prescription content for under-18s (project rule), so prescription drugs are not offered. */
-export const PRESCRIPTION: TreatmentChoice[] = ['finasteride', 'dutasteride'];
+export const PRESCRIPTION: TreatmentChoice[] = ['finasteride', 'dutasteride', 'oralMinoxidil'];
 
 export function treatmentOptions(p: Profile): TreatmentChoice[] {
-  const all: TreatmentChoice[] = ['finasteride', 'dutasteride', 'minoxidil', 'ketoconazole', 'microneedling', 'none'];
+  const all: TreatmentChoice[] = ['finasteride', 'dutasteride', 'minoxidil', 'oralMinoxidil', 'ketoconazole', 'microneedling', 'none'];
   return isMinor(p) ? all.filter((t) => !PRESCRIPTION.includes(t)) : all;
 }
 

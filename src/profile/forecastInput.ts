@@ -40,10 +40,11 @@ export function ancestryFor(choices: AncestryChoice[]): Ancestry | undefined {
 /** The strongest treatment the user already takes, in the model's terms. */
 export function treatmentFor(choices: TreatmentChoice[]): Treatment {
   const has = (t: TreatmentChoice) => choices.includes(t);
+  const minox = has('minoxidil') || has('oralMinoxidil');
   if (has('dutasteride')) return 'dutasteride';
-  if (has('finasteride') && has('minoxidil')) return 'finasteride+minoxidil';
+  if (has('finasteride') && minox) return 'finasteride+minoxidil';
   if (has('finasteride')) return 'finasteride';
-  if (has('minoxidil')) return 'minoxidil';
+  if (minox) return 'minoxidil';
   return 'none';
 }
 
