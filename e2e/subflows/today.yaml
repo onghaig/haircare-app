@@ -1,9 +1,11 @@
-# Today: the daily plan, the guided massage and the quick log.
+# Today: the daily plan (each task says what it does for the forecast), the guided massage and the quick log.
 appId: com.onghaig.haircare
 ---
 - tapOn: "Today"
 - assertVisible: "Scalp massage"
 - assertVisible: "Quick log"
+- assertVisible: ".*Grows hair. Small effect, low risk"
+- assertVisible: ".*Explains shedding. Not in your forecast"
 - takeScreenshot: e2e-40-today
 - tapOn: "Scalp massage"
 - assertVisible: "Full, 4 min"
