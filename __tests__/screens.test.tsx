@@ -5,8 +5,8 @@ import TodayScreen from '@/app/(tabs)/index';
 import PredictScreen from '@/app/(tabs)/predict';
 import ProgressScreen from '@/app/(tabs)/progress';
 import ScanScreen from '@/app/(tabs)/scan';
-import { ScanProvider } from '@/scan/ScanProvider';
-import { MemoryScanStore } from '@/scan/store';
+
+import { makeProviders } from '../test-utils/providers';
 
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
@@ -21,11 +21,7 @@ describe.each([
   ['Ask', AskScreen],
 ])('%s tab', (title, Component) => {
   it('renders its title as a header', async () => {
-    await render(
-      <ScanProvider store={new MemoryScanStore()}>
-        <Component />
-      </ScanProvider>,
-    );
+    await render(makeProviders({ profile: { age: 30 } }).wrap(<Component />));
     expect(screen.getByRole('header', { name: title })).toBeOnTheScreen();
   });
 });

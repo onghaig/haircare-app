@@ -3,7 +3,7 @@
 The hair-loss forecast: see your future hairline, then prove your plan is working.
 
 Built with Expo (React Native, TypeScript). Performance-critical parts, starting with the
-guided head scan, are native Swift modules (Kotlin for Android later).
+guided head scan, are native modules: Swift on iOS and Kotlin on Android, sharing one tested algorithm.
 
 ## Run it locally
 
@@ -58,6 +58,20 @@ capabilities aren't available with a free account; nothing in the app needs them
 Only rebuild the `.ipa` when native code changes (anything in `modules/`, or a new package
 with native code). For JS-only changes, use Expo Go or the `dev-client` variant.
 
+### 4. Android: install the APK (free, no Play account)
+
+1. On GitHub: **Actions > Android APK > Run workflow**.
+2. After about 15 to 20 minutes, download the `Haircare-apk` artifact from the run page and
+   unzip it to get `Haircare.apk`.
+3. Copy it to the phone (or download it there) and open it. Allow **Install unknown apps** for
+   the browser or file manager when Android asks.
+
+It's a release build with the JS bundled in, signed with the Android debug key, for 64-bit ARM
+phones. Everything works, including the guided scan: the Android camera module
+(`modules/headmap/android`, CameraX plus the same two MediaPipe models) runs the same quality
+checks, hair coverage, hairline measurement and capture gate as iOS, from a Kotlin port of the
+Swift core (`modules/headmap/kotlin-core`) that is tested against the same reference fixtures.
+
 ### Later, when you have a paid Apple Developer account ($99/year)
 
 You'll need one for TestFlight and the App Store. EAS builds and signs in the cloud, so you
@@ -84,6 +98,24 @@ app with Xcode 26, and runs the end-to-end flows in `e2e/` with
 illustrated demo face (`e2e/assets/demo_face.jpg`) that goes through the real on-device
 analysis. Device builds never include it, and real photo capture is only checked on a phone. When native iOS code changes, the sideload `.ipa` is rebuilt too.
 
+The **Android APK** workflow runs on free Linux runners: the Kotlin core's JVM tests, the phone
+APK (`Haircare-apk` artifact), and the same Maestro flows on an Android emulator with the demo
+face, recorded to `ci-demo` under `<branch>-android/`.
+
+## AI "future you" preview (optional backend)
+
+The reveal and Predict tab can show the user's own front photo with their hair restyled by an
+AI image model to the forecast's most likely Norwood stage for that year, instead of the drawn
+illustration. It's off until a backend is deployed: one Cloudflare Worker in
+[`server/visualize`](server/visualize/README.md) that holds the Gemini API key (never the app or
+this repo) and stores nothing. Set its URL as `expo.extra.visualizeEndpoint` in `app.json`.
+
+The app asks for consent before the first photo is sent, never offers it to under-18s, sends a
+768 px JPEG only, keeps results on the phone (deleted with their scan, or all at once when the
+user turns it off), and labels them "AI illustration based on your forecast, not a medical
+prediction". The provider is behind one interface (`src/visualize/provider.ts`), so another
+model or service is a drop-in change.
+
 ## Layout
 
 | Path | What it holds |
@@ -93,13 +125,19 @@ analysis. Device builds never include it, and real photo capture is only checked
 | `src/components/ui/` | Shared UI: `Text`, `Button`, `Card`, `Screen` |
 | `src/navigation/tabs.ts` | Tab order, labels, icons and each tab's one job |
 | `src/forecast/` | On-device forecast engine (port of the Python v0 model) |
-| `src/scan/` | Scan session state machine, guidance copy, voice coach, change detection, local scan storage |
-| `src/app/scan/` | Guided scan (full-screen) and scan result screens |
+| `src/scan/` | Scan session state machine, the crown flow (`crown.ts`: on your own with a spoken countdown, aiming hints and a best-of burst, or with a helper; you check the photo before it is kept), the scalp map (`headModel.ts`: each photo's camera fitted to a model head, from the face landmarks for the face photos and from the hair outline for the top and crown, then the head unrolled into one top-down map; `scalpRender.ts` draws it on the phone; `scalpMap.ts` compares zones), the estimated Norwood stage (`stageEstimate.ts`, a swappable grader), guidance copy, voice coach, change detection, local scan storage |
+| `src/visualize/` | AI preview: provider interface, consent rules, on-phone cache, the `useAiPreview` hook |
+| `server/visualize/` | The AI preview backend: one Cloudflare Worker calling Gemini's image model |
+| `src/app/scan/` | Guided scan (full-screen, voice-guided, "Redo last photo" for the view just taken), scan result (redo or delete the scan, each behind a confirmation; deleting removes its photos and measurements from the phone, and trends re-baseline from what is left), the estimated current Norwood stage (a likely range and a confidence, never a diagnosis), and the scalp map (the five photos mapped onto a model head and unrolled into one top-down map, so the hairline lines up across the front and side photos, with the hair the camera saw, each zone compared with your first scan as a rough range), with the drag-to-turn panorama as a second tab |
 | `src/app/onboarding/` | Welcome and the nine onboarding questions |
 | `src/app/reveal/`, `src/reveal/` | Analysing screen and the free reveal with the blurred future look; runs the forecast on device |
+| `src/app/paywall.tsx`, `src/paywall/` | Paywall, plans and prices, the purchase interface (test purchases until StoreKit is connected) |
+| `src/app/(tabs)/index.tsx`, `src/app/massage.tsx`, `src/app/log.tsx`, `src/plan/` | Today: daily plan, streak and adherence, guided scalp massage, quick log, local reminders |
+| `src/app/(tabs)/progress.tsx`, `src/app/verdict.tsx`, `src/progress/` | Progress: baseline vs latest, hairline trend with the no-real-change band, plan consistency, the monthly verdict story |
+| `src/app/(tabs)/predict.tsx`, `src/app/share.tsx`, `src/predict/` | Predict: the look and the range year by year, treatment what-ifs for adults, and the share card (an illustration, never your photo) |
 | `src/profile/` | Hair profile: answers, on-device storage, onboarding rules, mapping to the forecast |
 | `src/components/head/`, `src/components/family/` | Drawn heads with tappable zones; the family tree and relative cards |
-| `modules/headmap/` | Native Swift scan module: camera, MediaPipe, measurement, quality checks ([README](modules/headmap/README.md)) |
+| `modules/headmap/` | Native scan module: camera, MediaPipe, measurement, quality checks. Swift (`ios/`, `core/`) and Kotlin (`android/`, `kotlin-core/`) ([README](modules/headmap/README.md)) |
 | `__tests__/` | Jest tests |
 | `e2e/` | Maestro end-to-end flows, run on an iOS simulator in CI |
 

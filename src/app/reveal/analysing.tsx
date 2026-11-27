@@ -8,7 +8,7 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { Card, Text } from '@/components/ui';
 import { useProfile } from '@/profile/ProfileProvider';
 import { useForecast } from '@/reveal/ForecastProvider';
-import { analysisCounters, ANALYSING_MS, FREE_SHARE, TREE_SIZE } from '@/reveal/reveal';
+import { analysisCounters, ANALYSING_MS, FREE_SHARE} from '@/reveal/reveal';
 import { useScans } from '@/scan/ScanProvider';
 import { colors, spacing } from '@/theme';
 
@@ -52,13 +52,14 @@ export default function AnalysingScreen() {
       on: stage(0, 0.25) >= 1,
     },
     {
-      label: 'Face points mapped',
-      value: Math.round(stage(0.15, 0.5) * c.points).toLocaleString('en-US'),
-      on: stage(0.15, 0.5) >= 1,
+      // What the app really measures: the traced hairline, not generic face points.
+      label: 'Hairline points traced',
+      value: c.hairlinePoints ? String(Math.round(stage(0.15, 0.5) * c.hairlinePoints)) : 'Next scan',
+      on: c.hairlinePoints > 0 && stage(0.15, 0.5) >= 1,
     },
     {
-      label: 'Family patterns analysed',
-      value: `${Math.round(stage(0.4, 0.75) * c.relatives)} of ${TREE_SIZE}`,
+      label: c.relatives === 1 ? 'Relative analysed' : 'Relatives analysed',
+      value: String(Math.round(stage(0.4, 0.75) * c.relatives)),
       on: stage(0.4, 0.75) >= 1,
     },
     { label: `Projecting to age ${c.projectTo}`, value: '', on: done },

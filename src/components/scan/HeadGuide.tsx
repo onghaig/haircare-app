@@ -44,17 +44,32 @@ export function HeadGuide({
   width,
   height,
   hairline,
+  complete,
+  onDrawn,
 }: {
   view: ScanView;
   aligned: boolean;
   width: number;
   height: number;
   hairline?: HairlineReport;
+  /** Hold the highlight fully drawn (just after the photo). */
+  complete?: boolean;
+  /** The highlight finished its first full draw for this view. */
+  onDrawn?: () => void;
 }) {
   if (width <= 0 || height <= 0) return null;
   const stroke = aligned ? colors.accent : colors.text;
   const hl = highlightPoints(view, hairline, width, height);
-  const highlight = <HairlineHighlight points={hl.points} detected={hl.detected} aligned={aligned} />;
+  const highlight = (
+    <HairlineHighlight
+      points={hl.points}
+      detected={hl.detected}
+      aligned={aligned}
+      drawKey={`${view}:${hl.detected}`}
+      complete={complete}
+      onDrawn={onDrawn}
+    />
+  );
 
   if (view === 'top' || view === 'crown') {
     const f = backFrame(width, height);

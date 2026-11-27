@@ -5,7 +5,7 @@ appId: com.onghaig.haircare
 - extendedWaitUntil:
     visible: "Your Norwood timeline"
     timeout: 40000
-- assertVisible: "Norwood today.*"
+- assertVisible: ".*Norwood today.*"
 - assertVisible: "You in 5 years"
 # The preview is one accessibility element, so the caption is part of its label.
 - assertVisible: ".*Illustration based on your forecast, not a medical prediction"
@@ -13,6 +13,7 @@ appId: com.onghaig.haircare
 - tapOn: "10 years"
 - assertVisible: "You in 10 years"
 - tapOn: "Unlock.*"
+- runFlow: paywall.yaml
 - tapOn: "Scan"
 - assertVisible: "Next scan in 7 days"
 - takeScreenshot: e2e-22-scan-history

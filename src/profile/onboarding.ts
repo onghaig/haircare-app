@@ -29,10 +29,10 @@ export function isMinor(p: Profile): boolean {
 }
 
 /** No prescription content for under-18s (project rule), so prescription drugs are not offered. */
-export const PRESCRIPTION: TreatmentChoice[] = ['finasteride', 'dutasteride'];
+export const PRESCRIPTION: TreatmentChoice[] = ['finasteride', 'dutasteride', 'oralMinoxidil'];
 
 export function treatmentOptions(p: Profile): TreatmentChoice[] {
-  const all: TreatmentChoice[] = ['finasteride', 'dutasteride', 'minoxidil', 'ketoconazole', 'microneedling', 'none'];
+  const all: TreatmentChoice[] = ['finasteride', 'dutasteride', 'minoxidil', 'oralMinoxidil', 'ketoconazole', 'microneedling', 'none'];
   return isMinor(p) ? all.filter((t) => !PRESCRIPTION.includes(t)) : all;
 }
 
@@ -78,10 +78,14 @@ export function familySummary(p: Profile): { answered: number; withLoss: number 
 }
 
 /** Risk card state as the user answers: share of steps done and what is left. */
-export function riskCard(p: Profile, stepIndex: number): { percent: number; line: string; remaining: number } {
-  const remaining = STEPS.length - stepIndex;
+/**
+ * The live card that fills in as the person answers. It lists what is known so far, not a
+ * percent: progress already shows in the top bar, and a percent here read as a risk score.
+ */
+export function riskCard(p: Profile, stepIndex: number): { line: string; remaining: number; confidence: 'building' | 'ready' } {
+  const remaining = Math.max(0, STEPS.length - stepIndex);
   const fam = familySummary(p);
   let line = patternLine(p);
   if (fam.answered > 0) line += `. ${fam.withLoss} of ${fam.answered} relatives with loss`;
-  return { percent: Math.round((stepIndex / STEPS.length) * 100), line, remaining };
+  return { line, remaining, confidence: remaining > 0 ? 'building' : 'ready' };
 }
