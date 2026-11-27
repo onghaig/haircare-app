@@ -8,9 +8,25 @@ appId: com.onghaig.haircare
 - tapOn:
     id: "age-input"
 - inputText: "24"
-- tapOn: "Male"
+# Android's keyboard stays up over the answers; iOS's number pad doesn't cover them.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+# The first tap after the keyboard closes is sometimes lost on the (slower, ARM-translated)
+# Android E2E app: tap until the answer shows as selected.
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn: "Male"
+      - assertVisible:
+          text: "Male"
+          selected: true
 - tapOn: "Continue"
-- assertVisible: "Your background"
+- extendedWaitUntil:
+    visible: "Your background"
+    timeout: 15000
 - tapOn: "White or European"
 - tapOn: "Continue"
 - assertVisible: "Where are you noticing it\\?"

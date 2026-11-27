@@ -18,6 +18,8 @@ export const colors = {
   warning: '#F2B35A',
   /** Markers on charts, for example treatment start dates. */
   info: '#6AA8FF',
+  /** Destructive actions only: delete a scan, delete photos. */
+  danger: '#FF7A6B',
 } as const;
 
 export type ColorToken = keyof typeof colors;

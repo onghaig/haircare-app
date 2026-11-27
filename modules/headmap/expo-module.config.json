@@ -1,7 +1,10 @@
 {
-  "platforms": ["apple"],
+  "platforms": ["apple", "android"],
   "apple": {
     "modules": ["HeadMapModule"],
     "podspecPath": "HeadMap.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.headmap.HeadMapModule"]
   }
 }

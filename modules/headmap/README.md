@@ -1,19 +1,33 @@
 # HeadMap: native scan module
 
-The guided head scan, written in Swift so the camera and live checks run at frame rate on device.
-Nothing leaves the phone during a scan.
+The guided head scan, written natively (Swift on iOS, Kotlin on Android) so the camera and live
+checks run at frame rate on device. Nothing leaves the phone during a scan.
 
 ## What it does
 
 - **Camera** (`ios/HeadMapCameraView.swift`): AVFoundation session, front camera mirrored for
   the front, temple and top views, rear camera for the crown. Live analysis on every frame it can
   keep up with; ~8 small JSON reports a second go to JS. Soft haptic tick when every check turns
-  green, firm tap on capture, auto-capture after a steady half-second hold.
+  green, firm tap on capture, auto-capture after a steady half-second hold. `startBurst(ms)`
+  (crown, on your own) ranks every analysed frame for that long (hair in frame, then score, then
+  sharpness) and sends the best one as a capture with `burst: true`.
 - **Models** (`ios/HeadMapEngine.swift`): MediaPipe Face Landmarker (478 points + head pose) and
   Selfie Multiclass (hair mask), both Apache-2.0, both on device.
 - **Core** (`core/`, a SwiftPM package compiled into the pod): hairline measurement, quality
-  checks and scoring, capture gating. Pure Swift with no UIKit or MediaPipe, so `swift test` runs
+  checks and scoring, capture gating, the coarse hair grid saved with each photo for the scalp
+  map (`hairGrid`, 24 x 32 cells), and aiming hints for the top and crown (`aim`: where the hair
+  sits in the frame, so the app can say "move the phone up" when you can't see the screen).
+  Face photos also carry `anchors` (eight landmarks: irises, glabella, nose tip, chin, face
+  edges, forehead top) and every report carries `frameSize`, so the scalp map can fit each
+  photo's camera to a model head. Pure Swift with no UIKit or MediaPipe, so `swift test` runs
   on any Mac or Linux machine.
+- **Android** (`android/`): the same module for Android, with the same name, props, events and
+  JSON reports, so the JS side is shared. CameraX (`HeadMapCameraView.kt`: front camera mirrored,
+  rear for the crown, ~7 analysed frames a second, haptics, auto-capture), the same two MediaPipe
+  models (`HeadMapEngine.kt`, loaded from `ios/models`), and `kotlin-core/`, a line-for-line
+  Kotlin port of the Swift core. It's a plain JVM Gradle project whose tests mirror the Swift
+  tests and run the same reference fixtures, so all three (Python, Swift, Kotlin) agree.
+  On an emulator with the demo face in the build, the camera is replaced by the demo face.
 
 ## Measurement
 
@@ -42,9 +56,12 @@ Thresholds are starting points from the Python prototype; calibrate on real devi
 ```bash
 npm run models        # downloads the two .task/.tflite files (also runs on npm install)
 npm run test:swift    # Swift core tests (needs a Swift toolchain)
+(cd modules/headmap/kotlin-core && gradle test)   # Kotlin core tests (any JDK 17+)
 npx expo run:ios      # development build (Mac only)
+npx expo run:android  # development build (Android SDK)
 ```
 
-No Mac: run the **iOS sideload build** workflow to get an unsigned `.ipa` (see the root README).
+No Mac: run the **iOS sideload build** workflow to get an unsigned `.ipa`, or the **Android
+APK** workflow for an `.apk` (see the root README).
 
 The JS API (`index.ts`) falls back cleanly in Jest, Expo Go and web, where the native module is absent.

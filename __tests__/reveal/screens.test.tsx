@@ -7,6 +7,8 @@ import RevealScreen from '@/app/reveal';
 import { ProfileProvider } from '@/profile/ProfileProvider';
 import { MemoryProfileStore } from '@/profile/store';
 import { emptyProfile, type Profile } from '@/profile/types';
+import { MemoryLogStore } from '@/plan/log';
+import { PlanProvider } from '@/plan/PlanProvider';
 import { ForecastProvider } from '@/reveal/ForecastProvider';
 import { ANALYSING_MS } from '@/reveal/reveal';
 import { ScanProvider } from '@/scan/ScanProvider';
@@ -15,7 +17,7 @@ import { MemoryScanStore } from '@/scan/store';
 
 import { record } from '../../test-utils/scanFixtures';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissAll: jest.fn() } }));
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
   return { SafeAreaView: View, useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
@@ -37,9 +39,11 @@ function setup(ui: ReactNode, seed: Partial<Profile> = adult) {
   const profiles = new MemoryProfileStore({ ...emptyProfile(), ...seed });
   const tree = (
     <ProfileProvider store={profiles}>
-      <ForecastProvider samples={5000}>
-        <ScanProvider store={new MemoryScanStore([firstScan])}>{ui}</ScanProvider>
-      </ForecastProvider>
+      <PlanProvider store={new MemoryLogStore()}>
+        <ForecastProvider samples={5000}>
+          <ScanProvider store={new MemoryScanStore([firstScan])}>{ui}</ScanProvider>
+        </ForecastProvider>
+      </PlanProvider>
     </ProfileProvider>
   );
   return { profiles, tree };
@@ -64,7 +68,8 @@ describe('Analysing', () => {
     expect(screen.getByText('73%')).toBeOnTheScreen();
     expect(screen.getByTestId('analysis-locked')).toBeOnTheScreen();
     expect(screen.getByText('5 of 5')).toBeOnTheScreen();
-    expect(screen.getByText('2 of 8')).toBeOnTheScreen();
+    expect(screen.getByText('Relatives analysed')).toBeOnTheScreen();
+    expect(screen.getByText('Hairline points traced')).toBeOnTheScreen();
     expect(screen.getByText('Projecting to age 50')).toBeOnTheScreen();
 
     await act(async () => jest.advanceTimersByTime(1000));
@@ -78,8 +83,11 @@ describe('Reveal', () => {
     await render(tree);
     expect(await screen.findByText('Your Norwood timeline', {}, { timeout: 5000 })).toBeOnTheScreen();
 
-    expect(screen.getByLabelText(/^Norwood [\d.]+ today$/)).toBeOnTheScreen();
-    expect(screen.getByText(/Norwood today, (high|moderate|low) confidence/)).toBeOnTheScreen();
+    expect(screen.getByLabelText(/^Norwood [\d.]+ today/)).toBeOnTheScreen();
+    // A good scan backs the stage; confidence never goes above moderate until the grader is validated.
+    expect(screen.getByTestId('reveal-source')).toHaveTextContent('From your scan and your answers. Norwood today.');
+    expect(screen.getByTestId('reveal-confidence')).toHaveTextContent(/^(Low|Moderate) confidence$/);
+    expect(screen.queryByTestId('reveal-retake')).toBeNull();
     expect(screen.getByText('Temples')).toBeOnTheScreen();
     expect(screen.getByText('You in 5 years')).toBeOnTheScreen();
     expect(screen.getByTestId('future-blur')).toBeOnTheScreen();
@@ -93,7 +101,7 @@ describe('Reveal', () => {
 
     await waitFor(async () => expect((await profiles.load()).revealSeenAt).toBeDefined());
     await fireEvent.press(screen.getByRole('button', { name: 'Unlock your future look' }));
-    expect(router.replace).toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith('/paywall');
   });
 
   it('never shows teens a future face, only the timeline', async () => {
@@ -110,9 +118,25 @@ describe('Reveal', () => {
         sex: 'male',
         worriedOnly: true,
         family: { father: { status: 'full' }, maternalGrandfather: { status: 'full' }, paternalGrandfather: { status: 'full' } },
+        completedAt: '2026-11-26T10:00:00Z',
       }).tree,
     );
     expect(await screen.findByText(/looks stable as of right now/, {}, { timeout: 5000 })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Unlock tracking and your plan' })).toBeOnTheScreen();
+  });
+
+  it('shows everything unblurred once subscribed', async () => {
+    await render(
+      setup(<RevealScreen />, {
+        ...adult,
+        subscription: { plan: 'annual', startedAt: '2026-11-26T10:00:00Z', trialEndsAt: '2026-11-29T10:00:00Z', test: true },
+      }).tree,
+    );
+    expect(await screen.findByText('Your Norwood timeline', {}, { timeout: 5000 })).toBeOnTheScreen();
+    expect(screen.queryByTestId('future-blur')).toBeNull();
+    expect(screen.queryAllByTestId('timeline-frost')).toHaveLength(0);
+    expect(screen.getByText('Illustration based on your forecast, not a medical prediction')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+    expect(router.dismissAll).toHaveBeenCalled();
   });
 });
