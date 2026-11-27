@@ -1,5 +1,5 @@
 import * as Sharing from 'expo-sharing';
-import { useRef, useState, type ComponentRef } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 
@@ -18,6 +18,7 @@ import {
   type Reading,
 } from '@/scan/hairAnalysis';
 import { needsHairAnalysis } from '@/scan/hairRunner';
+import { useOptionalScans } from '@/scan/ScanProvider';
 import type { ScanRecord } from '@/scan/session';
 import { colors, radius, spacing } from '@/theme';
 
@@ -112,9 +113,16 @@ export function HairQualityCard({ scan }: { scan: ScanRecord }) {
   const panel = useRef<ComponentRef<typeof View>>(null);
   const [error, setError] = useState<string | null>(null);
   const h = scan.hair;
+  const scans = useOptionalScans();
+  const request = scans?.requestHairRead;
+  const needed = needsHairAnalysis(scan);
+  // Showing the card is what starts the reading for a scan just taken.
+  useEffect(() => {
+    if (needed) request?.(scan.id);
+  }, [needed, request, scan.id]);
 
   if (!h) {
-    const pending = needsHairAnalysis(scan) && isHeadMapAvailable;
+    const pending = needed && isHeadMapAvailable;
     return (
       <Card style={styles.card} testID="hair-quality">
         <Text variant="caption" color="textMuted">

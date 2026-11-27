@@ -17,6 +17,8 @@ interface ScanContextValue {
   latest?: ScanRecord;
   save(record: ScanRecord): Promise<ScanRecord>;
   remove(id: string): Promise<void>;
+  /** Read this scan's hair now (a screen showing it asks). Scans saved earlier are read on their own. */
+  requestHairRead(id: string): void;
   /** A scan left part-way in the last day, or null. */
   draft: ScanDraft | null;
   saveDraft(d: ScanDraft): Promise<void>;
@@ -25,8 +27,13 @@ interface ScanContextValue {
 
 const ScanContext = createContext<ScanContextValue | null>(null);
 
-/** Wait this long after a scan is saved before reading its hair, so the finish screen stays smooth. */
-export const HAIR_READ_DELAY_MS = 1500;
+/**
+ * Hair is read when a screen asks for it (after this short wait), or, for scans already saved
+ * when the app opened, after the longer wait. A scan just taken is not read on its own: the
+ * finish moment and the forecast reveal right after it need the phone to themselves.
+ */
+export const HAIR_READ_DELAY_MS = 800;
+export const HAIR_READ_STARTUP_DELAY_MS = 10_000;
 
 export function ScanProvider({
   store,
@@ -108,6 +115,15 @@ export function ScanProvider({
   // The result is saved on the scan, so the stage estimate and forecast pick it up.
   const reader = readHair === undefined ? (isHeadMapAvailable ? analyseScanHair : null) : readHair;
   const tried = useRef(new Set<string>());
+  // Scans that may be read: those there at startup, and any a screen asked for.
+  const eligible = useRef(new Map<string, number>());
+  const [asked, setAsked] = useState(0);
+  const requestHairRead = useCallback((id: string) => {
+    if (eligible.current.get(id) === HAIR_READ_DELAY_MS) return;
+    eligible.current.set(id, HAIR_READ_DELAY_MS);
+    setAsked((n) => n + 1);
+  }, []);
+  const seeded = useRef(false);
   const busy = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -118,8 +134,13 @@ export function ScanProvider({
   }, []);
   useEffect(() => {
     if (!loaded || !reader || busy.current) return;
+    if (!seeded.current) {
+      seeded.current = true;
+      for (const r of records) if (!eligible.current.has(r.id)) eligible.current.set(r.id, HAIR_READ_STARTUP_DELAY_MS);
+    }
     const attempted = tried.current;
-    const next = records.find((r) => !attempted.has(r.id) && needsHairAnalysis(r));
+    const wait = eligible.current;
+    const next = records.find((r) => wait.has(r.id) && !attempted.has(r.id) && needsHairAnalysis(r));
     if (!next) return;
     attempted.add(next.id);
     busy.current = true;
@@ -141,7 +162,7 @@ export function ScanProvider({
         // Show the result, and look for the next scan that needs reading.
         if (mounted.current) setRecords(await s.list());
       }
-    }, HAIR_READ_DELAY_MS);
+    }, wait.get(next.id) ?? HAIR_READ_STARTUP_DELAY_MS);
     return () => {
       // A read already under way finishes and saves; one still waiting is put back.
       if (started) return;
@@ -149,7 +170,7 @@ export function ScanProvider({
       busy.current = false;
       attempted.delete(next.id);
     };
-  }, [loaded, records, reader, s]);
+  }, [loaded, records, reader, s, asked]);
 
   const value = useMemo(
     () => ({
@@ -159,11 +180,12 @@ export function ScanProvider({
       latest: latestOf(records),
       save,
       remove,
+      requestHairRead,
       draft,
       saveDraft,
       clearDraft,
     }),
-    [records, loaded, save, remove, draft, saveDraft, clearDraft],
+    [records, loaded, save, remove, requestHairRead, draft, saveDraft, clearDraft],
   );
   return <ScanContext.Provider value={value}>{children}</ScanContext.Provider>;
 }
