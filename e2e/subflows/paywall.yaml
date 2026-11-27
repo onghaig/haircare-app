@@ -5,7 +5,8 @@ appId: com.onghaig.haircare
 - assertVisible: "Free until .*Cancel any time in Settings\\."
 - assertVisible: "Test build: no payment is taken\\."
 - takeScreenshot: e2e-30-paywall
-- tapOn: "Weekly.*"
+# "Weekly.*" also matches the "Weekly scans that catch change early" bullet; anchor to the plan card.
+- tapOn: "Weekly, .*"
 - assertVisible: "Subscribe for \\$6\\.99 a week"
 - tapOn: "Annual.*"
 - tapOn: "Start 3-day free trial"
