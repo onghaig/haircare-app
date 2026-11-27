@@ -8,7 +8,7 @@ appId: com.onghaig.haircare
 - assertVisible: ".*Norwood today.*"
 - assertVisible: "You in 5 years"
 # The preview is one accessibility element, so the caption is part of its label.
-- assertVisible: ".*Illustration based on your forecast, not a medical prediction"
+- assertVisible: ".*Illustration from your forecast. Estimate only."
 - takeScreenshot: e2e-21-reveal
 - tapOn: "10 years"
 - assertVisible: "You in 10 years"

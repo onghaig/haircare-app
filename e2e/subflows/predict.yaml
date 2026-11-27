@@ -5,9 +5,9 @@ appId: com.onghaig.haircare
 ---
 - tapOn: "Predict"
 - extendedWaitUntil:
-    visible: "Chance of Norwood \\d or worse by \\d+"
+    visible: "Your Plan.*"
     timeout: 20000
-- assertVisible: "Your plan, by what it does"
+- assertVisible: "What your plan does"
 - takeScreenshot: e2e-60-predict
 - scrollUntilVisible:
     element: "Compare all options"
