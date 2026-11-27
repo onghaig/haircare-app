@@ -18,11 +18,13 @@ import {
 import { CrownPanel, CrownReview } from '@/components/scan/CrownPanel';
 import { HairChecklist } from '@/components/scan/HairChecklist';
 import { HeadGuide } from '@/components/scan/HeadGuide';
+import { FINISH_MS, ScanFinish } from '@/components/scan/ScanFinish';
 import { PromptCard, StatusChips, ViewProgress } from '@/components/scan/ScanHud';
 import { Button, Text } from '@/components/ui';
-import { promptFor, statusChips, viewInstruction } from '@/scan/guidance';
+import { cameraErrorMessage, MANUAL_AFTER_MS, promptFor, statusChips, viewInstruction } from '@/scan/guidance';
 import { useProfile } from '@/profile/ProfileProvider';
 import { AIM_VOICE, BURST_MS, crownReducer, initialCrownState, stepVoice } from '@/scan/crown';
+import { draftRemaining } from '@/scan/draft';
 import { useScans } from '@/scan/ScanProvider';
 import {
   buildScanRecord,
@@ -34,9 +36,10 @@ import {
   TIPS,
   type HairState,
   VIEW_LABEL,
+  viewsToTake,
 } from '@/scan/session';
 import { VoiceCoach } from '@/scan/voice';
-import { colors, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 
 function newId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -44,9 +47,17 @@ function newId() {
 
 /** The guided five-view scan. Camera and checks are native; this screen is the HUD. */
 export default function ScanSessionScreen() {
-  const { baseline, records, save, remove } = useScans();
+  const { baseline, records, save, remove, draft, saveDraft, clearDraft } = useScans();
   // Redoing a scan from its result screen: the old one goes once this one has saved.
-  const { replaces } = useLocalSearchParams<{ replaces?: string }>();
+  // `only` retakes just those views of it; `resume` picks up a scan left part-way.
+  const params = useLocalSearchParams<{ replaces?: string; only?: string; resume?: string }>();
+  const replaces = params.replaces ?? (params.resume ? draft?.replaces : undefined);
+  const only = useMemo(
+    () => (params.only ? (params.only.split(',').filter((v) => (SCAN_ORDER as string[]).includes(v)) as ScanView[]) : null),
+    [params.only],
+  );
+  const base = only && replaces ? records.find((r) => r.id === replaces) : undefined;
+  const resumable = params.resume && draft ? draft : null;
   const { profile } = useProfile();
   const firstReveal = !profile.revealSeenAt;
   const [state, dispatch] = useReducer(scanReducer, initialScanState);
@@ -55,7 +66,15 @@ export default function ScanSessionScreen() {
   // Voice is on by default: you can't read the screen with your head turned or tilted down.
   const [voiceOn, setVoiceOn] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  // First scan only: one practice view with the checks live and nothing saved.
+  const [practice, setPractice] = useState(false);
+  const practicePassed = practice && state.everPassed;
+  const [leaving, setLeaving] = useState(false);
+  // The manual shutter appears only once a view has been stuck for a while.
+  const [clock, setClock] = useState(() => Date.now());
+  const manualShot = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(true);
   const camera = useRef<HeadMapCameraViewRef>(null);
   const coach = useMemo(() => new VoiceCoach((line) => Speech.speak(line, { rate: 0.95 })), []);
   const view = currentView(state);
@@ -66,16 +85,42 @@ export default function ScanSessionScreen() {
   // Finish: save and show the result.
   useEffect(() => {
     if (state.phase !== 'done') return;
-    const record = buildScanRecord(state, newId(), new Date());
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    // Hold the finish moment for a beat, even when saving is instant.
+    const beat = new Promise((r) => setTimeout(r, FINISH_MS));
+    const record = buildScanRecord(state, newId(), new Date(), base);
     save(record)
       .then(async (saved) => {
         if (replaces && replaces !== saved.id) await remove(replaces);
-        // The first finished scan leads into the forecast reveal; later scans show their result.
-        if (firstReveal) router.replace('/reveal/analysing');
-        else router.replace({ pathname: '/scan/[id]', params: { id: saved.id } });
+        await clearDraft();
+        setSaving(false);
+        await beat;
+        // The first good scan leads into the forecast reveal. A weak first scan shows its
+        // result first, so the weak views can be retaken before the reveal (never after it).
+        if (firstReveal && !saved.lowConfidence) router.replace('/reveal/analysing');
+        else
+          router.replace({
+            pathname: '/scan/[id]',
+            params: firstReveal ? { id: saved.id, then: 'reveal' } : { id: saved.id },
+          });
       })
       .catch((e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)));
-  }, [state, save, remove, replaces, firstReveal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, when the scan finishes
+  }, [state.phase]);
+
+  useEffect(() => {
+    if (state.phase !== 'capturing') return;
+    const t = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [state.phase]);
+
+  // Practice: the first time every check goes green, that's the lesson learned.
+  useEffect(() => {
+    if (!practicePassed) return;
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    if (voiceOn) coach.say('That’s it. Every view works like this.', Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when practice passes
+  }, [practicePassed]);
 
   // Announce each new view with what to do; the crown's steps announce themselves.
   useEffect(() => {
@@ -141,8 +186,31 @@ export default function ScanSessionScreen() {
 
   function shoot() {
     if (held) return;
+    // Pressed while checks are still red: the photo is kept but marked, and stays out of trends
+    // if it scores low.
+    manualShot.current = !liveRef.current?.allPassed;
     if (drawn) camera.current?.capture();
     else setQueued(view);
+  }
+
+  const taken = SCAN_ORDER.filter((v) => state.captures[v]);
+  function close() {
+    if (state.phase === 'capturing' && !practice && taken.length > 0 && !only) setLeaving(true);
+    else router.back();
+  }
+  async function finishLater() {
+    if (!state.hairState) return router.back();
+    await saveDraft({
+      startedAt: new Date(state.startedAt ?? Date.now()).toISOString(),
+      hairState: state.hairState,
+      captures: state.captures,
+      ...(replaces ? { replaces } : {}),
+    });
+    router.back();
+  }
+  async function discard() {
+    await clearDraft();
+    router.back();
   }
 
   // A shot asked for mid-draw, or checks that went green before the line finished, fire now.
@@ -162,14 +230,30 @@ export default function ScanSessionScreen() {
     return () => clearTimeout(t);
   }, [held]);
 
-  async function start(hairState: HairState) {
+  async function start(hairState: HairState, opts: { practise?: boolean } = {}) {
     void prepareVoiceAudioAsync();
     if (isHeadMapAvailable) {
       const p = await requestCameraPermissionAsync();
       setPermission(p);
       if (p !== 'granted') return;
     }
+    if (resumable) {
+      dispatch({ type: 'resume', hairState: resumable.hairState, captures: resumable.captures, now: Date.now() });
+      return;
+    }
+    if (only) {
+      dispatch({ type: 'resume', hairState, only, now: Date.now() });
+      return;
+    }
+    setPractice(!!opts.practise);
     dispatch({ type: 'start', hairState, now: Date.now() });
+  }
+
+  function endPractice() {
+    if (!state.hairState) return;
+    setPractice(false);
+    void camera.current?.resetCapture();
+    dispatch({ type: 'start', hairState: state.hairState, now: Date.now() });
   }
 
   if (state.phase === 'checklist' || permission === 'denied') {
@@ -185,7 +269,12 @@ export default function ScanSessionScreen() {
             <Button label="Open Settings" onPress={() => Linking.openSettings()} />
           </View>
         ) : (
-          <HairChecklist firstScan={records.length === 0} onStart={start} />
+          <HairChecklist
+            firstScan={records.length === 0 && !resumable}
+            resume={resumable ? { done: SCAN_ORDER.length - draftRemaining(resumable).length, next: VIEW_LABEL[draftRemaining(resumable)[0] ?? 'front'].split(':')[0] } : null}
+            retake={only ? only.map((v) => VIEW_LABEL[v].split(':')[0]) : null}
+            onStart={start}
+          />
         )}
       </SafeAreaView>
     );
@@ -196,7 +285,7 @@ export default function ScanSessionScreen() {
     : state.phase === 'done'
       ? { title: 'Saving your scan', tone: 'ready' as const, voice: '' }
       : cameraError
-        ? { title: 'Camera problem', detail: cameraError, tone: 'fix' as const, voice: '' }
+        ? { ...cameraErrorMessage(cameraError), tone: 'fix' as const, voice: '' }
         : held
           ? { title: 'Got it', tone: 'ready' as const, voice: 'Got it' }
           : live
@@ -204,6 +293,12 @@ export default function ScanSessionScreen() {
             : { title: 'Line up with the outline', tone: 'fix' as const, voice: '' };
   const ghost = baseline?.views[view]?.uri;
   const tip = state.tip ? TIPS[state.tip] : null;
+  // Without live checks (no scan engine, or the camera failed) the shutter is the only way on.
+  const showManual =
+    state.phase === 'capturing' &&
+    !held &&
+    !live?.allPassed &&
+    (!isHeadMapAvailable || !!cameraError || (state.viewSince != null && clock - state.viewSince >= MANUAL_AFTER_MS));
 
   return (
     <View testID="scan-camera" style={styles.camera} onLayout={(e) => setSize(e.nativeEvent.layout)}>
@@ -212,8 +307,8 @@ export default function ScanSessionScreen() {
         style={StyleSheet.absoluteFill}
         view={view}
         baselineFaceWidth={baseline?.faceWidthPx ?? null}
-        active={state.phase === 'capturing' && !(onCrown && crown.step === 'review')}
-        autoCapture={view === 'crown' ? crown.step === 'helper' && drawn : drawn && !held}
+        active={state.phase === 'capturing' && !(onCrown && crown.step === 'review') && !leaving}
+        autoCapture={practice ? false : view === 'crown' ? crown.step === 'helper' && drawn : drawn && !held}
         onQuality={({ nativeEvent }) => {
           const now = Date.now();
           dispatch({ type: 'quality', report: nativeEvent, now });
@@ -232,11 +327,16 @@ export default function ScanSessionScreen() {
             crownDispatch({ type: 'captured', result: nativeEvent });
             return;
           }
-          if (held) return;
+          if (held || practice) return;
           if (voiceOn) coach.say('Got it', Date.now());
-          setHeld(nativeEvent);
+          setHeld(manualShot.current ? { ...nativeEvent, manual: true } : nativeEvent);
+          manualShot.current = false;
         }}
-        onError={({ nativeEvent }) => setCameraError(nativeEvent.message)}
+        onError={({ nativeEvent }) => {
+          // The raw message goes to the log for us; people see plain words (see the prompt).
+          console.warn('[scan] camera error', nativeEvent.message);
+          setCameraError(nativeEvent.message);
+        }}
       />
       {ghost && view !== 'crown' ? (
         <Image source={{ uri: ghost }} style={[StyleSheet.absoluteFill, { opacity: 0.28 }]} contentFit="cover" pointerEvents="none" />
@@ -260,26 +360,57 @@ export default function ScanSessionScreen() {
 
       <SafeAreaView style={styles.hud} pointerEvents="box-none">
         <View style={styles.top}>
-          <CloseButton />
-          <ViewProgress current={view} done={state.captures} />
-          <Pressable
-            onPress={() => setVoiceOn((v) => !v)}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: voiceOn }}
-            accessibilityLabel="Voice guidance"
-            style={styles.pill}>
-            <Text variant="caption" style={{ fontWeight: '600' }}>
-              {voiceOn || view === 'crown' ? 'Voice on' : 'Voice off'}
+          <CloseButton onPress={close} />
+          {practice ? (
+            <Text variant="caption" style={[styles.pill, { fontWeight: '600' }]}>
+              Practice
             </Text>
-          </Pressable>
+          ) : (
+            <ViewProgress current={view} done={state.captures} only={only} />
+          )}
+          {view === 'crown' ? (
+            // You can't see the screen behind your head, so the crown always talks.
+            <View
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel="Voice stays on for the crown"
+              accessibilityState={{ disabled: true }}
+              style={styles.pill}>
+              <Text variant="caption" style={{ fontWeight: '600' }}>
+                Voice on for the crown
+              </Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => setVoiceOn((v) => !v)}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: voiceOn }}
+              accessibilityLabel="Voice guidance"
+              style={styles.pill}>
+              <Text variant="caption" style={{ fontWeight: '600' }}>
+                {voiceOn ? 'Voice on' : 'Voice off'}
+              </Text>
+            </Pressable>
+          )}
         </View>
         <Text variant="headline" style={styles.viewTitle}>
-          {VIEW_LABEL[view]}
+          {practice ? 'Practice: front view' : VIEW_LABEL[view]}
         </Text>
         <View style={{ flex: 1 }} />
         <View style={styles.bottom}>
           {!onCrown || crown.step === 'helper' ? <PromptCard prompt={prompt} tip={tip} /> : null}
-          {lastTaken && !held && state.phase === 'capturing' ? (
+          {practice ? (
+            <View style={styles.practice} testID="scan-practice">
+              <Text variant="headline">{practicePassed ? 'That’s it. Every view works like this.' : 'Try one view first'}</Text>
+              <Text variant="caption" color="textMuted">
+                {practicePassed
+                  ? 'When every check is green, the photo takes itself. Nothing here was saved.'
+                  : 'Line up with the outline until every check below turns green. Nothing is saved.'}
+              </Text>
+              <Button label={practicePassed ? 'Start the real scan' : 'Skip practice'} variant={practicePassed ? 'primary' : 'secondary'} onPress={endPractice} />
+            </View>
+          ) : null}
+          {lastTaken && !held && state.phase === 'capturing' && !practice ? (
             <Pressable
               onPress={redoLast}
               accessibilityRole="button"
@@ -292,13 +423,28 @@ export default function ScanSessionScreen() {
             </Pressable>
           ) : null}
           {live && (!onCrown || crown.step === 'helper') ? <StatusChips chips={statusChips(live)} /> : null}
-          {view !== 'crown' ? (
-            <Button label="Take photo now" variant="secondary" onPress={shoot} />
+          {practice ? null : view !== 'crown' ? (
+            showManual ? (
+              <Button label="Having trouble? Take it anyway" variant="secondary" onPress={shoot} />
+            ) : null
           ) : onCrown ? (
             <CrownPanel state={crown} dispatch={crownDispatch} onShutter={() => void camera.current?.capture()} />
           ) : null}
         </View>
       </SafeAreaView>
+      {state.phase === 'done' && !saveError ? (
+        <ScanFinish captures={state.captures} curve={state.captures.front?.report?.hairline?.curve ?? base?.hairline?.curve} saving={saving} />
+      ) : null}
+      {leaving ? (
+        <LeaveSheet
+          taken={taken.length}
+          left={viewsToTake(state).map((v) => VIEW_LABEL[v].split(':')[0])}
+          firstScan={firstReveal}
+          onStay={() => setLeaving(false)}
+          onLater={() => void finishLater()}
+          onDiscard={() => void discard()}
+        />
+      ) : null}
       {onCrown ? (
         <CrownReview
           state={crown}
@@ -313,11 +459,54 @@ export default function ScanSessionScreen() {
   );
 }
 
-function CloseButton() {
+function CloseButton({ onPress = () => router.back() }: { onPress?: () => void }) {
   return (
-    <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close scan" style={styles.close}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Close scan" style={styles.close}>
       <Text variant="headline">×</Text>
     </Pressable>
+  );
+}
+
+/** Leaving mid-scan keeps the photos taken so far for a day, so nobody starts again from zero. */
+function LeaveSheet({
+  taken,
+  left,
+  firstScan,
+  onStay,
+  onLater,
+  onDiscard,
+}: {
+  taken: number;
+  left: string[];
+  firstScan: boolean;
+  onStay: () => void;
+  onLater: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <View style={styles.scrim} testID="leave-scan">
+      <SafeAreaView edges={['bottom']} style={styles.sheet} accessibilityViewIsModal>
+        <View style={styles.grab} />
+        <Text variant="title" accessibilityRole="header">
+          Leave your scan?
+        </Text>
+        <Text color="textMuted">
+          {`${taken} of ${SCAN_ORDER.length} photos are saved on your phone. Pick up where you left off any time in the next day.`}
+        </Text>
+        <Text variant="caption" color="textMuted">
+          {firstScan
+            ? `Your forecast is ready to build as soon as the last ${left.length === 1 ? 'view is' : `${left.length} views are`} in: ${left.join(', ')}.`
+            : `Still to take: ${left.join(', ')}.`}
+        </Text>
+        <Button label="Keep scanning" onPress={onStay} />
+        <Button label="Finish later" variant="secondary" onPress={onLater} />
+        <Pressable accessibilityRole="button" onPress={onDiscard} style={styles.discard}>
+          <Text variant="caption" style={{ color: colors.danger, fontWeight: '600' }}>
+            Delete these photos
+          </Text>
+        </Pressable>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -338,6 +527,19 @@ const styles = StyleSheet.create({
   viewTitle: { textAlign: 'center', marginTop: spacing.sm },
   bottom: { padding: spacing.lg, gap: spacing.md },
   close: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+  practice: { backgroundColor: 'rgba(0,0,0,0.72)', borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  grab: { width: 38, height: 4, borderRadius: 2, backgroundColor: colors.line, alignSelf: 'center' },
+  discard: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md },
   pill: {
     backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: 10,

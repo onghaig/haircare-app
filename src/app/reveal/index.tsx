@@ -1,19 +1,19 @@
-import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FuturePreview } from '@/components/reveal/FuturePreview';
-import { estimateRange } from '@/components/scan/StageEstimateCard';
 import { Button, Card, Text } from '@/components/ui';
 import { isPremium } from '@/paywall/purchases';
 import { useProfile } from '@/profile/ProfileProvider';
 import { useForecast } from '@/reveal/ForecastProvider';
 import { useOptionalScans } from '@/scan/ScanProvider';
+import type { ScanRecord } from '@/scan/session';
 import { estimateStage } from '@/scan/stageEstimate';
+import { goalCopy } from '@/reveal/goal';
+import { confidenceHint, retakeSeconds, shownConfidence, stageSource } from '@/reveal/trust';
 import {
-  confidenceLabel,
   isLowRisk,
   PREVIEW_YEARS,
   rangeLabel,
@@ -32,7 +32,8 @@ import { colors, radius, spacing } from '@/theme';
 export default function RevealScreen() {
   const { profile, update } = useProfile();
   const { forecast } = useForecast();
-  const estimate = estimateStage(useOptionalScans()?.latest, profile);
+  const latest = useOptionalScans()?.latest;
+  const estimate = estimateStage(latest, profile);
   const [years, setYears] = useState<PreviewYear>(5);
 
   useEffect(() => {
@@ -54,45 +55,78 @@ export default function RevealScreen() {
   const low = isLowRisk(forecast);
   const premium = isPremium(profile);
   const timeline = PREVIEW_YEARS.map((y) => yearOf(forecast, y)).filter((y) => y != null);
+  const confidence = shownConfidence(forecast, latest, estimate);
+  const hint = confidenceHint(latest);
+  const goal = goalCopy(profile.goal, low);
+  const today = rangeLabel(forecast.stageNow);
+  const todayHigh = today.includes(' to ') ? today.split(' to ')[1] : null;
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Card style={styles.today}>
-          <View>
-            <Text
-              variant="display"
-              style={{ fontSize: 34, lineHeight: 38 }}
-              accessibilityLabel={`Norwood ${stageLabel(forecast.stageNow.p50).slice(1)} today`}>
-              {stageLabel(forecast.stageNow.p50)}
-            </Text>
-            <Text variant="caption" color="textMuted">
-              Norwood today, {confidenceLabel(forecast)} confidence
-            </Text>
-            {estimate ? (
-              <Text variant="caption" color="accent" testID="reveal-scan-estimate">
-                {`Scan estimate ${estimateRange(estimate)}, ${estimate.confidence} confidence`}
+        <Card style={{ gap: spacing.sm }}>
+          <View style={styles.today}>
+            <View style={{ flex: 1 }}>
+              <Text
+                variant="display"
+                style={{ fontSize: 34, lineHeight: 38 }}
+                accessibilityLabel={`Norwood ${stageLabel(forecast.stageNow.p50).slice(1)} today${todayHigh ? `, up to ${todayHigh.slice(1)}` : ''}`}>
+                {stageLabel(forecast.stageNow.p50)}
+                {todayHigh && todayHigh !== stageLabel(forecast.stageNow.p50) ? (
+                  <Text variant="caption" color="textMuted">{`  to ${todayHigh}`}</Text>
+                ) : null}
               </Text>
-            ) : null}
+              <Text variant="caption" color="textMuted" testID="reveal-source">
+                {`${stageSource(latest)}. Norwood today.`}
+              </Text>
+            </View>
+            <View style={[styles.conf, confidence === 'low' && styles.confLow]} testID="reveal-confidence">
+              <Text variant="caption" style={{ fontWeight: '700', color: confidence === 'low' ? colors.warning : colors.accent }}>
+                {`${confidence[0].toUpperCase()}${confidence.slice(1)} confidence`}
+              </Text>
+            </View>
           </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text variant="caption" color="textMuted">
-              Weakest zone
+          {hint ? (
+            <Pressable
+              disabled={!latest || hint.retake.length === 0}
+              accessibilityRole={hint.retake.length ? 'button' : 'text'}
+              onPress={() =>
+                latest && router.push({ pathname: '/scan/session', params: { replaces: latest.id, only: hint.retake.join(',') } })
+              }
+              style={styles.hint}
+              testID="reveal-retake">
+              <View style={styles.hintDot} />
+              <Text variant="caption" style={{ flex: 1 }}>
+                {hint.text}
+                {hint.retake.length ? (
+                  <Text variant="caption" color="accent" style={{ fontWeight: '600' }}>
+                    {`  Retake ${hint.retake.length === 1 ? '1 view' : `${hint.retake.length} views`}, about ${retakeSeconds(hint.retake.length)} s ›`}
+                  </Text>
+                ) : null}
+              </Text>
+            </Pressable>
+          ) : null}
+        </Card>
+        <Card style={styles.zones}>
+          <Text variant="caption" color="textMuted">
+            Where you notice it (your answer)
+          </Text>
+          <View style={styles.zoneRow}>
+            {zones.weakest ? (
+              <View style={styles.zoneChip}>
+                <Text variant="caption" style={{ fontWeight: '700', color: colors.warning }}>
+                  {zones.weakest}
+                </Text>
+              </View>
+            ) : (
+              <Text style={{ fontWeight: '700' }}>Nowhere yet</Text>
+            )}
+            <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
+              {scanStageLine(latest)}
             </Text>
-            <Text
-              style={{
-                fontWeight: '700',
-                color: zones.weakest ? colors.warning : colors.text,
-              }}>
-              {zones.weakest ?? 'None yet'}
-            </Text>
-            <Text variant="caption" color="textMuted">
-              Strongest
-            </Text>
-            <Text style={{ fontWeight: '700' }}>{zones.strongest ?? 'None stands out'}</Text>
           </View>
         </Card>
-        <Text>{low ? 'Your forecast looks stable as of right now. Tracking keeps it that way.' : zones.sentence}</Text>
+        <Text>{low ? 'Your forecast looks stable as of right now. Tracking keeps it that way.' : goal.sentence ?? zones.sentence}</Text>
 
         {showsFuturePreview(profile) && preview ? (
           <>
@@ -130,15 +164,17 @@ export default function RevealScreen() {
               <Text style={{ flex: 1 }}>
                 In {y!.years} year{y!.years === 1 ? '' : 's'} (age {y!.age})
               </Text>
-              <View>
-                <Text
-                  style={{ fontWeight: '700' }}
-                  accessibilityElementsHidden={i > 0}
-                  importantForAccessibility={i > 0 ? 'no-hide-descendants' : 'auto'}>
-                  {rangeLabel(y!.untreated)}
-                </Text>
-                {i > 0 && !premium ? <BlurView intensity={40} tint="dark" style={styles.frost} testID="timeline-frost" /> : null}
-              </View>
+              {i > 0 && !premium ? (
+                // Locked years are never rendered under a blur: a blur that fails (Android without
+                // a blur method) would show the paid number.
+                <View style={styles.lockedValue} testID="timeline-frost" accessibilityLabel="Locked">
+                  <Text variant="caption" color="textMuted" style={{ fontWeight: '600' }}>
+                    Locked
+                  </Text>
+                </View>
+              ) : (
+                <Text style={{ fontWeight: '700' }}>{rangeLabel(y!.untreated)}</Text>
+              )}
             </View>
           ))}
           <Text variant="caption" color="textMuted">
@@ -150,11 +186,16 @@ export default function RevealScreen() {
         {premium ? (
           <Button label="Done" onPress={() => router.dismissAll()} />
         ) : (
-          <Button label={low ? 'Unlock tracking and your plan' : 'Unlock your future look'} onPress={() => router.push('/paywall')} />
+          <Button label={goal.cta ?? (low ? 'Unlock tracking and your plan' : 'Unlock your future look')} onPress={() => router.push('/paywall')} />
         )}
       </View>
     </SafeAreaView>
   );
+}
+
+function scanStageLine(scan: ScanRecord | undefined): string {
+  if (!scan) return 'Your first scan will measure it.';
+  return scan.lowConfidence ? 'Your scan will confirm this once it can be measured.' : 'Your scans now track it.';
 }
 
 const styles = StyleSheet.create({
@@ -181,14 +222,26 @@ const styles = StyleSheet.create({
   },
   segmentOn: { backgroundColor: colors.text },
   timelineRow: { flexDirection: 'row', alignItems: 'center', minHeight: 32 },
-  frost: {
-    position: 'absolute',
-    top: -4,
-    left: -8,
-    right: -8,
-    bottom: -4,
+  lockedValue: {
     borderRadius: radius.sm,
-    overflow: 'hidden',
+    backgroundColor: colors.surfaceRaised,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
+  conf: { borderWidth: 1, borderColor: colors.accentDim, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 2 },
+  confLow: { borderColor: colors.warning },
+  hint: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'flex-start',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    paddingTop: spacing.sm,
+    minHeight: 44,
+  },
+  hintDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.warning, marginTop: 5 },
+  zones: { gap: 6 },
+  zoneRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  zoneChip: { borderWidth: 1, borderColor: colors.warning, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 2 },
   bottom: { padding: spacing.lg },
 });

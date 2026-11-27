@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Ring } from '@/components/onboarding/Controls';
+import { ResumeScanCard } from '@/components/scan/ResumeScanCard';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { answer, missedYesterday, progress, streak, type Answer } from '@/plan/log';
 import { usePlan } from '@/plan/PlanProvider';
@@ -13,7 +14,8 @@ import { TASK_WHY } from '@/plan/why';
 import { chanceRangeLabel, HEADLINE_YEARS } from '@/predict/predict';
 import { useProfile } from '@/profile/ProfileProvider';
 import { useForecast } from '@/reveal/ForecastProvider';
-import { rangeLabel, yearOf } from '@/reveal/reveal';
+import { goalCopy } from '@/reveal/goal';
+import { isLowRisk, rangeLabel, yearOf } from '@/reveal/reveal';
 import { isPremium } from '@/paywall/purchases';
 import { useScans } from '@/scan/ScanProvider';
 import { colors, minTouchTarget, radius, spacing } from '@/theme';
@@ -21,7 +23,7 @@ import { colors, minTouchTarget, radius, spacing } from '@/theme';
 /** One daily ring, one big next action, the forecast as a small card. Under 60 seconds a day. */
 export default function TodayScreen() {
   const { profile, update } = useProfile();
-  const { records } = useScans();
+  const { records, draft } = useScans();
   const { book, change } = usePlan();
   const { forecast, plan } = useForecast();
   const now = useMemo(() => new Date(), []);
@@ -39,6 +41,7 @@ export default function TodayScreen() {
   const nudge = biggestNudge(plan, book, now);
   const strip = nudge ? weekStrip(book, now, nudge.entry.task) : null;
   const remindersOn = profile.reminders?.enabled ?? false;
+  const goal = goalCopy(profile.goal, forecast ? isLowRisk(forecast) : false);
 
   const set = (id: TaskId, a: Answer | undefined) => void change((b) => answer(b, today, id, a));
 
@@ -64,7 +67,9 @@ export default function TodayScreen() {
         </View>
       </View>
 
-      {scanDue ? (
+      {draft ? (
+        <ResumeScanCard firstScan={records.length === 0} />
+      ) : scanDue ? (
         <Card style={styles.hero}>
           <Text variant="caption" color="accent">
             {records.length === 0 ? 'Your first scan sets your baseline' : 'Weekly scan due today'}
@@ -161,7 +166,7 @@ export default function TodayScreen() {
                 : `Norwood 3 by ${ten.age}: ${chanceRangeLabel(ten.pNorwood3Plus).toLowerCase()} doing nothing`}
           </Text>
           <Text variant="caption" color="textMuted">
-            Your monthly verdict checks your scans against both lines.
+            {goal.today ?? 'Your monthly verdict checks your scans against both lines.'}
           </Text>
         </Card>
       </Pressable>

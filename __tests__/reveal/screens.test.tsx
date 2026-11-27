@@ -68,7 +68,8 @@ describe('Analysing', () => {
     expect(screen.getByText('73%')).toBeOnTheScreen();
     expect(screen.getByTestId('analysis-locked')).toBeOnTheScreen();
     expect(screen.getByText('5 of 5')).toBeOnTheScreen();
-    expect(screen.getByText('2 of 8')).toBeOnTheScreen();
+    expect(screen.getByText('Relatives analysed')).toBeOnTheScreen();
+    expect(screen.getByText('Hairline points traced')).toBeOnTheScreen();
     expect(screen.getByText('Projecting to age 50')).toBeOnTheScreen();
 
     await act(async () => jest.advanceTimersByTime(1000));

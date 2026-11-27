@@ -8,7 +8,7 @@ import { ScalpMap } from '@/components/scan/ScalpMap';
 import { Text } from '@/components/ui';
 import { availableViews, DEG_PER_POINT, layersAt, nearestView, RING, stepAngle, TOP, wrap } from '@/scan/panorama';
 import type { MapZone } from '@/scan/headModel';
-import { compareZone, comparisonText, MAP_ZONE_LABEL, MAP_ZONES, scanHairMap } from '@/scan/scalpMap';
+import { compareZone, comparisonText, MAP_ZONE_LABEL, MAP_ZONES, previousGoodScan, scanHairMap } from '@/scan/scalpMap';
 import { useScans } from '@/scan/ScanProvider';
 import type { ScanRecord } from '@/scan/session';
 import { colors, minTouchTarget, radius, spacing } from '@/theme';
@@ -49,7 +49,7 @@ export default function PanoramaScreen() {
         value={mode}
         onChange={(k) => setMode(k as 'map' | 'turn')}
       />
-      {mode === 'map' ? <MapView scan={scan} baseline={baseline} /> : <TurnAround scan={scan} />}
+      {mode === 'map' ? <MapView scan={scan} baseline={baseline} previous={previousGoodScan(records, scan)} /> : <TurnAround scan={scan} />}
     </SafeAreaView>
   );
 }
@@ -74,11 +74,14 @@ function Segments({ options, value, onChange }: { options: { key: string; label:
   );
 }
 
-function MapView({ scan, baseline }: { scan: ScanRecord; baseline?: ScanRecord }) {
+function MapView({ scan, baseline, previous }: { scan: ScanRecord; baseline?: ScanRecord; previous?: ScanRecord }) {
   const { width } = useWindowDimensions();
   const [layer, setLayer] = useState<'photos' | 'hair' | 'both'>('both');
   const [selected, setSelected] = useState<MapZone | null>(null);
-  const maps = useMemo(() => ({ now: scanHairMap(scan), then: baseline ? scanHairMap(baseline) : undefined }), [scan, baseline]);
+  const maps = useMemo(
+    () => ({ now: scanHairMap(scan), then: baseline ? scanHairMap(baseline) : undefined, previous }),
+    [scan, baseline, previous],
+  );
   const size = Math.min(width - spacing.lg * 2, 360);
   return (
     <ScrollView contentContainerStyle={{ gap: spacing.md, alignItems: 'center' }}>
@@ -109,7 +112,7 @@ function MapView({ scan, baseline }: { scan: ScanRecord; baseline?: ScanRecord }
               {MAP_ZONE_LABEL[z]}
             </Text>
             <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-              {comparisonText(compareZone(z, scan, baseline, maps))}
+              {comparisonText(compareZone(z, scan, baseline, maps), z)}
             </Text>
           </Pressable>
         ))}

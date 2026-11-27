@@ -39,6 +39,13 @@ export interface Relative {
   startAge?: number;
   /** Local file URI of a photo the user added. */
   photoUri?: string;
+  /** What the scan engine read from that photo. Absent when it found no hairline. */
+  photoAnalysis?: {
+    stage: number;
+    low: number;
+    high: number;
+    curve: [number, number][];
+  };
 }
 
 export type TreatmentChoice =

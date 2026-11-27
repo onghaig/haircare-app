@@ -37,10 +37,33 @@ export function shortDate(d: Date): string {
 }
 
 export function planLine(plan: Plan): string {
-  if (plan.trialDays > 0) return `${plan.trialDays} days free, then ${usd(plan.priceUSD)} a ${plan.period}`;
+  if (plan.trialDays > 0) return `${plan.trialDays} days free, then billed ${plan.period === 'year' ? 'yearly' : plan.period === 'month' ? 'monthly' : 'weekly'}`;
   return 'No trial';
 }
 
+/** The billed price, the most prominent price on the paywall (App Store guideline 3.1.2). */
+export function billedLabel(plan: Plan): { price: string; per: string } {
+  return { price: usd(plan.priceUSD), per: { year: '/yr', month: '/mo', week: '/wk' }[plan.period] };
+}
+
+/** Secondary line under the billed price: the weekly equivalent, for longer plans. */
+export function equivalentLabel(plan: Plan): string | null {
+  return plan.period === 'week' ? null : `about ${usd(weeklyEquivalent(plan))} a week`;
+}
+
+/** What happens when the trial ends, in words, under the button. */
+export function trialLine(plan: Plan, end: Date | null): string {
+  return end
+    ? `Free until ${shortDate(end)}, then ${usd(plan.priceUSD)} a ${plan.period}. We'll remind you the day before. Cancel any time in Settings.`
+    : `${usd(plan.priceUSD)} a ${plan.period}. Cancel any time in Settings.`;
+}
+
+/**
+ * Terms of use: Apple's standard licence agreement until our own is published. Privacy opens the
+ * in-app privacy page. Both must be on the paywall (App Store guideline 3.1.2).
+ */
+export const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+
 export function ctaLabel(plan: Plan): string {
-  return plan.trialDays > 0 ? 'Start free trial' : `Subscribe for ${usd(plan.priceUSD)} a ${plan.period}`;
+  return plan.trialDays > 0 ? `Start ${plan.trialDays}-day free trial` : `Subscribe for ${usd(plan.priceUSD)} a ${plan.period}`;
 }
