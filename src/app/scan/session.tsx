@@ -1,7 +1,6 @@
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,7 +22,7 @@ import { PromptCard, StatusChips, ViewProgress } from '@/components/scan/ScanHud
 import { Button, CloseButton as RoundClose, Text } from '@/components/ui';
 import { cameraErrorMessage, MANUAL_AFTER_MS, promptFor, statusChips, viewInstruction } from '@/scan/guidance';
 import { useProfile } from '@/profile/ProfileProvider';
-import { AIM_VOICE, BURST_MS, crownReducer, initialCrownState, stepVoice } from '@/scan/crown';
+import { BURST_MS, crownReducer, initialCrownState, stepVoice } from '@/scan/crown';
 import { draftRemaining } from '@/scan/draft';
 import { useScans } from '@/scan/ScanProvider';
 import {
@@ -38,7 +37,7 @@ import {
   VIEW_LABEL,
   viewsToTake,
 } from '@/scan/session';
-import { VoiceCoach } from '@/scan/voice';
+import { gotIt, loadNaturalVoice, speakNaturally, viewIntro, VoiceCoach } from '@/scan/voice';
 import { colors, radius, spacing } from '@/theme';
 
 function newId() {
@@ -76,9 +75,12 @@ export default function ScanSessionScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(true);
   const camera = useRef<HeadMapCameraViewRef>(null);
-  const coach = useMemo(() => new VoiceCoach((line) => Speech.speak(line, { rate: 0.95 })), []);
+  const coach = useMemo(() => new VoiceCoach((line) => speakNaturally(line)), []);
+  // Pick the most natural voice on the phone once (enhanced or premium when installed). Not
+  // awaited: until it answers, the default voice speaks.
+  useEffect(() => loadNaturalVoice(), []);
   const view = currentView(state);
-  // The crown: on your own (countdown, spoken aiming, burst) or with a helper, then a check.
+  // The crown: one photo from high above on a spoken countdown, then a check with a density estimate.
   const [crown, crownDispatch] = useReducer(crownReducer, initialCrownState);
   const onCrown = view === 'crown' && state.phase === 'capturing';
 
@@ -129,54 +131,43 @@ export default function ScanSessionScreen() {
   useEffect(() => {
     if (!practicePassed) return;
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    if (voiceOn) coach.say('That’s it. Every view works like this.', Date.now());
+    if (voiceOn) coach.say('That’s it. Every view works just like that.', Date.now());
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when practice passes
   }, [practicePassed]);
 
   // Announce each new view with what to do; the crown's steps announce themselves.
   useEffect(() => {
     if (state.phase !== 'capturing' || view === 'crown') return;
-    if (voiceOn) coach.say(`${VIEW_LABEL[view]}. ${viewInstruction(view)}`, Date.now());
+    if (voiceOn) coach.say(viewIntro(view, viewInstruction(view)), Date.now());
   }, [view, state.phase, voiceOn, coach]);
 
-  // Crown: speak each step as it starts (always: you can't see the screen behind your head).
+  // Crown: speak each step as it starts (always: you can't see the screen above your head).
   useEffect(() => {
     if (!onCrown) return;
-    const line = crown.step === 'choose' ? `${VIEW_LABEL.crown}. Are you on your own, or is someone helping?` : stepVoice(crown);
+    const line = stepVoice(crown);
     if (line) coach.say(line, Date.now());
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per step, not per hint
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per step
   }, [crown.step, onCrown, coach]);
 
-  // Crown countdown: one number a second, out loud. Aiming: a tick so the time-out fires even
-  // if the camera stops sending reports.
+  // Crown countdown: one number a second, out loud.
   useEffect(() => {
-    if (!onCrown) return;
-    if (crown.step === 'countdown') {
-      Speech.speak(String(crown.left), { rate: 1 });
-      const t = setTimeout(() => crownDispatch({ type: 'tick', now: Date.now() }), 1000);
-      return () => clearTimeout(t);
-    }
-    if (crown.step === 'aiming') {
-      const t = setInterval(() => crownDispatch({ type: 'tick', now: Date.now() }), 500);
-      return () => clearInterval(t);
-    }
+    if (!onCrown || crown.step !== 'countdown') return;
+    speakNaturally(String(crown.left));
+    const t = setTimeout(() => crownDispatch({ type: 'tick' }), 1000);
+    return () => clearTimeout(t);
   }, [onCrown, crown.step, crown.left]);
 
-  // The burst: the camera watches the frames and sends back the best one as a capture.
+  // The photo: a short burst, and the camera sends back the sharpest frame as the capture.
   useEffect(() => {
     if (onCrown && crown.step === 'burst') void camera.current?.startBurst(BURST_MS);
   }, [onCrown, crown.step]);
-
-  // A light tap each time the aim comes on target.
-  useEffect(() => {
-    if (onCrown && crown.step === 'aiming' && crown.hint === 'ok') void Haptics.selectionAsync();
-  }, [onCrown, crown.step, crown.hint]);
 
   // The green line draws all the way for each view before a photo can be taken, and the finished
   // line stays up for a moment after it ("Got it") before the next view starts.
   const [drawnView, setDrawnView] = useState<ScanView | null>(null);
   const noGuide = size.width <= 0 || size.height <= 0;
-  const drawn = noGuide || drawnView === view;
+  // Temples take the photo as soon as the hairline is clearly in the shot, without waiting for the line.
+  const drawn = noGuide || drawnView === view || view === 'leftTemple' || view === 'rightTemple';
   const [held, setHeld] = useState<CaptureResult | null>(null);
   const [queued, setQueued] = useState<ScanView | null>(null);
   const live = state.live;
@@ -189,7 +180,7 @@ export default function ScanSessionScreen() {
   const lastTaken = SCAN_ORDER.slice(0, state.index).filter((v) => state.captures[v]).at(-1);
   function redoLast() {
     if (!lastTaken || held) return;
-    crownDispatch({ type: 'switchMode' });
+    crownDispatch({ type: 'reset' });
     setQueued(null);
     void camera.current?.resetCapture();
     dispatch({ type: 'retake', view: lastTaken });
@@ -225,7 +216,7 @@ export default function ScanSessionScreen() {
   }
 
   // A shot asked for mid-draw, or checks that went green before the line finished, fire now.
-  // The crown has its own flow (burst or helper shutter).
+  // The crown has its own flow (countdown and burst).
   useEffect(() => {
     if (!drawn || held || view === 'crown') return;
     if (queued === view || liveRef.current?.allPassed) camera.current?.capture();
@@ -319,17 +310,11 @@ export default function ScanSessionScreen() {
         view={view}
         baselineFaceWidth={baseline?.faceWidthPx ?? null}
         active={state.phase === 'capturing' && !(onCrown && crown.step === 'review') && !leaving}
-        autoCapture={practice ? false : view === 'crown' ? crown.step === 'helper' && drawn : drawn && !held}
+        autoCapture={practice || view === 'crown' ? false : drawn && !held}
         onQuality={({ nativeEvent }) => {
           const now = Date.now();
           dispatch({ type: 'quality', report: nativeEvent, now });
-          if (view !== 'crown') {
-            coach.update(promptFor(nativeEvent).voice, now, voiceOn);
-            return;
-          }
-          crownDispatch({ type: 'quality', report: nativeEvent, now });
-          if (crown.step === 'aiming' && nativeEvent.aim) coach.update(AIM_VOICE[nativeEvent.aim.hint], now, true);
-          else if (crown.step === 'helper') coach.update(promptFor(nativeEvent).voice, now, voiceOn);
+          if (view !== 'crown') coach.update(promptFor(nativeEvent).voice, now, voiceOn);
         }}
         onCapture={({ nativeEvent }) => {
           setCameraError(null);
@@ -339,7 +324,7 @@ export default function ScanSessionScreen() {
             return;
           }
           if (held || practice) return;
-          if (voiceOn) coach.say('Got it', Date.now());
+          if (voiceOn) coach.say(gotIt(), Date.now());
           setHeld(manualShot.current ? { ...nativeEvent, manual: true } : nativeEvent);
           manualShot.current = false;
         }}
@@ -380,7 +365,7 @@ export default function ScanSessionScreen() {
             <ViewProgress current={view} done={state.captures} only={only} />
           )}
           {view === 'crown' ? (
-            // You can't see the screen behind your head, so the crown always talks.
+            // You can't see the screen with the phone above your head, so the crown always talks.
             <View
               accessible
               accessibilityRole="text"
@@ -409,7 +394,7 @@ export default function ScanSessionScreen() {
         </Text>
         <View style={{ flex: 1 }} />
         <View style={styles.bottom}>
-          {!onCrown || crown.step === 'helper' ? <PromptCard prompt={prompt} tip={tip} /> : null}
+          {!onCrown ? <PromptCard prompt={prompt} tip={tip} /> : null}
           {practice ? (
             <View style={styles.practice} testID="scan-practice">
               <Text variant="headline">{practicePassed ? 'That’s it. Every view works like this.' : 'Try one view first'}</Text>
@@ -433,13 +418,13 @@ export default function ScanSessionScreen() {
               </Text>
             </Pressable>
           ) : null}
-          {live && (!onCrown || crown.step === 'helper') ? <StatusChips chips={statusChips(live)} /> : null}
+          {live && !onCrown ? <StatusChips chips={statusChips(live)} /> : null}
           {practice ? null : view !== 'crown' ? (
             showManual ? (
               <Button label="Having trouble? Take it anyway" variant="secondary" onPress={shoot} />
             ) : null
           ) : onCrown ? (
-            <CrownPanel state={crown} dispatch={crownDispatch} onShutter={() => void camera.current?.capture()} />
+            <CrownPanel state={crown} dispatch={crownDispatch} />
           ) : null}
         </View>
       </SafeAreaView>

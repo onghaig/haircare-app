@@ -123,6 +123,22 @@ final class QualityScorerTests: XCTestCase {
     XCTAssertFalse(frame(yaw: -44, view: .leftTemple).failed.contains(.foreheadVisible))
   }
 
+  func testTemplesCaptureAsSoonAsTurnedTheRightWayWithTheHairlineInTheShot() {
+    // Any clear turn the right way passes, not just 45 plus or minus 5.
+    for yaw in [-18.0, -30.0, -60.0] { XCTAssertTrue(frame(yaw: yaw, view: .leftTemple).allPassed, "yaw \(yaw)") }
+    XCTAssertTrue(frame(yaw: 25, view: .rightTemple).allPassed)
+    // Facing the phone, or turned the other way, is not a temple photo.
+    XCTAssertTrue(frame(yaw: -5, view: .leftTemple).failed.contains(.pose))
+    XCTAssertTrue(frame(yaw: 30, view: .leftTemple).failed.contains(.pose))
+    // No centring or distance gate on the temples.
+    let off = frame(yaw: -30, view: .leftTemple, baseline: 10)
+    XCTAssertFalse(off.failed.contains(.distance))
+    XCTAssertFalse(off.passed.contains(.centred))
+    // A short hold: about 0.2 s on the temples, 0.5 s elsewhere.
+    XCTAssertEqual(CaptureGate.holdFrames(for: .leftTemple), 3)
+    XCTAssertEqual(CaptureGate.holdFrames(for: .front), 8)
+  }
+
   func testDarkFrameFailsExposure() {
     XCTAssertTrue(frame(face: 30, background: 30).failed.contains(.exposure))
   }

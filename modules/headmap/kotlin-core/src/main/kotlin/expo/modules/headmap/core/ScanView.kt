@@ -22,6 +22,8 @@ enum class ScanView(val raw: String) {
   val needsForehead: Boolean get() = this == FRONT
   /** The hairline is traced (for the green line) on the front and both temple views. */
   val tracesHairline: Boolean get() = usesFaceTracking
+  /** Left and right temple views: captured as soon as that side's hairline is clearly in the shot. */
+  val isTemple: Boolean get() = this == LEFT_TEMPLE || this == RIGHT_TEMPLE
 
   companion object {
     fun from(raw: String?): ScanView = entries.firstOrNull { it.raw == raw } ?: FRONT

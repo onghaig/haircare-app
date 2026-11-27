@@ -109,33 +109,24 @@ appId: com.onghaig.haircare
     timeout: 30000
 - assertVisible: "Crown"
 - takeScreenshot: e2e-14-crown
-# The crown: on your own. A spoken countdown, spoken aiming hints, then a burst that keeps the
-# best frame. The demo face is not a crown, so aiming times out and the burst runs anyway.
-# On the slow Android emulator the top view can auto-capture just before the "Take photo now"
-# tap lands, so that tap hits "Someone's helping me" on the crown screen. Switch back if so.
-# Either button picks the solo way.
+# The crown: one photo from high above. Tap Start, a spoken countdown, then a short burst keeps
+# the sharpest frame. No aiming step. On the slow Android emulator the top view's "Take photo
+# now" tap can land on the crown's "take photo now" instead; that takes the photo too.
 - extendedWaitUntil:
-    visible: ".*n my own"
+    visible: "Hold the phone up high|Check your crown photo|Hold still"
     timeout: 10000
 - runFlow:
     when:
-      visible: "I.m on my own"
+      visible: "Hold the phone up high"
     commands:
       - tapOn:
-          text: "I.m on my own"
-          retryTapIfNoChange: false
-- runFlow:
-    when:
-      visible: "On my own"
-    commands:
-      - tapOn:
-          text: "On my own"
+          text: "Start"
           retryTapIfNoChange: false
 - extendedWaitUntil:
     notVisible:
       id: "crown-countdown"
     timeout: 15000
-- takeScreenshot: e2e-14a-crown-aiming
+- takeScreenshot: e2e-14a-crown-photo
 - extendedWaitUntil:
     visible: "Check your crown photo"
     timeout: 30000

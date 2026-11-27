@@ -25,4 +25,6 @@ public enum ScanView: String, CaseIterable, Sendable {
   /// The hairline is traced (for the green line) on the front and both temple views.
   public var tracesHairline: Bool { usesFaceTracking }
   public var needsForehead: Bool { self == .front }
+  /// Left and right temple views: captured as soon as that side's hairline is clearly in the shot.
+  public var isTemple: Bool { self == .leftTemple || self == .rightTemple }
 }

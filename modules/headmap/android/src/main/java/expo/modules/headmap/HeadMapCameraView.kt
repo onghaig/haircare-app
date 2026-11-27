@@ -218,6 +218,7 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
       if (SystemClock.elapsedRealtime() >= b.until) finishBurst()
       return
     }
+    gate.holdFrames = CaptureGate.holdFrames(view)
     for (event in gate.update(report.allPassed)) {
       when (event) {
         CaptureGate.Event.ALIGNED -> post {

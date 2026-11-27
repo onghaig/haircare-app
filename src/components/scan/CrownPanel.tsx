@@ -2,75 +2,39 @@ import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
 import { Button, Text } from '@/components/ui';
-import { AIM_VOICE, reviewNote, type CrownAction, type CrownState } from '@/scan/crown';
+import { crownEstimate, crownEstimateText, reviewNote, type CrownAction, type CrownState } from '@/scan/crown';
 import { colors, radius, spacing } from '@/theme';
 
 import { PromptCard } from './ScanHud';
 
-/** The bottom of the scan screen for the crown: pick a way, then the solo or helper steps. */
-export function CrownPanel({
-  state,
-  dispatch,
-  onShutter,
-}: {
-  state: CrownState;
-  dispatch: (a: CrownAction) => void;
-  onShutter: () => void;
-}) {
+/** The bottom of the scan screen for the crown: one overhead photo on a short countdown. */
+export function CrownPanel({ state, dispatch }: { state: CrownState; dispatch: (a: CrownAction) => void }) {
   switch (state.step) {
-    case 'choose':
+    case 'ready':
       return (
         <View style={styles.gap}>
           <PromptCard
             prompt={{
-              title: 'How are you taking the crown photo?',
-              detail: 'On your own, the phone talks you into place and keeps the best of a quick burst. With a helper, they line it up on screen.',
+              title: 'Hold the phone up high',
+              detail: 'Tap Start, then lift the phone straight above your head with the back camera pointing down at your crown. It counts down out loud and takes the photo.',
               tone: 'ready',
               voice: '',
             }}
           />
-          <Button label="On my own" onPress={() => dispatch({ type: 'choose', mode: 'solo' })} />
-          <Button label="Someone’s helping me" variant="secondary" onPress={() => dispatch({ type: 'choose', mode: 'helper' })} />
+          <Button label="Start" onPress={() => dispatch({ type: 'start' })} />
+          <Button label="Someone’s helping: take photo now" variant="secondary" onPress={() => dispatch({ type: 'shootNow' })} />
         </View>
       );
     case 'countdown':
       return (
         <View style={styles.gap}>
-          <PromptCard
-            prompt={{
-              title: 'Get the phone behind your head',
-              detail: 'Camera facing your crown, about 30 cm away. Listen for directions.',
-              tone: 'ready',
-              voice: '',
-            }}
-          />
-          <Button label="Take it now" variant="secondary" onPress={() => dispatch({ type: 'shootNow' })} />
-          <Button label="Cancel" variant="secondary" onPress={() => dispatch({ type: 'switchMode' })} />
-        </View>
-      );
-    case 'aiming':
-      return (
-        <View style={styles.gap}>
-          <PromptCard
-            prompt={{
-              title: state.hint ? AIM_VOICE[state.hint] : 'Finding your crown',
-              detail: 'The burst starts by itself once your crown is in the middle.',
-              tone: state.hint === 'ok' ? 'ready' : 'fix',
-              voice: '',
-            }}
-          />
-          <Button label="Take it now" variant="secondary" onPress={() => dispatch({ type: 'shootNow' })} />
+          <PromptCard prompt={{ title: 'Lift it up high', detail: 'Back camera pointing down at your crown. Hold still when the count ends.', tone: 'ready', voice: '' }} />
+          <Button label="Take photo now" variant="secondary" onPress={() => dispatch({ type: 'shootNow' })} />
+          <Button label="Cancel" variant="secondary" onPress={() => dispatch({ type: 'reset' })} />
         </View>
       );
     case 'burst':
-      return <PromptCard prompt={{ title: 'Hold still', detail: 'Picking the sharpest photo…', tone: 'ready', voice: '' }} />;
-    case 'helper':
-      return (
-        <View style={styles.gap}>
-          <Button label="Take crown photo" onPress={onShutter} />
-          <Button label="I’m on my own" variant="secondary" onPress={() => dispatch({ type: 'choose', mode: 'solo' })} />
-        </View>
-      );
+      return <PromptCard prompt={{ title: 'Hold still', detail: 'Taking your crown photo…', tone: 'ready', voice: '' }} />;
     case 'review':
       return null;
   }
@@ -80,6 +44,9 @@ export function CrownPanel({
 export function CrownReview({ state, onKeep, onRetake }: { state: CrownState; onKeep: () => void; onRetake: () => void }) {
   if (state.step !== 'review' || !state.result) return null;
   const note = reviewNote(state.result);
+  // Density from this one photo, shown only when the photo itself is usable.
+  const estimate = note.good ? crownEstimate(state.result.report?.hairGrid) : null;
+  const est = estimate ? crownEstimateText(estimate) : null;
   return (
     <View style={styles.review} testID="crown-review">
       <Text variant="title" accessibilityRole="header">
@@ -92,6 +59,14 @@ export function CrownReview({ state, onKeep, onRetake }: { state: CrownState; on
           {note.detail}
         </Text>
       </View>
+      {est ? (
+        <View style={[styles.note, { borderColor: colors.line }]} testID="crown-estimate">
+          <Text variant="headline">{est.title}</Text>
+          <Text variant="caption" color="textMuted">
+            {`${est.detail} An estimate from one photo, not a diagnosis.`}
+          </Text>
+        </View>
+      ) : null}
       <Button label="Keep this photo" onPress={onKeep} />
       <Button label="Retake crown photo" variant="secondary" onPress={onRetake} />
     </View>

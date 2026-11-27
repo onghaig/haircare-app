@@ -7,7 +7,7 @@ jest.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
 }));
 
-jest.mock('expo-speech', () => ({ speak: jest.fn(), stop: jest.fn() }));
+jest.mock('expo-speech', () => ({ speak: jest.fn(), stop: jest.fn(), getAvailableVoicesAsync: jest.fn(async () => []) }));
 
 jest.mock('expo-notifications', () => ({
   getPermissionsAsync: jest.fn(async () => ({ granted: false })),

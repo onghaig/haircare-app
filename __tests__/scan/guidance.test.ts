@@ -74,7 +74,9 @@ describe('promptFor', () => {
 describe('statusChips', () => {
   it('shows five chips on the front view, four on the temples, and hair checks for top and crown', () => {
     expect(statusChips(report([])).map((c) => c.label)).toEqual(['Head level', 'Distance', 'Light', 'Still', 'Forehead']);
-    expect(statusChips(report([], { view: 'leftTemple' }))).toHaveLength(4);
+    // Temples: turned, hairline in the shot, light, still. No centring or distance gate.
+    expect(statusChips(report([], { view: 'leftTemple' })).map((c) => c.label)).toEqual(['Head turned', 'Hairline', 'Light', 'Still']);
+    expect(statusChips(report(['hairlineFound'], { view: 'rightTemple' })).find((c) => c.label === 'Hairline')?.ok).toBe(false);
     expect(statusChips(report(['hairInFrame'], { view: 'top' }))).toEqual([
       { label: 'Hair in frame', ok: false },
       { label: 'Light', ok: true },

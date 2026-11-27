@@ -228,6 +228,7 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
         }
         return
       }
+      gate.holdFrames = CaptureGate.holdFrames(for: scanView)
       for event in gate.update(allPassed: report.allPassed) {
         switch event {
         case .aligned:
@@ -388,6 +389,7 @@ extension HeadMapCameraView {
         offerBurstFrame(report, size: frame.size) { frame }
         return
       }
+      gate.holdFrames = CaptureGate.holdFrames(for: scanView)
       for event in gate.update(allPassed: report.allPassed) {
         switch event {
         case .aligned: onAligned(["view": scanView.rawValue])

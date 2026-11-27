@@ -288,7 +288,7 @@ export function weakReason(scan: ScanRecord, view: ScanView): string {
     case 'backlight':
       return 'Too much light behind you. Turn to face the light.';
     case 'sharpness':
-      return view === 'crown' ? 'A little blurry. Hold the phone still for the burst.' : 'A little blurry. Hold still for a second.';
+      return view === 'crown' ? 'A little blurry. Hold the phone still when the countdown ends.' : 'A little blurry. Hold still for a second.';
     case 'foreheadVisible':
     case 'hairlineFound':
       return 'Your hairline was hidden. Push your hair back off your forehead.';

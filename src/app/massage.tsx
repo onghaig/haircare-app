@@ -1,6 +1,5 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +11,7 @@ import { Button, CloseButton, Text } from '@/components/ui';
 import { answer } from '@/plan/log';
 import { mmss, routineFor, stepAt, totalSeconds, type MassageStep, type Variation } from '@/plan/massage';
 import { usePlan } from '@/plan/PlanProvider';
+import { loadNaturalVoice, speakNaturally } from '@/scan/voice';
 import { dayKey } from '@/plan/tasks';
 import { alpha, colors, minTouchTarget, spacing } from '@/theme';
 
@@ -57,12 +57,14 @@ export default function MassageScreen() {
     return () => clearInterval(t);
   }, [running, finished]);
 
+  useEffect(() => loadNaturalVoice(), []);
+
   // Each new step: a firm haptic, and the instruction spoken when voice is on.
   const index = at?.index ?? -1;
   useEffect(() => {
     if (!running || index < 0) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    if (voice) Speech.speak(`${steps[index].title}. ${steps[index].movement}`, { rate: 0.95 });
+    if (voice) speakNaturally(`${steps[index].title}. ${steps[index].movement}`);
   }, [index, running, voice, steps]);
 
   // The routine auto-completes the day's massage task.

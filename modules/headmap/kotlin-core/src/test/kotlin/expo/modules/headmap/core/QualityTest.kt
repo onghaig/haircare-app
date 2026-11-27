@@ -121,6 +121,22 @@ class QualityScorerTest {
     assertFalse(frame(yaw = -44.0, view = ScanView.LEFT_TEMPLE).failed.contains(QualityCheck.FOREHEAD_VISIBLE))
   }
 
+  @Test fun templesCaptureAsSoonAsTurnedTheRightWayWithTheHairlineInTheShot() {
+    // Any clear turn the right way passes, not just 45 plus or minus 5.
+    for (yaw in listOf(-18.0, -30.0, -60.0)) assertTrue(frame(yaw = yaw, view = ScanView.LEFT_TEMPLE).allPassed, "yaw $yaw")
+    assertTrue(frame(yaw = 25.0, view = ScanView.RIGHT_TEMPLE).allPassed)
+    // Facing the phone, or turned the other way, is not a temple photo.
+    assertTrue(frame(yaw = -5.0, view = ScanView.LEFT_TEMPLE).failed.contains(QualityCheck.POSE))
+    assertTrue(frame(yaw = 30.0, view = ScanView.LEFT_TEMPLE).failed.contains(QualityCheck.POSE))
+    // No centring or distance gate on the temples.
+    val off = frame(yaw = -30.0, view = ScanView.LEFT_TEMPLE, baseline = 10.0)
+    assertFalse(off.failed.contains(QualityCheck.DISTANCE))
+    assertFalse(off.passed.contains(QualityCheck.CENTRED))
+    // A short hold: about 0.2 s on the temples, 0.5 s elsewhere.
+    assertEquals(3, CaptureGate.holdFrames(ScanView.LEFT_TEMPLE))
+    assertEquals(8, CaptureGate.holdFrames(ScanView.FRONT))
+  }
+
   @Test fun darkFrameFailsExposure() = assertTrue(frame(face = 30, background = 30).failed.contains(QualityCheck.EXPOSURE))
 
   @Test fun backlitFrameFailsBacklight() = assertTrue(frame(face = 90, background = 230).failed.contains(QualityCheck.BACKLIGHT))

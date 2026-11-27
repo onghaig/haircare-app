@@ -28,6 +28,10 @@ public struct CaptureGate: Sendable {
     self.graceFrames = graceFrames
   }
 
+  /// Hold per view: temples capture as soon as the hairline is clear (about 0.2 s, enough to
+  /// skip a single lucky frame), the other views after about 0.5 s.
+  public static func holdFrames(for view: ScanView) -> Int { view.isTemple ? 3 : 8 }
+
   public mutating func reset() {
     greenRun = 0
     redRun = 0

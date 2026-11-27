@@ -1,4 +1,4 @@
-import { VoiceCoach } from '@/scan/voice';
+import { loadNaturalVoice, pickNaturalVoice, resetNaturalVoice, speakNaturally, viewIntro, VoiceCoach } from '@/scan/voice';
 
 describe('VoiceCoach', () => {
   it('waits for a line to settle before speaking it', () => {
@@ -36,5 +36,46 @@ describe('VoiceCoach', () => {
     expect(speak).not.toHaveBeenCalled();
     c.say('Crown', 20);
     expect(speak).toHaveBeenCalledWith('Crown');
+  });
+});
+
+describe('a natural voice', () => {
+  const v = (identifier: string, quality = 'Default', language = 'en-US', name = identifier) => ({ identifier, name, quality, language });
+
+  it('prefers premium, then enhanced, over the compact default, and never a novelty voice', () => {
+    const voices = [
+      v('com.apple.speech.synthesis.voice.Zarvox'),
+      v('com.apple.eloquence.en-US.Rocko'),
+      v('com.apple.voice.compact.en-US.Samantha'),
+      v('com.apple.voice.enhanced.en-US.Evan', 'Enhanced'),
+      v('com.apple.voice.premium.en-US.Zoe'),
+    ];
+    expect(pickNaturalVoice(voices, 'en-US')).toBe('com.apple.voice.premium.en-US.Zoe');
+    expect(pickNaturalVoice(voices.slice(0, 4), 'en-US')).toBe('com.apple.voice.enhanced.en-US.Evan');
+    expect(pickNaturalVoice(voices.slice(0, 2), 'en-US')).toBeUndefined();
+  });
+
+  it('keeps to English, in the phone’s own accent when there is a choice, and local voices on Android', () => {
+    const voices = [v('fr-fr-x-vlf-local', 'Enhanced', 'fr-FR'), v('en-us-x-tpf-network', 'Enhanced'), v('en-gb-x-gbd-local', 'Enhanced', 'en-GB'), v('en-us-x-iob-local', 'Enhanced')];
+    expect(pickNaturalVoice(voices, 'en-US')).toBe('en-us-x-iob-local');
+    expect(pickNaturalVoice(voices, 'en-GB')).toBe('en-gb-x-gbd-local');
+  });
+
+  it('speaks in the picked voice once found, and the default until then', async () => {
+    const Speech = jest.requireMock('expo-speech') as { speak: jest.Mock; getAvailableVoicesAsync: jest.Mock };
+    resetNaturalVoice();
+    Speech.speak.mockClear();
+    speakNaturally('Hello');
+    expect(Speech.speak.mock.calls[0][1].voice).toBeUndefined();
+    Speech.getAvailableVoicesAsync.mockResolvedValueOnce([v('com.apple.voice.compact.en-US.Samantha'), v('com.apple.voice.premium.en-US.Zoe')]);
+    loadNaturalVoice();
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    speakNaturally('Hi');
+    expect(Speech.speak.mock.calls[1][1].voice).toBe('com.apple.voice.premium.en-US.Zoe');
+    resetNaturalVoice();
+  });
+
+  it('introduces views like a person would', () => {
+    expect(viewIntro('front', 'Look straight at the phone')).toBe('Let’s start with your hairline. Look straight at the phone.');
   });
 });
