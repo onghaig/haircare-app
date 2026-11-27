@@ -38,7 +38,11 @@ describe('scalp map from the head model', () => {
     expect(compareZone('top', base, base)).toEqual({ kind: 'first' });
     const top = compareZone('top', now, base);
     expect(top.kind).toBe('less');
-    expect(comparisonText(top)).toMatch(/^Roughly \d+–\d+% less hair coverage seen than your first scan\.$/);
+    // One scan showing less is not a loss yet: it could be light or angle.
+    expect(comparisonText(top, 'top')).toBe('Possible change on top. Your next scan will confirm it.');
+    const confirmed = compareZone('top', now, base, { previous: baldOnTop('mid', '2026-10-01T09:00:00Z') });
+    expect(confirmed).toMatchObject({ kind: 'less', confirmed: true });
+    expect(comparisonText(confirmed)).toMatch(/^Roughly \d+–\d+% less hair coverage seen than your first scan\.$/);
     expect(compareZone('rightTemple', full('n2', '2026-11-01T09:00:00Z'), base)).toEqual({ kind: 'same', margin: 10 });
   });
 
@@ -72,7 +76,7 @@ describe('scalp map screen', () => {
     );
     expect(await screen.findByText('Your scalp map')).toBeOnTheScreen();
     expect(await screen.findByTestId('scalp-map-image')).toBeOnTheScreen();
-    expect(screen.getByTestId('zone-row-top')).toHaveTextContent(/less hair coverage/);
+    expect(screen.getByTestId('zone-row-top')).toHaveTextContent(/Possible change on top/);
     expect(screen.getByTestId('zone-row-front')).toHaveTextContent(/About the same/);
     expect(screen.getByText(/not a medical measurement/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('tab', { name: 'Hair only' }));

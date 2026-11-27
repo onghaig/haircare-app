@@ -68,7 +68,8 @@ describe('Analysing', () => {
     expect(screen.getByText('73%')).toBeOnTheScreen();
     expect(screen.getByTestId('analysis-locked')).toBeOnTheScreen();
     expect(screen.getByText('5 of 5')).toBeOnTheScreen();
-    expect(screen.getByText('2 of 8')).toBeOnTheScreen();
+    expect(screen.getByText('Relatives analysed')).toBeOnTheScreen();
+    expect(screen.getByText('Hairline points traced')).toBeOnTheScreen();
     expect(screen.getByText('Projecting to age 50')).toBeOnTheScreen();
 
     await act(async () => jest.advanceTimersByTime(1000));
@@ -82,8 +83,11 @@ describe('Reveal', () => {
     await render(tree);
     expect(await screen.findByText('Your Norwood timeline', {}, { timeout: 5000 })).toBeOnTheScreen();
 
-    expect(screen.getByLabelText(/^Norwood [\d.]+ today$/)).toBeOnTheScreen();
-    expect(screen.getByText(/Norwood today, (high|moderate|low) confidence/)).toBeOnTheScreen();
+    expect(screen.getByLabelText(/^Norwood [\d.]+ today/)).toBeOnTheScreen();
+    // A good scan backs the stage; confidence never goes above moderate until the grader is validated.
+    expect(screen.getByTestId('reveal-source')).toHaveTextContent('From your scan and your answers. Norwood today.');
+    expect(screen.getByTestId('reveal-confidence')).toHaveTextContent(/^(Low|Moderate) confidence$/);
+    expect(screen.queryByTestId('reveal-retake')).toBeNull();
     expect(screen.getByText('Temples')).toBeOnTheScreen();
     expect(screen.getByText('You in 5 years')).toBeOnTheScreen();
     expect(screen.getByTestId('future-blur')).toBeOnTheScreen();
@@ -114,6 +118,7 @@ describe('Reveal', () => {
         sex: 'male',
         worriedOnly: true,
         family: { father: { status: 'full' }, maternalGrandfather: { status: 'full' }, paternalGrandfather: { status: 'full' } },
+        completedAt: '2026-11-26T10:00:00Z',
       }).tree,
     );
     expect(await screen.findByText(/looks stable as of right now/, {}, { timeout: 5000 })).toBeOnTheScreen();

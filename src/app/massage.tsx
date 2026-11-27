@@ -2,13 +2,13 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Ellipse } from 'react-native-svg';
 
 import { CrownView, Face } from '@/components/head/Face';
 import { Chips, ToggleRow } from '@/components/onboarding/Controls';
-import { Button, Text } from '@/components/ui';
+import { Button, CloseButton, Text } from '@/components/ui';
 import { answer } from '@/plan/log';
 import { mmss, routineFor, stepAt, totalSeconds, type MassageStep, type Variation } from '@/plan/massage';
 import { usePlan } from '@/plan/PlanProvider';
@@ -75,11 +75,9 @@ export default function MassageScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.top}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} style={styles.close}>
-          <Text variant="headline">×</Text>
-        </Pressable>
-        <Text variant="headline">Scalp massage</Text>
         <View style={{ width: minTouchTarget }} />
+        <Text variant="headline">Scalp massage</Text>
+        <CloseButton />
       </View>
       <View style={styles.content}>
         {!running && elapsed === 0 ? (
@@ -134,7 +132,6 @@ export default function MassageScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  close: { width: minTouchTarget, height: minTouchTarget, alignItems: 'center', justifyContent: 'center' },
   content: { flex: 1, padding: spacing.lg, gap: spacing.sm, alignItems: 'center' },
   head: { marginVertical: spacing.md },
   bottom: { padding: spacing.lg, gap: spacing.md },

@@ -46,7 +46,7 @@ describe('panorama blending', () => {
     const noCrown = ['front', 'leftTemple', 'rightTemple'] as const;
     expect(layersAt(180, [...noCrown]).map((l) => l.view)).toEqual(['leftTemple', 'rightTemple']);
     expect(layersAt(90, ['front'])).toEqual([{ view: 'front', opacity: 1 }]);
-    expect(nearestView(170, [...ALL])?.label).toBe('Back');
+    expect(nearestView(170, [...ALL])?.label).toBe('Crown');
     expect(availableViews(record('x', '2026-11-20T09:00:00Z'))).toEqual(['front']);
     expect(stepAngle(0, 1, [...ALL])).toBe(60);
     expect(stepAngle(0, -1, [...ALL])).toBe(300);
@@ -69,8 +69,8 @@ describe('panorama screen', () => {
     await fireEvent(viewer, 'responderGrant', { nativeEvent: { pageX: 300 } });
     await fireEvent(viewer, 'responderMove', { nativeEvent: { pageX: 60 } });
     expect(screen.getByTestId('panorama-angle')).toHaveTextContent('Left side');
-    await fireEvent.press(screen.getByRole('button', { name: 'Show back' }));
-    expect(screen.getByTestId('panorama-angle')).toHaveTextContent('Back');
+    await fireEvent.press(screen.getByRole('button', { name: 'Show crown' }));
+    expect(screen.getByTestId('panorama-angle')).toHaveTextContent('Crown');
     await fireEvent.press(screen.getByRole('button', { name: 'Show top' }));
     expect(screen.getByTestId('panorama-angle')).toHaveTextContent('Top');
     await fireEvent(viewer, 'accessibilityAction', { nativeEvent: { actionName: 'increment' } });
