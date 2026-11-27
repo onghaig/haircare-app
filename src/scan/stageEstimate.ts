@@ -10,8 +10,8 @@ import type { ScanRecord } from './session';
  *
  * There is no trained photo grader yet (no licensed, graded photo set), so the first grader
  * maps what the scan measures (temple recession and hairline height on the front photo, hair
- * coverage on the top and crown photos) onto the Norwood scale by hand, and blends in what you
- * told us in onboarding. The thresholds are not validated against graded photos, so it always
+ * coverage and how much scalp shows through on the top and crown photos) onto the Norwood scale
+ * by hand, and blends in what you told us in onboarding. The thresholds are not validated against graded photos, so it always
  * shows a range, and the confidence never goes above moderate.
  *
  * Graders are swappable: a trained model can implement `StageGrader` and replace this one with
@@ -90,17 +90,38 @@ export function backStage(scan: ScanRecord): { stage: number; signal: string } |
   return { stage, signal };
 }
 
+/**
+ * Top and crown: how much scalp shows through the hair (read from the photos' colours, see
+ * hairAnalysis.ts). Catches all-over thinning that the hair outline alone misses. On its own it
+ * never reads past stage 4: show-through says the hair is thinner, not where it has gone.
+ */
+export function densityStage(scan: ScanRecord): { stage: number; signal: string } | null {
+  const d = scan.hair?.density;
+  if (!d || d.value == null) return null;
+  switch (d.value) {
+    case 'thick':
+      return { stage: 1, signal: 'Very little scalp shows through the hair on top, like thick hair.' };
+    case 'normal':
+      return { stage: 1, signal: 'A little scalp shows through the hair on top, which is normal.' };
+    case 'thinner':
+      return { stage: 3, signal: 'Some scalp shows through the hair on top, as it does when hair thins.' };
+    case 'thin':
+      return { stage: 4, signal: 'A lot of scalp shows through the hair on top.' };
+  }
+}
+
 export const measuredGrader: StageGrader = {
-  id: 'measured-v1',
+  id: 'measured-v2',
   estimate({ scan, profile }) {
     const front = frontStage(scan);
     const back = backStage(scan);
+    const density = densityStage(scan);
     if (!front && !back) return null;
-    const measured = Math.max(front?.stage ?? 1, back?.stage ?? 1);
+    const measured = Math.max(front?.stage ?? 1, back?.stage ?? 1, density?.stage ?? 1);
     const told = selfReportedStage(profile);
     // Mostly the scan; your answers nudge it, as weak evidence.
     const mid = clamp(half(told != null ? measured * 0.75 + told * 0.25 : measured));
-    const signals = [front, back]
+    const signals = [front, back, density]
       .filter((s): s is { stage: number; signal: string } => !!s)
       .sort((a, b) => b.stage - a.stage)
       .map((s) => s.signal);

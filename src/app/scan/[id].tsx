@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HairlineNumbers } from '@/components/scan/HairlineNumbers';
+import { HairQualityCard } from '@/components/scan/HairQualityCard';
 import { StageEstimateCard } from '@/components/scan/StageEstimateCard';
 import { Button, Card, Text } from '@/components/ui';
 import { useProfile } from '@/profile/ProfileProvider';
@@ -178,6 +179,7 @@ export default function ScanResultScreen() {
           </>
         ) : null}
         <StageEstimateCard estimate={estimateStage(scan, profile)} />
+        <HairQualityCard scan={scan} />
         <HairlineNumbers scan={scan} baseline={baseline} />
         <Text variant="caption" color="textMuted">
           Changes smaller than a re-scan can tell apart show as no real change. Estimates for tracking, not a diagnosis.
