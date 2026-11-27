@@ -14,15 +14,18 @@ const PAD = 10;
 
 /**
  * Change since baseline for each hairline point, one dot per good scan. The shaded band is the
- * smallest change a re-scan can tell apart: anything inside it is "no real change".
+ * smallest change a re-scan can tell apart: anything inside it is "no real change". Photos you
+ * added from your library show as hollow dots at the dates they were taken, often before the
+ * baseline.
  */
-export function TrendChart({ scans }: { scans: ScanRecord[] }) {
+export function TrendChart({ scans, baseline }: { scans: ScanRecord[]; baseline?: ScanRecord }) {
   const [width, setWidth] = useState(300);
-  const base = scans[0];
+  const base = baseline ?? scans[0];
   if (!base || scans.length < 2) return null;
 
-  const t0 = new Date(base.takenAt).getTime();
+  const t0 = new Date(scans[0].takenAt).getTime();
   const t1 = Math.max(t0 + 1, new Date(scans.at(-1)!.takenAt).getTime());
+  const hasUploads = scans.some((s) => s.source === 'upload');
   const band = MIN_DETECTABLE_CHANGE_MM.centre;
   const deltas = METRICS.map((m) =>
     scans.map((s) => {
@@ -42,15 +45,19 @@ export function TrendChart({ scans }: { scans: ScanRecord[] }) {
         <Rect x={0} y={y(band)} width={width} height={y(-band) - y(band)} fill={alpha(colors.accent, 0.08)} />
         <Line x1={0} x2={width} y1={y(0)} y2={y(0)} stroke={colors.line} strokeWidth={1} />
         {METRICS.map((m, i) => {
-          const pts = scans.map((s, j) => (deltas[i][j] == null ? null : ([x(s), y(deltas[i][j]!)] as const))).filter((p) => p != null);
+          const pts = scans.map((s, j) => (deltas[i][j] == null ? null : ([x(s), y(deltas[i][j]!), s.source === 'upload'] as const))).filter((p) => p != null);
           if (!pts.length) return null;
           const d = pts.map(([px, py], j) => `${j ? 'L' : 'M'}${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
           return (
             <G key={m.key}>
               <Path d={d} stroke={LINE_COLOR[m.key]} strokeWidth={2} fill="none" strokeLinejoin="round" />
-              {pts.map(([px, py], j) => (
-                <Circle key={j} cx={px} cy={py} r={3} fill={LINE_COLOR[m.key]} />
-              ))}
+              {pts.map(([px, py, upload], j) =>
+                upload ? (
+                  <Circle key={j} cx={px} cy={py} r={3} fill={colors.bg} stroke={LINE_COLOR[m.key]} strokeWidth={1.5} />
+                ) : (
+                  <Circle key={j} cx={px} cy={py} r={3} fill={LINE_COLOR[m.key]} />
+                ),
+              )}
             </G>
           );
         })}
@@ -59,6 +66,11 @@ export function TrendChart({ scans }: { scans: ScanRecord[] }) {
         <Text variant="caption" color="textMuted">
           Shaded: no real change
         </Text>
+        {hasUploads ? (
+          <Text variant="caption" color="textMuted">
+            Hollow: your photos
+          </Text>
+        ) : null}
         {METRICS.map((m) => (
           <View key={m.key} style={styles.key}>
             <View style={[styles.swatch, { backgroundColor: LINE_COLOR[m.key] }]} />

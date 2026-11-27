@@ -59,6 +59,7 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen name="scan/[id]" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="scan/upload" options={{ presentation: 'modal' }} />
               <Stack.Screen name="scan/panorama" options={{ presentation: 'fullScreenModal' }} />
             </Stack>
           </ForecastProvider>

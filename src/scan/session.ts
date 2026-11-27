@@ -192,8 +192,14 @@ export interface ScanViewRecord {
 
 export interface ScanRecord {
   id: string;
+  /** When the photos were taken. For a library photo, its EXIF date or the month you picked. */
   takenAt: string;
-  hairState: HairState;
+  /** 'upload': one photo from the library, measured once. Never the baseline or in the verdict. */
+  source?: 'scan' | 'upload';
+  /** Library photos: whether the date came from the photo itself or from you. */
+  dateFrom?: 'photo' | 'you';
+  /** Guided scans only. */
+  hairState?: HairState;
   views: Partial<Record<ScanView, ScanViewRecord>>;
   /** Mean of the view scores, 0 to 100. */
   quality: number;

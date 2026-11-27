@@ -17,6 +17,8 @@ export function previewKey(scanId: string, stage: number, years: number): string
 /** The photo the preview is made from: the latest scan's front view. */
 export function previewPhoto(records: ScanRecord[]): { scanId: string; uri: string } | null {
   for (let i = records.length - 1; i >= 0; i--) {
+    // Library photos never feed the preview: its consent covers your scan photo.
+    if (records[i].source === 'upload') continue;
     const uri = records[i].views.front?.uri;
     if (uri) return { scanId: records[i].id, uri };
   }

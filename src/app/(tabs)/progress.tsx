@@ -11,7 +11,7 @@ import { shortDate } from '@/paywall/plans';
 import { usePlan } from '@/plan/PlanProvider';
 import { dailyTasks } from '@/plan/tasks';
 import { useProfile } from '@/profile/ProfileProvider';
-import { consistency, latestReport, metricChanges, overallVerdict, reportSchedule, trendScans, VERDICT_TITLE } from '@/progress/verdict';
+import { consistency, latestReport, metricChanges, overallVerdict, reportSchedule, timelineScans, trendScans, VERDICT_TITLE } from '@/progress/verdict';
 import { useScans } from '@/scan/ScanProvider';
 import type { ScanRecord } from '@/scan/session';
 import { colors, radius, spacing } from '@/theme';
@@ -23,7 +23,9 @@ export default function ProgressScreen() {
   const { book } = usePlan();
   const now = useMemo(() => new Date(), []);
   const scans = trendScans(records);
+  const timeline = timelineScans(records);
   const baseline = scans[0];
+  const scanned = records.some((r) => r.source !== 'upload');
   const latest = scans.at(-1);
   const medIds = dailyTasks(profile, now, records)
     .filter((t) => t.kind === 'medication')
@@ -31,7 +33,7 @@ export default function ProgressScreen() {
   const report = latestReport(records, book, profile, medIds, now);
   const keep = consistency(book, now, medIds, 30);
 
-  if (records.length === 0) {
+  if (!scanned) {
     return (
       <Screen title="Progress">
         <Card style={styles.hero}>
@@ -39,7 +41,9 @@ export default function ProgressScreen() {
             Nothing to compare yet
           </Text>
           <Text variant="headline">Your first scan sets your baseline</Text>
-          <Text color="textMuted">Everything here is measured against it.</Text>
+          <Text color="textMuted">
+            {records.length ? 'Your added photos show on the trend once your first scan is in.' : 'Everything here is measured against it.'}
+          </Text>
           <Button label="Start your first scan" onPress={() => router.push('/scan/session')} style={{ marginTop: spacing.sm }} />
         </Card>
       </Screen>
@@ -79,10 +83,10 @@ export default function ProgressScreen() {
 
       {latest ? <HairlineNumbers scan={latest} baseline={baseline} /> : null}
 
-      {scans.length >= 2 ? (
+      {baseline && timeline.length >= 2 ? (
         <Card style={{ gap: spacing.sm }}>
           <Text variant="headline">Hairline trend</Text>
-          <TrendChart scans={scans} />
+          <TrendChart scans={timeline} baseline={baseline} />
         </Card>
       ) : null}
 

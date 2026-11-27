@@ -71,7 +71,7 @@ export function compareZone(
 /** The last good scan taken before this one, to confirm a change; null if there is none. */
 export function previousGoodScan(records: readonly ScanRecord[], scan: ScanRecord): ScanRecord | undefined {
   return records
-    .filter((r) => r.id !== scan.id && !r.lowConfidence && r.takenAt < scan.takenAt)
+    .filter((r) => r.id !== scan.id && !r.lowConfidence && r.source !== 'upload' && r.takenAt < scan.takenAt)
     .sort((a, b) => (a.takenAt < b.takenAt ? 1 : -1))[0];
 }
 
