@@ -158,8 +158,8 @@ export default function TodayScreen() {
               : !premium
                 ? `Likely at ${one.age}: ${rangeLabel(one.plan?.band ?? one.untreated)}${one.plan ? ' on your plan' : ''}`
                 : ten.plan
-                ? `Norwood 3 by ${ten.age}: ${chanceRangeLabel(ten.plan.pNorwood3Plus).toLowerCase()} vs ${chanceRangeLabel(ten.pNorwood3Plus).toLowerCase()}`
-                : `Norwood 3 by ${ten.age}: ${chanceRangeLabel(ten.pNorwood3Plus).toLowerCase()} doing nothing`}
+                ? `Norwood ${forecast!.reachStage} by ${ten.age}: ${chanceRangeLabel(ten.plan.pReach).toLowerCase()} vs ${chanceRangeLabel(ten.pReach).toLowerCase()}`
+                : `Norwood ${forecast!.reachStage} by ${ten.age}: ${chanceRangeLabel(ten.pReach).toLowerCase()} doing nothing`}
           </Text>
           <Text variant="caption" color="textMuted">
             Your monthly verdict checks your scans against both lines.

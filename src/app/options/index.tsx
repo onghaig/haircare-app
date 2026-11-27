@@ -31,7 +31,7 @@ export default function CompareOptionsScreen() {
       <Pressable
         key={o.id}
         accessibilityRole="button"
-        accessibilityLabel={`${o.name}${path ? `: ${chanceRangeLabel(path.pNorwood3Plus)}` : ''}`}
+        accessibilityLabel={`${o.name}${path ? `: ${chanceRangeLabel(path.pReach)}` : ''}`}
         onPress={() => router.push({ pathname: '/options/[id]', params: { id: o.id } })}
         style={styles.row}
         testID={`option-${o.id}`}>
@@ -45,7 +45,7 @@ export default function CompareOptionsScreen() {
         </View>
         {premium ? (
           path && ten ? (
-            <Bar untreated={chanceTenths(ten.pNorwood3Plus)} option={chanceTenths(path.pNorwood3Plus)} mid={path.pNorwood3Plus.mid} rx={o.rx} label={chanceRangeLabel(path.pNorwood3Plus)} />
+            <Bar untreated={chanceTenths(ten.pReach)} option={chanceTenths(path.pReach)} mid={path.pReach.mid} rx={o.rx} label={chanceRangeLabel(path.pReach)} />
           ) : (
             <Text variant="caption" color="textMuted">
               Working it out…
@@ -64,7 +64,7 @@ export default function CompareOptionsScreen() {
     <SubScreen title="Compare options">
       <Text color="textMuted">
         {premium
-          ? `Chance of Norwood 3 or worse by ${ten?.age ?? (profile.age ?? 0) + HEADLINE_YEARS}, out of 10, if you stick with it. Faint band: doing nothing.`
+          ? `Chance of Norwood ${cmp?.reachStage ?? 3} or worse by ${ten?.age ?? (profile.age ?? 0) + HEADLINE_YEARS}, out of 10, if you stick with it. Faint band: doing nothing.`
           : 'What each option does, and how strong the evidence is.'}
       </Text>
       {groupedOptions(profile).map((g) => (

@@ -38,7 +38,7 @@ describe('Predict tab', () => {
     await render(wrap(<PredictScreen />));
     expect(await screen.findByTestId('predict-headline', {}, wait)).toHaveTextContent(/^Your plan: N.* at 29\. Doing nothing: N.*\.$/);
     expect(screen.getByLabelText(/Years after 1 locked/)).toBeOnTheScreen();
-    expect(screen.queryByText(/Chance of Norwood 3/)).toBeNull();
+    expect(screen.queryByText(/Chance of Norwood/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Oral finasteride' })).toBeOnTheScreen();
     expect(screen.getAllByLabelText('Evidence: Strong').length).toBeGreaterThan(0);
     await fireEvent.press(screen.getByRole('button', { name: 'See what each option does for you' }));
@@ -54,7 +54,7 @@ describe('Predict tab', () => {
     await render(wrap(<PredictScreen />));
     expect(await screen.findByTestId('predict-headline', {}, wait)).toHaveTextContent(/in 10on your plan$/);
     expect(screen.getByTestId('predict-untreated')).toHaveTextContent(/in 10doing nothing$/);
-    expect(screen.getByText('Chance of Norwood 3 or worse by 38')).toBeOnTheScreen();
+    expect(screen.getByText(/^Chance of Norwood \d or worse by 38$/)).toBeOnTheScreen();
     const byRole = screen.getByTestId('plan-by-role');
     expect(byRole).toHaveTextContent(/Grows hair.*Minoxidil/);
     expect(byRole).toHaveTextContent(/Slows loss.*Nothing in your plan/);

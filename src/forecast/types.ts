@@ -51,9 +51,11 @@ export interface YearForecast {
   plan: PathYear | null;
   pNorwood3Plus: number;
   pNorwood5Plus: number;
+  /** Untreated chance of reaching `Forecast.reachStage` or worse. */
+  pReach: number;
 }
 
-/** Chance of Norwood 3 or worse, at the weakest, middle and strongest assumed effect. */
+/** Chance of reaching the headline stage or worse, at the weakest, middle and strongest assumed effect. */
 export interface ChanceRange {
   worst: number;
   mid: number;
@@ -68,7 +70,8 @@ export interface PathYear {
   years: number;
   age: number;
   band: StageRange;
-  pNorwood3Plus: ChanceRange;
+  /** Chance of reaching `Forecast.reachStage` or worse along this path. */
+  pReach: ChanceRange;
 }
 
 export interface Forecast {
@@ -79,6 +82,11 @@ export interface Forecast {
   byYear: YearForecast[];
   /** Extra paths asked for in the options (for comparing actions), by key, aligned with byYear. */
   paths: Record<string, PathYear[]>;
+  /**
+   * The headline stage: Norwood 3, or the next whole stage above where the user is today when
+   * they're already at or past 3, so the chance compares paths instead of reading "10 in 10".
+   */
+  reachStage: number;
   modelVersion: string;
 }
 

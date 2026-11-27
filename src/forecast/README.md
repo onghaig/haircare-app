@@ -48,3 +48,7 @@ simulated people through `forecast(u, { paths })`.
 **Every number in `treatment-effects.json` is an unverified assumption** (`"verified": false`).
 They need checking against the trial papers before launch. The user's current stage already
 includes whatever their existing treatment has done; v0.1 doesn't try to separate that out.
+
+The headline chance is of reaching `reachStage` or worse: Norwood 3, or the next whole stage
+above today's median for someone already at 3 or more. Without that, everyone past Norwood 3
+saw "9 to 10 in 10" on every path, and the options looked like they did nothing.

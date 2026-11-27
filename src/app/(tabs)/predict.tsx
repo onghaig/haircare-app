@@ -60,17 +60,19 @@ function AdultForecast({ forecast, profile, plan }: { forecast: Forecast; profil
       {premium ? (
         <>
           <Card style={{ gap: 4 }}>
-            <Text color="textMuted">Chance of Norwood 3 or worse by {ten.age}</Text>
+            <Text color="textMuted">
+              Chance of Norwood {forecast.reachStage} or worse by {ten.age}
+            </Text>
             {ten.plan ? (
               <View style={styles.baseline} testID="predict-headline">
                 <Text variant="title" color="accent">
-                  {chanceRangeLabel(ten.plan.pNorwood3Plus)}
+                  {chanceRangeLabel(ten.plan.pReach)}
                 </Text>
                 <Text color="textMuted">on your plan</Text>
               </View>
             ) : null}
             <View style={styles.baseline} testID={ten.plan ? 'predict-untreated' : 'predict-headline'}>
-              <Text variant={ten.plan ? 'headline' : 'title'}>{chanceRangeLabel(ten.pNorwood3Plus)}</Text>
+              <Text variant={ten.plan ? 'headline' : 'title'}>{chanceRangeLabel(ten.pReach)}</Text>
               <Text color="textMuted">doing nothing</Text>
             </View>
           </Card>

@@ -91,7 +91,7 @@ describe('Today', () => {
     await render(wrap(<TodayScreen />));
     expect(await screen.findByTestId('week-strip')).toHaveTextContent(/Minoxidil this week5 of 7/);
     expect(screen.getByLabelText('5 of the last 7 days done')).toBeOnTheScreen();
-    expect(await screen.findByText(/^Norwood 3 by 38: .* in 10 vs .* in 10$/, {}, { timeout: 5000 })).toBeOnTheScreen();
+    expect(await screen.findByText(/^Norwood \d by 38: .* in 10 vs .* in 10$/, {}, { timeout: 5000 })).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Your plan vs doing nothing' }));
     expect(router.push).toHaveBeenCalledWith('/predict');
   });

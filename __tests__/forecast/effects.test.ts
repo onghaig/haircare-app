@@ -1,5 +1,5 @@
 import effectsJson from '@/forecast/data/treatment-effects.json';
-import { combine, EFFECTS_VERIFIED, ForecastModel, liftAt, liftFraction, planFromTreatment, roleOf, type UserInput } from '@/forecast';
+import { combine, EFFECTS_VERIFIED, ForecastModel, liftAt, liftFraction, planFromTreatment, reachStageFor, roleOf, type UserInput } from '@/forecast';
 
 const person: UserInput = {
   age: 24,
@@ -95,13 +95,13 @@ describe('paths in the forecast', () => {
 
   it('slowing loss moves the 10-year odds more than growing hair (with the current assumptions)', () => {
     const at10 = (f: typeof none) => f.byYear.find((y) => y.years === 10)!;
-    expect(at10(fin).plan!.pNorwood3Plus.mid).toBeLessThan(at10(minox).plan!.pNorwood3Plus.mid);
-    expect(at10(minox).plan!.pNorwood3Plus.mid).toBeLessThan(at10(none).pNorwood3Plus);
+    expect(at10(fin).plan!.pReach.mid).toBeLessThan(at10(minox).plan!.pReach.mid);
+    expect(at10(minox).plan!.pReach.mid).toBeLessThan(at10(none).pReach);
   });
 
   it('a plan band spans the assumed effect range and is ordered', () => {
     for (const y of [...minox.byYear, ...fin.byYear]) {
-      const { band, pNorwood3Plus: c } = y.plan!;
+      const { band, pReach: c } = y.plan!;
       expect(band.p10).toBeLessThanOrEqual(y.withTreatment!.p10);
       expect(band.p90).toBeGreaterThanOrEqual(y.withTreatment!.p90);
       expect(band.p10).toBeLessThanOrEqual(band.p50);
@@ -126,4 +126,21 @@ describe('paths in the forecast', () => {
 it('the treatment effects are flagged as unverified until checked against trials', () => {
   expect(EFFECTS_VERIFIED).toBe(false);
   expect(effectsJson._note).toMatch(/UNVERIFIED/);
+});
+
+describe('the headline stage', () => {
+  it('is Norwood 3, or the next stage up for someone already at or past 3', () => {
+    expect([1, 1.4, 1.6, 2.4, 2.5, 3, 3.6, 6.8].map(reachStageFor)).toEqual([3, 3, 3, 3, 4, 4, 5, 7]);
+  });
+
+  it('keeps options comparable for someone already at Norwood 3', () => {
+    const f = model.forecast(
+      { age: 30, observations: [{ age: 30, stage: 3 }], relatives: [{ relation: 'father', status: 'bald', age: 50 }] },
+      { samples: 12_000, paths: { fin: planFromTreatment('finasteride', 0.9) } },
+    );
+    expect(f.reachStage).toBe(4);
+    const ten = f.byYear.find((y) => y.years === 10)!;
+    expect(ten.pReach).toBeLessThan(0.95);
+    expect(f.paths.fin.find((p) => p.years === 10)!.pReach.mid).toBeLessThan(ten.pReach - 0.05);
+  });
 });

@@ -146,8 +146,11 @@ export class ForecastModel {
       cur[i] = clip(nowLatent[i], 1, 7);
     }
 
+    const stageNow = weightedQuantiles(cur, w);
+    const reachStage = reachStageFor(stageNow.p50);
+    const reachAt = reachStage - 0.5;
     const buf = new Float64Array(n);
-    /** Stages along a plan at year y, for one effect case, into buf. Returns the Norwood 3+ chance. */
+    /** Stages along a plan at year y, for one effect case, into buf. Returns the chance of reaching the headline stage. */
     const project = (p: readonly PlanItem[], c: EffectCase, y: number): number => {
       const t = u.age + y;
       const slow = combine(p, c).slow;
@@ -157,7 +160,7 @@ export class ForecastModel {
         const prog = Math.max(0, t - Math.max(onset[i], u.age));
         const s = clip(nowLatent[i] + rate[i] * (1 - slow) * prog - lift, 1, 7);
         buf[i] = s;
-        if (s >= 2.5) p3 += w[i];
+        if (s >= reachAt) p3 += w[i];
       }
       return p3;
     };
@@ -174,7 +177,7 @@ export class ForecastModel {
           years: y,
           age: u.age + y,
           band: { p10: best.q.p10, p50: mid.q.p50, p90: worst.q.p90 },
-          pNorwood3Plus: { best: best.p3, mid: mid.p3, worst: worst.p3 },
+          pReach: { best: best.p3, mid: mid.p3, worst: worst.p3 },
         },
       };
     };
@@ -182,9 +185,13 @@ export class ForecastModel {
     const effective = hasEffect(plan);
     const byYear: YearForecast[] = years.map((y) => {
       const t = u.age + y;
+      let p3 = 0;
       let p5 = 0;
-      const p3 = project([], 'mid', y);
-      for (let i = 0; i < n; i++) if (buf[i] >= 4.5) p5 += w[i];
+      const pReach = project([], 'mid', y);
+      for (let i = 0; i < n; i++) {
+        if (buf[i] >= 2.5) p3 += w[i];
+        if (buf[i] >= 4.5) p5 += w[i];
+      }
       const untreated = weightedQuantiles(buf, w);
       const planned = effective ? pathYear(plan, y) : null;
       return {
@@ -195,6 +202,7 @@ export class ForecastModel {
         plan: planned?.path ?? null,
         pNorwood3Plus: p3,
         pNorwood5Plus: p5,
+        pReach,
       };
     });
 
@@ -203,13 +211,19 @@ export class ForecastModel {
 
     return {
       ageNow: u.age,
-      stageNow: weightedQuantiles(cur, w),
+      stageNow,
       effectiveSamples: Math.round(1 / sq),
       byYear,
       paths: extra,
+      reachStage,
       modelVersion: this.version,
     };
   }
+}
+
+/** Norwood 3, or the next whole stage above today's median when that is already 3 or more. Max 7. */
+export function reachStageFor(stageNowP50: number): number {
+  return Math.min(7, Math.max(3, Math.floor(stageNowP50 + 0.5) + 1));
 }
 
 const QUANTILE_BINS = 16_384;

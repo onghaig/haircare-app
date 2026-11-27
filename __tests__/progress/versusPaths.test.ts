@@ -12,14 +12,16 @@ function forecast(untreated: number, planned?: number): Forecast {
     effectiveSamples: 3000,
     modelVersion: 'test',
     paths: {},
+    reachStage: 3,
     byYear: [
       {
         years: 1,
         age: 25,
         untreated: r(2 + untreated),
         withTreatment: planned == null ? null : r(2 + planned),
-        plan: planned == null ? null : { years: 1, age: 25, band: r(2 + planned), pNorwood3Plus: { best: 0.1, mid: 0.2, worst: 0.3 } },
+        plan: planned == null ? null : { years: 1, age: 25, band: r(2 + planned), pReach: { best: 0.1, mid: 0.2, worst: 0.3 } },
         pNorwood3Plus: 0.3,
+        pReach: 0.3,
         pNorwood5Plus: 0.05,
       },
     ],
