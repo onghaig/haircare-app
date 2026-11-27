@@ -1,8 +1,8 @@
 # The full guided scan. The simulator has no camera, so CI builds include an illustrated demo
-# Timeouts are generous: the Android E2E app runs through ARM translation, where each photo is
-# analysed several times slower than on a phone.
 # face that runs through the real on-device analysis; the green hairline highlight animates on
 # every view. Shots are taken by hand ("Take photo now"); the crown uses the solo burst.
+# Timeouts are generous: the Android E2E app runs through ARM translation, where each photo is
+# analysed several times slower than on a phone.
 appId: com.onghaig.haircare
 ---
 - assertVisible: "Before you scan"

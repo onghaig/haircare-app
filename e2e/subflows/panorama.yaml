@@ -13,7 +13,7 @@ appId: com.onghaig.haircare
 - extendedWaitUntil:
     visible:
       id: "scalp-map-image"
-    timeout: 30000
+    timeout: 60000
 - takeScreenshot: e2e-69a-scalp-map
 - tapOn: "Hair only"
 - takeScreenshot: e2e-69b-scalp-map-hair
