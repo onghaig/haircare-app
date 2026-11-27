@@ -2,7 +2,7 @@ import type { ComponentRef, Ref } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { hairlineGeometry } from '@/components/head/Face';
+import { hairlineGeometry } from '@/components/head/HeadDiagram';
 import { Text } from '@/components/ui';
 import type { YearForecast } from '@/forecast';
 import { chanceLabel, likelyRange } from '@/predict/predict';
