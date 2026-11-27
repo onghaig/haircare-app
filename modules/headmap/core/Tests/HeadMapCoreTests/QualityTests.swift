@@ -95,6 +95,12 @@ final class QualityScorerTests: XCTestCase {
     XCTAssertEqual(r.topIssue, .faceFound)
   }
 
+  func testFrontPoseAllowsAFewDegreesEachWay() {
+    // Held by hand the head wobbles a few degrees; 8 on any axis still passes, 10 does not.
+    XCTAssertFalse(frame(yaw: 7).failed.contains(.pose))
+    XCTAssertTrue(frame(yaw: 10).failed.contains(.pose))
+  }
+
   func testTurnedHeadFailsPoseFirst() {
     let r = frame(yaw: 10)
     XCTAssertEqual(r.topIssue, .pose)
@@ -287,6 +293,16 @@ final class CaptureGateTests: XCTestCase {
     _ = g.update(allPassed: true)
     _ = g.update(allPassed: true)
     XCTAssertEqual(g.update(allPassed: false), [])
+    XCTAssertEqual(g.update(allPassed: true), [.capture])
+  }
+
+  func testDefaultGateForgivesTwoDroppedFrames() {
+    var g = CaptureGate(holdFrames: 4)
+    _ = g.update(allPassed: true)
+    _ = g.update(allPassed: true)
+    _ = g.update(allPassed: false)
+    _ = g.update(allPassed: false)
+    _ = g.update(allPassed: true)
     XCTAssertEqual(g.update(allPassed: true), [.capture])
   }
 

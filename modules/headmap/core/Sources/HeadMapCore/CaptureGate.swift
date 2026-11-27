@@ -15,7 +15,7 @@ public struct CaptureGate: Sendable {
 
   /// Consecutive green frames needed before capture (about 0.5 s at 15 analysed frames a second).
   public var holdFrames: Int
-  /// Red frames tolerated inside a hold before it resets.
+  /// Red frames tolerated inside a hold before it resets (two: face tracking drops the odd frame).
   public var graceFrames: Int
 
   public private(set) var greenRun = 0
@@ -23,7 +23,7 @@ public struct CaptureGate: Sendable {
   private var aligned = false
   public private(set) var captured = false
 
-  public init(holdFrames: Int = 8, graceFrames: Int = 1) {
+  public init(holdFrames: Int = 8, graceFrames: Int = 2) {
     self.holdFrames = holdFrames
     self.graceFrames = graceFrames
   }

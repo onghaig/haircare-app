@@ -5,7 +5,7 @@ package expo.modules.headmap.core
  * first lines up, and auto-capture once every check has stayed green for a short, steady hold.
  * Small flickers do not reset the hold. Port of CaptureGate.swift.
  */
-class CaptureGate(var holdFrames: Int = 8, val graceFrames: Int = 1) {
+class CaptureGate(var holdFrames: Int = 8, val graceFrames: Int = 2) {
   enum class Event { ALIGNED, LOST, CAPTURE }
 
   companion object {

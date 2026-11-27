@@ -102,7 +102,7 @@ data class QualityReport(
 }
 
 data class QualityThresholds(
-  val poseToleranceDeg: Double = 5.0,
+  val poseToleranceDeg: Double = 8.0,
   val minSharpness: Double = 40.0,
   /** Mean face brightness (0 to 255) must sit strictly between these. */
   val minBrightness: Double = 60.0,

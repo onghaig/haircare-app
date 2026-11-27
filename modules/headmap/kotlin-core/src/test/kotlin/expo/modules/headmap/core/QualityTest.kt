@@ -94,6 +94,17 @@ class QualityScorerTest {
     assertEquals(QualityCheck.FACE_FOUND, r.topIssue)
   }
 
+  @Test fun frontPoseAllowsAFewDegreesEachWay() {
+    assertFalse(frame(yaw = 7.0).failed.contains(QualityCheck.POSE))
+    assertTrue(frame(yaw = 10.0).failed.contains(QualityCheck.POSE))
+  }
+
+  @Test fun defaultGateForgivesTwoDroppedFrames() {
+    val g = CaptureGate(holdFrames = 4)
+    g.update(true); g.update(true); g.update(false); g.update(false); g.update(true)
+    assertEquals(listOf(CaptureGate.Event.CAPTURE), g.update(true))
+  }
+
   @Test fun turnedHeadFailsPoseFirst() {
     val r = frame(yaw = 10.0)
     assertEquals(QualityCheck.POSE, r.topIssue)

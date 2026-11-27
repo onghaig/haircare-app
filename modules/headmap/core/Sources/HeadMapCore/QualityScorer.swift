@@ -71,7 +71,9 @@ public struct QualityReport: Equatable, Sendable {
 }
 
 public struct QualityThresholds: Sendable {
-  public var poseToleranceDeg = 5.0
+  /// Front and top: how far the head may be off the target pose on any axis. 8 degrees is easy to
+  /// hold by hand and changes the measured hairline by under 1 percent (cos 8).
+  public var poseToleranceDeg = 8.0
   public var minSharpness = 40.0
   /// Mean face brightness (0 to 255) must sit strictly between these.
   public var minBrightness = 60.0
