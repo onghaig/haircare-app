@@ -1,4 +1,6 @@
 # The full guided scan. The simulator has no camera, so CI builds include an illustrated demo
+# Timeouts are generous: the Android E2E app runs through ARM translation, where each photo is
+# analysed several times slower than on a phone.
 # face that runs through the real on-device analysis; the green hairline highlight animates on
 # every view. Shots are taken by hand ("Take photo now", the crown self-timer).
 appId: com.onghaig.haircare
@@ -21,7 +23,7 @@ appId: com.onghaig.haircare
     retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 2 of 5"
-    timeout: 10000
+    timeout: 30000
 - assertVisible: "Left temple"
 # Redo the photo just taken: back to the front view, then on again.
 - tapOn:
@@ -29,28 +31,28 @@ appId: com.onghaig.haircare
     retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 1 of 5"
-    timeout: 10000
+    timeout: 30000
 - takeScreenshot: e2e-12a-redo-last-photo
 - tapOn:
     text: "Take photo now"
     retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 2 of 5"
-    timeout: 10000
+    timeout: 30000
 - takeScreenshot: e2e-12-left-temple
 - tapOn:
     text: "Take photo now"
     retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 3 of 5"
-    timeout: 10000
+    timeout: 30000
 - assertVisible: "Right temple"
 - tapOn:
     text: "Take photo now"
     retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 4 of 5"
-    timeout: 10000
+    timeout: 30000
 - assertVisible: "Top of head"
 - takeScreenshot: e2e-13-top-down
 - tapOn:
@@ -58,7 +60,7 @@ appId: com.onghaig.haircare
     retryTapIfNoChange: false
 - extendedWaitUntil:
     visible: "View 5 of 5"
-    timeout: 10000
+    timeout: 30000
 - assertVisible: "Crown"
 - takeScreenshot: e2e-14-crown
 # The timer is 3 seconds and Maestro's settle wait on the animated screen can take longer, so
