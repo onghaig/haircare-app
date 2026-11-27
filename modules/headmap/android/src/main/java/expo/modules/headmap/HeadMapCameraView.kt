@@ -361,12 +361,15 @@ class HeadMapCameraView(context: Context, appContext: AppContext) : ExpoView(con
   }
 
   private fun captureDemo(feed: DemoFeed) {
+    // The view asked for now, not when the queued task runs: on a slow device the scan may have
+    // moved on by then, and the photo would be taken (and accepted) for the next view.
+    val view = scanView
     analysis.execute {
       val frame = feed.frame ?: return@execute
-      if (capturing) return@execute
+      if (capturing || view != scanView) return@execute
       capturing = true
       try {
-        deliver(frame, scanView)
+        deliver(frame, view)
       } catch (e: Throwable) {
         emitError(e)
       } finally {
