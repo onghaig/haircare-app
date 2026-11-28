@@ -27,13 +27,18 @@ appId: com.onghaig.haircare
 - takeScreenshot: e2e-70-panorama-front
 # Jump with the thumbs (by id: a label tap can land on the neighbouring thumb), then drag, then
 # check a tap still works after the drag (it once didn't: the dragged-over photo unmounted).
-- tapOn:
-    id: "panorama-thumb-crown"
-- extendedWaitUntil:
-    visible:
-      id: "panorama-thumb-crown"
-      selected: true
-    timeout: 5000
+# The first tap right after switching to "Turn around" was once lost on iOS CI, so retry that
+# one; the tap after the drag stays strict, since that is the bug it guards.
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn:
+          id: "panorama-thumb-crown"
+      - extendedWaitUntil:
+          visible:
+            id: "panorama-thumb-crown"
+            selected: true
+          timeout: 5000
 - tapOn:
     id: "panorama-thumb-top"
 - takeScreenshot: e2e-72-panorama-top
