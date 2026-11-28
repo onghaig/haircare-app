@@ -147,8 +147,10 @@ appId: com.onghaig.haircare
 # the result lists the weak views first, and we keep the scan and go on to the forecast. The
 # "Building your forecast" screen is brief: a slow run can be past it before it is checked, so
 # wait for either the weak-views result or the reveal itself (reveal.yaml checks the rest).
+# "Scan complete" itself shows for about 2.4 s; a slow iOS runner can miss it, so accept the
+# screen after it too.
 - extendedWaitUntil:
-    visible: "Scan complete"
+    visible: "(Scan complete|Your Norwood timeline|Keep it and see my forecast)"
     timeout: 30000
 - takeScreenshot: e2e-15-scan-finish
 - extendedWaitUntil:
