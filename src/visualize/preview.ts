@@ -2,7 +2,7 @@ import type { Profile } from '@/profile/types';
 import { isMinor } from '@/profile/onboarding';
 import type { ScanRecord } from '@/scan/session';
 
-export const AI_ILLUSTRATION_LABEL = 'AI illustration based on your forecast, not a medical prediction';
+export const AI_ILLUSTRATION_LABEL = 'AI illustration from your forecast. Estimate only.';
 
 /** Stages are cached to the half step: finer changes in the forecast don't need a new image. */
 export function stageStep(stage: number): number {
@@ -11,12 +11,22 @@ export function stageStep(stage: number): number {
 
 /** One image per photo, stage step and year, so a new scan or a changed forecast gets a new one. */
 export function previewKey(scanId: string, stage: number, years: number): string {
-  return `${scanId}-s${stageStep(stage).toFixed(1)}-y${years}`.replace(/[^A-Za-z0-9._-]/g, '_');
+  return aiKey(scanId, `s${stageStep(stage).toFixed(1)}-y${years}`);
+}
+
+/**
+ * Every AI image is filed under the scan its photo came from (so deleting a scan deletes them),
+ * then a name for what it shows.
+ */
+export function aiKey(scanId: string, name: string): string {
+  return `${scanId}-${name}`.replace(/[^A-Za-z0-9._-]/g, '_');
 }
 
 /** The photo the preview is made from: the latest scan's front view. */
 export function previewPhoto(records: ScanRecord[]): { scanId: string; uri: string } | null {
   for (let i = records.length - 1; i >= 0; i--) {
+    // Library photos never feed the preview: its consent covers your scan photo.
+    if (records[i].source === 'upload') continue;
     const uri = records[i].views.front?.uri;
     if (uri) return { scanId: records[i].id, uri };
   }

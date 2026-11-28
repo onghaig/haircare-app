@@ -60,7 +60,7 @@ public final class HeadMapModule: Module {
     }
 
     View(HeadMapCameraView.self) {
-      Events("onQuality", "onAligned", "onCapture", "onError")
+      Events("onQuality", "onAligned", "onCapture", "onError", "onPanorama", "onPanoramaDone")
 
       Prop("view") { (v: HeadMapCameraView, value: String) in
         v.scanView = ScanView(rawValue: value) ?? .front
@@ -71,6 +71,9 @@ public final class HeadMapModule: Module {
       Prop("autoCapture") { (v: HeadMapCameraView, value: Bool?) in
         v.autoCapture = value ?? true
       }
+      Prop("panorama") { (v: HeadMapCameraView, value: String?) in
+        v.panoramaMode = PanoramaMode(rawValue: value ?? "off") ?? .off
+      }
       Prop("active") { (v: HeadMapCameraView, value: Bool?) in
         v.active = value ?? true
       }
@@ -78,6 +81,8 @@ public final class HeadMapModule: Module {
       AsyncFunction("capture") { (v: HeadMapCameraView) in v.capture() }
       AsyncFunction("resetCapture") { (v: HeadMapCameraView) in v.resetCapture() }
       AsyncFunction("startBurst") { (v: HeadMapCameraView, durationMs: Int) in v.startBurst(durationMs: durationMs) }
+      AsyncFunction("finishPanorama") { (v: HeadMapCameraView) in v.finishPanorama() }
+      AsyncFunction("resetPanorama") { (v: HeadMapCameraView) in v.resetPanorama() }
     }
   }
 }

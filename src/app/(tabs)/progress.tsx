@@ -1,17 +1,21 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Ring } from '@/components/onboarding/Controls';
+import { LifestyleCard } from '@/components/progress/LifestyleCard';
 import { TrendChart } from '@/components/progress/TrendChart';
 import { HairlineNumbers } from '@/components/scan/HairlineNumbers';
+import { ScalpMap } from '@/components/scan/ScalpMap';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { shortDate } from '@/paywall/plans';
+import { lifestyleTrend } from '@/plan/lifestyle';
 import { usePlan } from '@/plan/PlanProvider';
 import { dailyTasks } from '@/plan/tasks';
 import { useProfile } from '@/profile/ProfileProvider';
-import { consistency, latestReport, metricChanges, overallVerdict, reportSchedule, trendScans, VERDICT_TITLE } from '@/progress/verdict';
+import { consistency, latestReport, metricChanges, overallVerdict, reportSchedule, timelineScans, trendScans, VERDICT_TITLE } from '@/progress/verdict';
+import { canMap } from '@/scan/scalpMap';
 import { useScans } from '@/scan/ScanProvider';
 import type { ScanRecord } from '@/scan/session';
 import { colors, radius, spacing } from '@/theme';
@@ -23,7 +27,9 @@ export default function ProgressScreen() {
   const { book } = usePlan();
   const now = useMemo(() => new Date(), []);
   const scans = trendScans(records);
+  const timeline = timelineScans(records);
   const baseline = scans[0];
+  const scanned = records.some((r) => r.source !== 'upload');
   const latest = scans.at(-1);
   const medIds = dailyTasks(profile, now, records)
     .filter((t) => t.kind === 'medication')
@@ -31,7 +37,7 @@ export default function ProgressScreen() {
   const report = latestReport(records, book, profile, medIds, now);
   const keep = consistency(book, now, medIds, 30);
 
-  if (records.length === 0) {
+  if (!scanned) {
     return (
       <Screen title="Progress">
         <Card style={styles.hero}>
@@ -39,7 +45,9 @@ export default function ProgressScreen() {
             Nothing to compare yet
           </Text>
           <Text variant="headline">Your first scan sets your baseline</Text>
-          <Text color="textMuted">Everything here is measured against it.</Text>
+          <Text color="textMuted">
+            {records.length ? 'Your added photos show on the trend once your first scan is in.' : 'Everything here is measured against it.'}
+          </Text>
           <Button label="Start your first scan" onPress={() => router.push('/scan/session')} style={{ marginTop: spacing.sm }} />
         </Card>
       </Screen>
@@ -64,7 +72,7 @@ export default function ProgressScreen() {
             ? 'Your last scan was low confidence. Your next good scan sets your baseline.'
             : verdict
               ? `Compared with your baseline from ${shortDate(new Date(baseline.takenAt))}.`
-              : 'Scan weekly and we will compare every scan with this one.'}
+              : 'Scan weekly to compare.'}
         </Text>
         {!baseline ? (
           <Button label="Retake your scan" onPress={() => router.push('/scan/session')} style={{ marginTop: spacing.sm }} />
@@ -79,12 +87,14 @@ export default function ProgressScreen() {
 
       {latest ? <HairlineNumbers scan={latest} baseline={baseline} /> : null}
 
-      {scans.length >= 2 ? (
+      {baseline && timeline.length >= 2 ? (
         <Card style={{ gap: spacing.sm }}>
           <Text variant="headline">Hairline trend</Text>
-          <TrendChart scans={scans} />
+          <TrendChart scans={timeline} baseline={baseline} />
         </Card>
       ) : null}
+
+      <LifestyleCard trend={lifestyleTrend(book, records, now)} />
 
       <Card style={styles.row}>
         <View accessible accessibilityLabel={`${keep.label} ${Math.round(keep.share * 100)}% of the last 30 days`}>
@@ -93,7 +103,7 @@ export default function ProgressScreen() {
         <View style={{ flex: 1 }}>
           <Text variant="headline">{keep.label}</Text>
           <Text variant="caption" color="textMuted">
-            Last 30 days. Sticking with the plan matters more than anything else you can do.
+            Last 30 days.
           </Text>
         </View>
       </Card>
@@ -112,7 +122,7 @@ export default function ProgressScreen() {
             Your {schedule.due ? 'next' : 'first'} verdict arrives on {shortDate(schedule.next)}
           </Text>
           <Text variant="caption" color="textMuted">
-            Hair changes slowly, so we wait eight weeks before calling it. Keep scanning weekly.
+            First verdict after 8 weeks. Keep scanning weekly.
           </Text>
         </Card>
       ) : null}
@@ -120,11 +130,24 @@ export default function ProgressScreen() {
   );
 }
 
+/**
+ * Each scan as its top-down scalp map (all its photos placed on one head, seen from above), which
+ * shows the whole head at once. Scans that can't be placed on the head show the front photo.
+ */
 function Photo({ scan, label }: { scan: ScanRecord; label: string }) {
   const uri = scan.views.front?.uri;
+  const [size, setSize] = useState(0);
   return (
-    <View style={styles.photoCol}>
-      {uri ? (
+    <View style={styles.photoCol} onLayout={(e) => setSize(Math.floor(e.nativeEvent.layout.width))}>
+      {canMap(scan) && size > 0 ? (
+        <Pressable
+          onPress={() => router.push({ pathname: '/scan/panorama', params: { id: scan.id } })}
+          accessibilityRole="button"
+          accessibilityLabel={`${label} top-down map of your scalp. Opens the full map.`}
+          testID={`progress-map-${label.toLowerCase()}`}>
+          <ScalpMap scan={scan} layer="photos" size={size} />
+        </Pressable>
+      ) : uri ? (
         <Image source={{ uri }} style={styles.photo} contentFit="cover" accessibilityLabel={`${label} front photo`} />
       ) : (
         <View style={styles.photo} />

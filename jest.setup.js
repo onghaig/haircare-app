@@ -7,7 +7,7 @@ jest.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
 }));
 
-jest.mock('expo-speech', () => ({ speak: jest.fn(), stop: jest.fn() }));
+jest.mock('expo-speech', () => ({ speak: jest.fn(), stop: jest.fn(), getAvailableVoicesAsync: jest.fn(async () => []) }));
 
 jest.mock('expo-notifications', () => ({
   getPermissionsAsync: jest.fn(async () => ({ granted: false })),
@@ -34,3 +34,13 @@ jest.mock('expo-image-manipulator', () => ({
     })),
   },
 }));
+
+// Barcode scanning for the product check. Tests fire onBarcodeScanned on the mock camera.
+jest.mock('expo-camera', () => {
+  const React = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
+  return {
+    CameraView: (props) => React.createElement(View, props),
+    useCameraPermissions: () => [{ granted: true, canAskAgain: true, status: 'granted' }, jest.fn(async () => ({ granted: true }))],
+  };
+});

@@ -13,7 +13,7 @@
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Your camera scans your hairline the same way every time. Scans are analysed on your phone."
+        "NSCameraUsageDescription": "Your camera scans your hairline the same way every time, and reads product barcodes. Scans are analysed on your phone."
       }
     },
     "android": {
@@ -47,6 +47,15 @@
           "cameraPermission": "Your camera scans your hairline the same way every time. Scans are analysed on your phone.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Your camera scans your hairline the same way every time, and reads product barcodes. Scans are analysed on your phone.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
       ]
     ],
     "experiments": {
@@ -55,7 +64,8 @@
     },
     "backgroundColor": "#07090A",
     "extra": {
-      "visualizeEndpoint": ""
+      "visualizeEndpoint": "",
+      "clinicReferralUrl": ""
     }
   }
 }

@@ -1,5 +1,5 @@
 import { roleOf } from '@/forecast';
-import { groupedOptions, inPlan, OPTIONS, optionById, optionPlan, showsRx, visibleOptions } from '@/options/catalog';
+import { EVIDENCE_LABEL, groupedOptions, inPlan, OPTIONS, optionById, optionPlan, showsRx, visibleOptions } from '@/options/catalog';
 import { emptyProfile, type Profile } from '@/profile/types';
 
 const p = (o: Partial<Profile>): Profile => ({ ...emptyProfile(), ...o });
@@ -13,6 +13,14 @@ describe('options catalogue', () => {
       if (o.role === 'grows') expect([...roles]).toEqual(['grows']);
       if (o.role === 'both') expect(roles).toEqual(new Set(['slows', 'grows']));
     }
+  });
+
+  it('rates the evidence as reviewed: finasteride and dutasteride strong, the pair very strong', () => {
+    const label = (id: Parameters<typeof optionById>[0]) => EVIDENCE_LABEL[optionById(id).evidence];
+    expect(label('finasteride')).toBe('Strong');
+    expect(label('dutasteride')).toBe('Strong');
+    expect(label('minoxidil')).toBe('Strong');
+    expect(label('fin_minox')).toBe('Very strong');
   });
 
   it('prescriptions are never shown to under-18s', () => {

@@ -1,5 +1,6 @@
 import AVFoundation
 import CoreImage
+import CoreMotion
 import ExpoModulesCore
 import UIKit
 
@@ -14,11 +15,20 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
   let onAligned = EventDispatcher()
   let onCapture = EventDispatcher()
   let onError = EventDispatcher()
+  let onPanorama = EventDispatcher()
+  let onPanoramaDone = EventDispatcher()
 
   var scanView: ScanView = .front { didSet { if oldValue != scanView { reconfigure() } } }
   var baselineFaceWidth: Double?
   var autoCapture = true
   var active = true { didSet { active ? start() : stop() } }
+  /// Whole-head panorama: off, the face sweep (front camera) or the back of the head (back camera).
+  var panoramaMode: PanoramaMode = .off {
+    didSet {
+      guard oldValue != panoramaMode else { return }
+      panoramaModeChanged()
+    }
+  }
 
   private let session = AVCaptureSession()
   private let previewLayer = AVCaptureVideoPreviewLayer()
@@ -44,6 +54,11 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
   private var burst: (id: Int, until: Date, best: UIImage?, report: QualityReport?, size: CGSize)?
   private var burstCount = 0
   private let ciContext = CIContext()
+  /// Panorama: best JPEG per head region, with its report. Analysis queue only.
+  private var panorama = PanoramaCollector<(data: Data, report: QualityReport, size: CGSize)>()
+  private var panoramaStartHeading: Double?
+  private var lastPanoramaEmit = Date.distantPast
+  private let motion = CMMotionManager()
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -148,10 +163,102 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
     analysisQueue.async { [weak self] in self?.gate.reset() }
   }
 
+  // MARK: - Whole-head panorama
+
+  private func panoramaModeChanged() {
+    let mode = panoramaMode
+    if mode == .back {
+      // Device motion needs no permission. Pull mode: the analysis queue reads the latest sample.
+      if motion.isDeviceMotionAvailable, !motion.isDeviceMotionActive {
+        motion.deviceMotionUpdateInterval = 1.0 / 30
+        motion.startDeviceMotionUpdates(using: .xArbitraryZVertical)
+      }
+    } else if motion.isDeviceMotionActive {
+      motion.stopDeviceMotionUpdates()
+    }
+    analysisQueue.async { [weak self] in self?.panoramaStartHeading = nil }
+    reconfigure()
+  }
+
+  /// Where the back camera points: heading round the vertical, and how far down it points.
+  /// Nil without motion data (the simulator): then the frame counts for the back of the head.
+  private func backCameraDirection() -> (heading: Double, pitchDown: Double)? {
+    guard let m = motion.deviceMotion?.attitude.rotationMatrix else { return nil }
+    // The back camera looks along the device's -Z axis. In the reference frame (Z up):
+    let fx = -m.m31, fy = -m.m32, fz = -m.m33
+    let deg = 180.0 / Double.pi
+    return (atan2(fy, fx) * deg, asin(max(-1, min(1, -fz))) * deg)
+  }
+
+  /// Analysis queue only. Files the frame under its head region if it beats what is there.
+  private func offerPanoramaFrame(_ report: QualityReport, mode: PanoramaMode, size: CGSize, image: () -> UIImage?) {
+    var angles: (azimuth: Double, elevation: Double)?
+    if mode == .face, let p = report.pose {
+      angles = PanoramaCells.faceAngles(yaw: p.yaw, pitch: p.pitch)
+    } else if mode == .back {
+      if let d = backCameraDirection() {
+        if panoramaStartHeading == nil { panoramaStartHeading = d.heading }
+        angles = PanoramaCells.backAngles(heading: d.heading, startHeading: panoramaStartHeading ?? d.heading, pitchDown: d.pitchDown)
+      } else {
+        angles = PanoramaCells.backAngles(heading: 0, startHeading: 0, pitchDown: 10)
+      }
+    }
+    let ok = PanoramaCells.accepts(report, mode: mode)
+    var cell: Int?
+    var isNew = false
+    if let a = angles {
+      let c = PanoramaCells.cell(azimuth: a.azimuth, elevation: a.elevation)
+      cell = c
+      let rank = PanoramaCells.rank(report)
+      if ok, panorama.wants(cell: c, rank: rank), let img = image(), let data = img.jpegData(compressionQuality: 0.82) {
+        isNew = panorama.offer(cell: c, rank: rank, frame: (data, report, size), azimuth: a.azimuth, elevation: a.elevation, mode: mode)
+      }
+    }
+    if isNew { DispatchQueue.main.async { self.tick.impactOccurred(); self.tick.prepare() } }
+    // About 8 updates a second, and at once when a region fills.
+    guard isNew || Date().timeIntervalSince(lastPanoramaEmit) > 0.12 else { return }
+    lastPanoramaEmit = Date()
+    var payload: [String: Any] = ["mode": mode.rawValue, "filled": panorama.filled, "ok": ok]
+    if let cell { payload["cell"] = cell }
+    if let a = angles { payload["azimuth"] = a.azimuth; payload["elevation"] = a.elevation }
+    if let p = report.pose { payload["yaw"] = p.yaw; payload["pitch"] = p.pitch }
+    onPanorama(payload)
+  }
+
+  /// Saves the best frame of every region and sends them to JS in one event.
+  func finishPanorama() {
+    analysisQueue.async { [weak self] in
+      guard let self else { return }
+      var frames: [[String: Any]] = []
+      for (cell, e) in self.panorama.entries.sorted(by: { $0.key < $1.key }) {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("headmap-pano-\(cell)-\(UUID().uuidString).jpg")
+        do {
+          try e.frame.data.write(to: url, options: .completeFileProtection)
+        } catch {
+          self.emitError(error)
+          return
+        }
+        frames.append([
+          "uri": url.absoluteString, "cell": cell, "azimuth": e.azimuth, "elevation": e.elevation, "mode": e.mode.rawValue,
+          "report": e.frame.report.toDictionary(frameWidth: e.frame.size.width, frameHeight: e.frame.size.height),
+        ])
+      }
+      DispatchQueue.main.async { self.tap.impactOccurred(); self.tap.prepare() }
+      self.onPanoramaDone(["frames": frames])
+    }
+  }
+
+  func resetPanorama() {
+    analysisQueue.async { [weak self] in
+      self?.panorama.reset()
+      self?.panoramaStartHeading = nil
+    }
+  }
+
   // MARK: - Session
 
   private func reconfigure() {
-    let position: AVCaptureDevice.Position = scanView == .crown ? .back : .front
+    let position: AVCaptureDevice.Position = (scanView == .crown || panoramaMode == .back) ? .back : .front
     sessionQueue.async { [weak self] in
       guard let self else { return }
       self.session.beginConfiguration()
@@ -219,6 +326,15 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
     let size = CGSize(width: CVPixelBufferGetWidth(pb), height: CVPixelBufferGetHeight(pb))
     lastFrameSize = size
     do {
+      if panoramaMode != .off {
+        let mode = panoramaMode
+        let report = try engine.analyse(pixelBuffer: pb, timestampMs: ts, view: mode == .face ? .front : .crown, baselineFaceWidth: nil)
+        offerPanoramaFrame(report, mode: mode, size: size) {
+          let ci = CIImage(cvPixelBuffer: pb)
+          return ciContext.createCGImage(ci, from: ci.extent).map { UIImage(cgImage: $0) }
+        }
+        return
+      }
       let report = try engine.analyse(pixelBuffer: pb, timestampMs: ts, view: scanView, baselineFaceWidth: baselineFaceWidth)
       lastReport = report
       if burst != nil {
@@ -228,6 +344,7 @@ final class HeadMapCameraView: ExpoView, AVCaptureVideoDataOutputSampleBufferDel
         }
         return
       }
+      gate.holdFrames = CaptureGate.holdFrames(for: scanView)
       for event in gate.update(allPassed: report.allPassed) {
         switch event {
         case .aligned:
@@ -381,6 +498,12 @@ extension HeadMapCameraView {
   private func analyseDemoFrame() {
     guard active, !capturing, let demo, let frame = demo.frame, let engine = demo.engine else { return }
     do {
+      if panoramaMode != .off {
+        let mode = panoramaMode
+        let report = try engine.analyse(uiImage: frame, view: mode == .face ? .front : .crown, baselineFaceWidth: nil)
+        offerPanoramaFrame(report, mode: mode, size: frame.size) { frame }
+        return
+      }
       let report = try engine.analyse(uiImage: frame, view: scanView, baselineFaceWidth: baselineFaceWidth)
       lastReport = report
       lastFrameSize = frame.size
@@ -388,6 +511,7 @@ extension HeadMapCameraView {
         offerBurstFrame(report, size: frame.size) { frame }
         return
       }
+      gate.holdFrames = CaptureGate.holdFrames(for: scanView)
       for event in gate.update(allPassed: report.allPassed) {
         switch event {
         case .aligned: onAligned(["view": scanView.rawValue])

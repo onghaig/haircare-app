@@ -53,7 +53,7 @@ export default function ShareScreen() {
         <Text color="textMuted">Your forecast is still being worked out.</Text>
       )}
       <Text variant="caption" color="textMuted">
-        The card shows your traced hairline and your range, never your photos or your treatment.
+        Shows your hairline and range. No photos or treatments.
       </Text>
       {error ? <Text color="warning">{error}</Text> : null}
       <Button label="Share image" onPress={share} disabled={!year} />

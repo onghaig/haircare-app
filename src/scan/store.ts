@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
 import type { ScanRecord } from './session';
+import { isUpload } from './upload';
 
 /** Where scans live. On device: the app's private documents folder, never synced by default. */
 export interface ScanStore {
@@ -15,13 +16,14 @@ function sortByDate(r: ScanRecord[]): ScanRecord[] {
   return [...r].sort((a, b) => a.takenAt.localeCompare(b.takenAt));
 }
 
-/** The first scan good enough for trends. Everything is compared with it. */
+/** The first guided scan good enough for trends. Everything is compared with it. Library photos never are. */
 export function baselineOf(records: ScanRecord[]): ScanRecord | undefined {
-  return sortByDate(records).find((r) => !r.lowConfidence);
+  return sortByDate(records).find((r) => !r.lowConfidence && !isUpload(r));
 }
 
+/** The latest guided scan. Library photos are history, so they don't reset the weekly scan. */
 export function latestOf(records: ScanRecord[]): ScanRecord | undefined {
-  return sortByDate(records).at(-1);
+  return sortByDate(records.filter((r) => !isUpload(r))).at(-1);
 }
 
 /** Days until the next weekly scan is due (0 = today or overdue). */
@@ -86,7 +88,14 @@ export class FileScanStore implements ScanStore {
       if (src.exists && src.uri !== dest.uri) src.moveSync(dest);
       views[view as keyof ScanRecord['views']] = { ...v, uri: dest.uri };
     }
-    const saved = { ...record, views };
+    // The panorama's frames move in with the photos (a redo carries the old scan's over).
+    const panorama = record.panorama?.map((f) => {
+      const src = new File(f.uri);
+      const dest = new File(dir, `pano-${f.cell}.jpg`);
+      if (src.exists && src.uri !== dest.uri) src.moveSync(dest);
+      return { ...f, uri: dest.uri };
+    });
+    const saved = { ...record, views, ...(panorama ? { panorama } : {}) };
     const all = (await this.list()).filter((r) => r.id !== record.id);
     // Synchronous on purpose: the async write sometimes never settled on the simulator right
     // after a capture, leaving the finish screen on "Saving your scan".

@@ -91,7 +91,7 @@ describe('Reveal', () => {
     expect(screen.getByText('Temples')).toBeOnTheScreen();
     expect(screen.getByText('You in 5 years')).toBeOnTheScreen();
     expect(screen.getByTestId('future-blur')).toBeOnTheScreen();
-    expect(screen.getByText('Illustration based on your forecast, not a medical prediction')).toBeOnTheScreen();
+    expect(screen.getByText('Your photo, dashed line at your likely hairline. Not a medical prediction')).toBeOnTheScreen();
     // Year 1 free, 3, 5 and 10 frosted.
     expect(screen.getAllByTestId('timeline-frost')).toHaveLength(3);
 
@@ -121,7 +121,7 @@ describe('Reveal', () => {
         completedAt: '2026-11-26T10:00:00Z',
       }).tree,
     );
-    expect(await screen.findByText(/looks stable as of right now/, {}, { timeout: 5000 })).toBeOnTheScreen();
+    expect(await screen.findByText(/Looks stable for now/, {}, { timeout: 5000 })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Unlock tracking and your plan' })).toBeOnTheScreen();
   });
 
@@ -135,7 +135,7 @@ describe('Reveal', () => {
     expect(await screen.findByText('Your Norwood timeline', {}, { timeout: 5000 })).toBeOnTheScreen();
     expect(screen.queryByTestId('future-blur')).toBeNull();
     expect(screen.queryAllByTestId('timeline-frost')).toHaveLength(0);
-    expect(screen.getByText('Illustration based on your forecast, not a medical prediction')).toBeOnTheScreen();
+    expect(screen.getByText('Your photo, dashed line at your likely hairline. Not a medical prediction')).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
     expect(router.dismissAll).toHaveBeenCalled();
   });

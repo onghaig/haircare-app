@@ -38,8 +38,13 @@ export interface MetricChange {
   verdict: ChangeVerdict;
 }
 
-/** Scans good enough for trends, oldest first, that have hairline numbers. */
+/** Guided scans good enough for trends, oldest first, that have hairline numbers. The verdict uses these. */
 export function trendScans(records: ScanRecord[]): ScanRecord[] {
+  return timelineScans(records).filter((r) => r.source !== 'upload');
+}
+
+/** Like `trendScans`, plus library photos with hairline numbers, at the dates they were taken. For the chart only. */
+export function timelineScans(records: ScanRecord[]): ScanRecord[] {
   return [...records]
     .filter((r) => !r.lowConfidence && usableForTrends(r.quality) && r.hairline)
     .sort((a, b) => a.takenAt.localeCompare(b.takenAt));
@@ -159,11 +164,11 @@ export function explanations(verdict: Verdict, s: PeriodSummary, treatmentShare:
 export function versusForecast(verdict: Verdict): string {
   switch (verdict) {
     case 'holding':
-      return 'Your forecast expected little visible change this early, and that matches what we measured.';
+      return 'Little change, as expected this early.';
     case 'better':
-      return 'This is better than your forecast expected. We will keep checking that it lasts.';
+      return 'Better than your forecast expected.';
     case 'worse':
-      return 'This is faster than your forecast expected. One report is not a trend, so the next one will tell us more.';
+      return 'Faster than your forecast expected. Next month will tell us more.';
   }
 }
 

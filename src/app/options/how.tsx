@@ -44,7 +44,7 @@ function Mini({ kinds, label }: { kinds: ('slows' | 'grows' | 'both' | 'grows-st
 export default function HowOptionsWorkScreen() {
   return (
     <SubScreen title="How options work">
-      <Text color="textMuted">Dashed line: doing nothing. Shapes only, not your numbers.</Text>
+      <Text color="textMuted">Dashed line: no plan. Example shapes only.</Text>
       <Card style={{ gap: spacing.xs }}>
         <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
           <RolePill role="slows" />
@@ -54,7 +54,7 @@ export default function HowOptionsWorkScreen() {
         </View>
         <Mini kinds={['slows']} label="Slowing loss: the line flattens" />
         <Text variant="caption" color="textMuted">
-          Slows the loss underneath. Your line flattens and the gap grows every year.
+          Slows loss. The gap grows each year.
         </Text>
       </Card>
       <Card style={{ gap: spacing.xs }}>
@@ -77,7 +77,7 @@ export default function HowOptionsWorkScreen() {
         </Text>
       </Card>
       <Text variant="caption" color="textMuted">
-        Sleep, stress and food can change shedding for a few months, but aren’t shown to change pattern loss, so they don’t move your forecast.
+        Sleep, stress and food can affect shedding. They don’t change your forecast.
       </Text>
     </SubScreen>
   );

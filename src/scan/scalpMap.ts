@@ -1,5 +1,5 @@
 import { MIN_TREND_QUALITY } from './change';
-import { hairMap, MAP_ZONE_LABEL, mapSources, type HairMap, type MapZone } from './headModel';
+import { hairMap, MAP_ZONE_LABEL, mapSources, panoramaSources, type HairMap, type MapSource, type MapZone } from './headModel';
 import type { ScanRecord } from './session';
 
 /**
@@ -15,13 +15,31 @@ export const MAP_ZONES: readonly MapZone[] = ['front', 'leftTemple', 'rightTempl
 export { MAP_ZONE_LABEL };
 
 /** The hair map of a scan from its clear photos (the same photos the comparison trusts). */
+/** Every photo of a scan that can be placed on the head: the five views and the panorama's frames. */
+export function scanSources(scan: ScanRecord, minScore = 0): MapSource[] {
+  return [...mapSources(scan.views, minScore), ...panoramaSources(scan.panorama, minScore)];
+}
+
+/** The photo behind a source: a view's photo, or a panorama frame's. */
+export function sourceUri(scan: ScanRecord, src: MapSource): string | undefined {
+  if (src.key.startsWith('pano-')) {
+    const cell = Number(src.key.slice(5));
+    return scan.panorama?.find((f) => f.cell === cell)?.uri;
+  }
+  return scan.views[src.view]?.uri;
+}
+
+/**
+ * Hair density by zone, from the five views only: those are taken the same way every scan, so
+ * zones compare fairly with scans from before the panorama. The panorama adds to the pictures.
+ */
 export function scanHairMap(scan: ScanRecord, size = 48): HairMap {
   return hairMap(mapSources(scan.views, MIN_TREND_QUALITY), size);
 }
 
 /** Whether any photo of this scan can be placed on the head (older scans saved no landmarks). */
 export function canMap(scan: ScanRecord): boolean {
-  return mapSources(scan.views).length > 0;
+  return scanSources(scan).length > 0;
 }
 
 /** Plus or minus this much is within what light, angle and hair length change on their own. */
@@ -71,7 +89,7 @@ export function compareZone(
 /** The last good scan taken before this one, to confirm a change; null if there is none. */
 export function previousGoodScan(records: readonly ScanRecord[], scan: ScanRecord): ScanRecord | undefined {
   return records
-    .filter((r) => r.id !== scan.id && !r.lowConfidence && r.takenAt < scan.takenAt)
+    .filter((r) => r.id !== scan.id && !r.lowConfidence && r.source !== 'upload' && r.takenAt < scan.takenAt)
     .sort((a, b) => (a.takenAt < b.takenAt ? 1 : -1))[0];
 }
 

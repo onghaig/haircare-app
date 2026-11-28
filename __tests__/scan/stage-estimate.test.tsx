@@ -25,7 +25,7 @@ describe('measured Norwood estimate', () => {
     expect(e.low).toBe(1);
     expect(e.high).toBe(1.5);
     expect(e.confidence).toBe('moderate');
-    expect(e.grader).toBe('measured-v1');
+    expect(e.grader).toBe('measured-v2');
   });
 
   it('raises the stage with temple recession, a high hairline and a thin crown', () => {

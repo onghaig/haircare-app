@@ -19,14 +19,27 @@ export interface Prompt {
  *
  * Direction, pinned in a test: to show the camera your left temple you turn your head to your
  * right. That matches the pose gate (left temple target yaw -45; MediaPipe's yaw is negative when
- * the nose turns toward the subject's right) and the green line on the left of the mirrored screen.
+ * the nose turns toward the subject's right). The green line's side is set separately, from what
+ * people saw on a real phone (see hairlineGuide.ts). Temples now take the photo as soon as the
+ * head is turned the right way and that side's hairline is clearly in the shot.
  */
 const VIEW_POSE: Record<ScanView, string> = {
   front: 'Look straight at the phone, chin level',
   leftTemple: 'Show your left temple: turn your nose toward your right shoulder',
   rightTemple: 'Show your right temple: turn your nose toward your left shoulder',
   top: 'Tilt your head down toward the phone',
-  crown: 'Hold the phone above and behind your head',
+  crown: 'Hold the phone up high above your head, camera pointing down',
+};
+
+/**
+ * The hairline views need the hairline itself in the photo, so each one says to pull the hair
+ * back first, on screen and out loud.
+ */
+export const HAIR_BACK: Partial<Record<ScanView, string>> = {
+  front: 'Pull your hair back off your forehead',
+  leftTemple: 'Pull your hair back off your left temple',
+  rightTemple: 'Pull your hair back off your right temple',
+  top: 'Pull your hair back off your hairline',
 };
 
 /** Target yaw per temple view, in the camera module's convention (negative: nose to your right). */
@@ -46,7 +59,12 @@ export function turnToward(view: ScanView, yaw: number | undefined): 'right' | '
 
 /** What to do for a view, spoken when the view starts. */
 export function viewInstruction(view: ScanView): string {
-  return VIEW_POSE[view];
+  const back = HAIR_BACK[view];
+  return back ? `${back}. Then ${lowerFirst(VIEW_POSE[view])}` : VIEW_POSE[view];
+}
+
+function lowerFirst(s: string) {
+  return s.charAt(0).toLowerCase() + s.slice(1);
 }
 
 export function promptFor(report: QualityReport): Prompt {
@@ -112,6 +130,15 @@ export function statusChips(report: QualityReport): StatusChip[] {
     // No face to track: hair in frame, light and stillness are what matter.
     return [
       { label: 'Hair in frame', ok: !failed.has('hairInFrame') },
+      { label: 'Light', ok: !failed.has('exposure') && !failed.has('backlight') },
+      { label: 'Still', ok: !failed.has('sharpness') },
+    ];
+  }
+  if (report.view === 'leftTemple' || report.view === 'rightTemple') {
+    // Temples: the photo takes as soon as the head is turned and that side's hairline is clear.
+    return [
+      { label: 'Head turned', ok: !failed.has('pose') && !failed.has('faceFound') },
+      { label: 'Hairline', ok: !failed.has('hairlineFound') && !failed.has('faceFound') },
       { label: 'Light', ok: !failed.has('exposure') && !failed.has('backlight') },
       { label: 'Still', ok: !failed.has('sharpness') },
     ];

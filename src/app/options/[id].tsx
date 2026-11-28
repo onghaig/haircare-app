@@ -66,13 +66,13 @@ export default function OptionDetailScreen() {
       {counted ? (
         <Card style={{ gap: 4 }} testID="option-effect">
           <Text variant="caption" color="textMuted">
-            If done most days, your chance of Norwood {cmp?.reachStage ?? 3} or worse by {ten?.age ?? (profile.age ?? 0) + HEADLINE_YEARS}
+            Norwood {cmp?.reachStage ?? 3} by {ten?.age ?? (profile.age ?? 0) + HEADLINE_YEARS}, if done most days
           </Text>
           {!premium ? (
-            <Text color="textMuted">Your personal numbers are part of Premium.</Text>
+            <Text color="textMuted">Your numbers are in Premium.</Text>
           ) : ten && path ? (
             <View style={styles.pills}>
-              <Text color="textMuted">{chanceRangeLabel(ten.pReach)}</Text>
+              <Text color="danger">{chanceRangeLabel(ten.pReach)}</Text>
               <Text color="textMuted">→</Text>
               <Text variant="headline" style={{ color: o.rx ? colors.info : colors.accent }}>
                 {chanceRangeLabel(path.pReach)}
@@ -82,7 +82,7 @@ export default function OptionDetailScreen() {
             <Text color="textMuted">Working it out…</Text>
           )}
           <Text variant="caption" color="textMuted">
-            An early estimate, not yet checked against trials.
+            Early estimate.
           </Text>
         </Card>
       ) : null}

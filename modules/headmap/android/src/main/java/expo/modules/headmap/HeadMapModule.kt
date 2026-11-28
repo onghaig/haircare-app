@@ -3,6 +3,7 @@ package expo.modules.headmap
 import android.Manifest
 import android.net.Uri
 import expo.modules.headmap.core.HairlineMeasurer
+import expo.modules.headmap.core.PanoramaMode
 import expo.modules.headmap.core.ScanView
 import expo.modules.interfaces.permissions.PermissionsStatus
 import expo.modules.kotlin.Promise
@@ -58,17 +59,20 @@ class HeadMapModule : Module() {
     }
 
     View(HeadMapCameraView::class) {
-      Events("onQuality", "onAligned", "onCapture", "onError")
+      Events("onQuality", "onAligned", "onCapture", "onError", "onPanorama", "onPanoramaDone")
 
       Prop("view") { v: HeadMapCameraView, value: String -> v.scanView = ScanView.from(value) }
       Prop("baselineFaceWidth") { v: HeadMapCameraView, value: Double? -> v.baselineFaceWidth = value }
       Prop("autoCapture") { v: HeadMapCameraView, value: Boolean? -> v.autoCapture = value ?: true }
+      Prop("panorama") { v: HeadMapCameraView, value: String? -> v.panoramaMode = PanoramaMode.from(value) }
       Prop("active") { v: HeadMapCameraView, value: Boolean? -> v.active = value ?: true }
 
       // CameraX takes pictures from the main thread.
       AsyncFunction("capture") { v: HeadMapCameraView -> v.post { v.capture() } }
       AsyncFunction("resetCapture") { v: HeadMapCameraView -> v.resetCapture() }
       AsyncFunction("startBurst") { v: HeadMapCameraView, durationMs: Int -> v.startBurst(durationMs) }
+      AsyncFunction("finishPanorama") { v: HeadMapCameraView -> v.finishPanorama() }
+      AsyncFunction("resetPanorama") { v: HeadMapCameraView -> v.resetPanorama() }
     }
   }
 

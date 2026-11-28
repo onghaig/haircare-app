@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { DEFAULT_MODEL, handle, MAX_IMAGE_BASE64, type Env } from '../../server/visualize/src/handler';
-import { editPrompt, stageKey } from '../../server/visualize/src/prompt';
+import { editPrompt, restorePrompt, stageKey, stylePrompt } from '../../server/visualize/src/prompt';
 
 const env: Env = { GEMINI_API_KEY: 'test-key' };
 const post = (body: unknown, headers: Record<string, string> = {}) =>
@@ -69,5 +69,34 @@ describe('visualize worker', () => {
     expect(stageKey(3.5)).toBe(4);
     expect(editPrompt(2, 1)).toMatch(/Change the hair only/);
     expect(editPrompt(2, 1)).toMatch(/about a year older/);
+  });
+
+  const sentText = (f: jest.Mock) => JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).contents[0].parts[0].text as string;
+
+  it('tries on a hairstyle from the list, keeping the hairline as it is', async () => {
+    const f = gemini([{ inlineData: { mimeType: 'image/png', data: 'T1VU' } }]);
+    const res = await handle(post({ image: 'UEhPVE8=', kind: 'style', style: 'crop', stage: 3 }), env, f);
+    expect(res.status).toBe(200);
+    expect(sentText(f)).toBe(stylePrompt('crop', 3));
+    expect(sentText(f)).toMatch(/French crop/);
+    expect(sentText(f)).toMatch(/do not add hair where the scalp shows/);
+  });
+
+  it('refuses a style that isn’t on the list, even an inherited key', async () => {
+    const f = gemini([]);
+    expect((await handle(post({ image: 'UEhPVE8=', kind: 'style', style: 'mohawk of my choosing' }), env, f)).status).toBe(400);
+    expect((await handle(post({ image: 'UEhPVE8=', kind: 'style', style: 'toString' }), env, f)).status).toBe(400);
+    expect((await handle(post({ image: 'UEhPVE8=', kind: 'style', style: 'buzz', stage: 12 }), env, f)).status).toBe(400);
+    expect((await handle(post({ image: 'UEhPVE8=', kind: 'paint' }), env, f)).status).toBe(400);
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it('makes a transplant preview scaled to the stage', async () => {
+    const f = gemini([{ inlineData: { mimeType: 'image/png', data: 'T1VU' } }]);
+    expect((await handle(post({ image: 'UEhPVE8=', kind: 'restore', stage: 6 }), env, f)).status).toBe(200);
+    expect(sentText(f)).toBe(restorePrompt(6));
+    expect(restorePrompt(6)).toMatch(/crown still noticeably thin/);
+    expect(restorePrompt(2)).toMatch(/mature adult hairline/);
+    expect((await handle(post({ image: 'UEhPVE8=', kind: 'restore' }), env, f)).status).toBe(400);
   });
 });

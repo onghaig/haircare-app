@@ -78,12 +78,12 @@ export function versusPaths(f: Forecast, scans: ScanRecord[]): VersusPaths | nul
 
   const what = hasPlan ? 'your plan' : 'your forecast';
   const sentence = {
-    tooEarly: `The change so far is inside scan noise, and ${hasPlan ? 'the two paths' : 'your forecast'} haven’t split yet. That usually takes 6 to 12 months.`,
+    tooEarly: `No clear change yet. That usually takes 6 to 12 months.`,
     ahead: `Your hairline is doing better than ${what} predicted, by more than a re-scan can explain.`,
     onPlan: hasPlan
-      ? `Your hairline is inside the range your plan predicted${now.mm < expNone - noise / 2 ? ', and ahead of the do-nothing forecast' : ''}.`
+      ? `Your hairline is inside the range your plan predicted${now.mm < expNone - noise / 2 ? ', and ahead of no plan' : ''}.`
       : 'Your hairline is inside the range your forecast predicted.',
-    behind: `Your hairline moved more than ${what} predicted. One report is not a trend, so the next one will tell us more.`,
+    behind: `Your hairline moved more than ${what} predicted. Next month will tell us more.`,
   }[verdict];
 
   return { verdict, hasPlan, scans: points, untreatedAt, planAt, noiseMM: noise, monthsSoFar: now.months, sentence };

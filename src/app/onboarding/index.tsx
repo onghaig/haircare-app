@@ -1,14 +1,18 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg from 'react-native-svg';
 
-import { Face } from '@/components/head/Face';
+import { HeadOutline } from '@/components/head/HeadDiagram';
+import { stagePhoto } from '@/look/references';
 import { Button, Text } from '@/components/ui';
 import { colors, spacing } from '@/theme';
 
 const HEAD_H = 250;
+/** The example man at Norwood 3: the photo the scan sweep runs over. */
+const welcomePhoto = stagePhoto(3);
 
 /** Welcome: one promise, a live preview of the scan, the privacy line. No account wall. */
 export default function WelcomeScreen() {
@@ -34,9 +38,14 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.hero} accessible={false}>
-        <Svg width={(HEAD_H * 200) / 236} height={HEAD_H} viewBox="0 0 200 236">
-          <Face id="welcome" recede={0.3} trace shoulders />
-        </Svg>
+        {welcomePhoto != null ? (
+          // The bundled example photo (a fictional, AI-made man), once made. Never a drawn face.
+          <Image source={welcomePhoto} style={{ width: (HEAD_H * 3) / 4, height: HEAD_H, borderRadius: 18 }} contentFit="cover" testID="welcome-photo" />
+        ) : (
+          <Svg width={(HEAD_H * 200) / 236} height={HEAD_H} viewBox="0 0 200 236">
+            <HeadOutline recede={0.3} trace shoulders />
+          </Svg>
+        )}
         <Animated.View pointerEvents="none" style={[styles.sweep, { transform: [{ translateY }] }]} />
       </View>
       <View style={styles.copy}>

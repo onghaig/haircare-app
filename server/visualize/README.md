@@ -1,9 +1,13 @@
-# Visualize: the AI "future you" preview
+# Visualize: the AI "future you" preview, hairstyle try-on and transplant preview
 
 One Cloudflare Worker. The app sends one downscaled front photo (768 px JPEG) plus the forecast's
 median Norwood stage and the number of years; the Worker asks Google's Gemini image model to
 restyle only the hair and returns the image. The prompt is built here from those two numbers
 (`src/prompt.ts`), so callers can't send their own prompts.
+
+The same Worker also takes `{ image, kind: 'style', style, stage }` (a hairstyle from the fixed list in
+`src/styles.ts`, hairline and density kept as they are) and `{ image, kind: 'restore', stage }` (a
+realistic transplant result, less full at later stages). Prompts for both are built here too.
 
 **Privacy.** The photo exists only in memory for that one request: no storage, no logging of
 bodies (Workers observability is off). Use a **paid** Gemini API project: Google's terms say paid
@@ -32,3 +36,16 @@ and caches it, so a typical user costs a few images. Cloudflare's free plan cove
 
 To try another model, set `GEMINI_IMAGE_MODEL` in the Worker's settings. To use another provider,
 replace `handle` in `src/handler.ts`; the app only depends on the request and response shape.
+
+## Example photos (for people with no AI image)
+
+Without an AI image of their own photo, the app shows the user's own photo with the hairline
+traced on it. If there's no photo either, it shows bundled example photos of one fictional,
+AI-made man at each stage and in each style. Make them once the key is set (about 45 images,
+roughly $2), look through them, then commit `assets/reference/` and the generated map:
+
+```bash
+GEMINI_API_KEY=... npm run reference-photos
+```
+
+Until then those spots show plain words, never a drawn face.

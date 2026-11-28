@@ -29,19 +29,28 @@ function fakeProvider(impl?: () => Promise<{ imageBase64: string; mimeType: stri
 beforeEach(() => jest.clearAllMocks());
 
 describe('Future look with the AI preview', () => {
-  it('keeps the drawing when no preview service is set up', async () => {
-    const { wrap } = makeProviders({ profile: agreed, scans });
-    await render(wrap(<FutureLook stage={3.2} age={35} years={5} locked={false} />));
+  it('shows your own photo with the forecast hairline when no preview service is set up', async () => {
+    const withLine = [record('s1', '2026-11-20T09:00:00Z', { hairline: { centreMM: 68, curve: [[0.3, 0.3], [0.5, 0.26], [0.7, 0.3]] } })];
+    const { wrap } = makeProviders({ profile: agreed, scans: withLine });
+    await render(wrap(<FutureLook stage={4} age={35} years={5} locked={false} />));
     expect(screen.queryByTestId('future-photo')).toBeNull();
+    expect(await screen.findByTestId('future-own-photo')).toBeOnTheScreen();
+    expect(screen.getByTestId('future-own-photo-projected')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: /AI/ })).toBeNull();
-    expect(screen.getByText('Illustration based on your forecast, not a medical prediction')).toBeOnTheScreen();
+    expect(screen.getByText('Your photo, dashed line at your likely hairline. Not a medical prediction')).toBeOnTheScreen();
+  });
+
+  it('never draws a face: with no scan it says so in words', async () => {
+    const { wrap } = makeProviders({ profile: agreed, scans: [] });
+    await render(wrap(<FutureLook stage={3.2} age={35} years={5} locked={false} />));
+    expect(await screen.findByTestId('no-photo')).toHaveTextContent('N3 at 35Do a scan to see this on your own photo.');
   });
 
   it('asks before any photo leaves the phone', async () => {
     const provider = fakeProvider();
     const { wrap } = makeProviders({ profile: adult, scans, ai: { provider } });
     await render(wrap(<FutureLook stage={3.2} age={35} years={5} locked={false} />));
-    await fireEvent.press(await screen.findByRole('button', { name: 'See it on your own photo (AI)' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Show the hair change with AI' }));
     expect(router.push).toHaveBeenCalledWith('/ai-preview');
     expect(provider.generate).not.toHaveBeenCalled();
   });
@@ -68,7 +77,7 @@ describe('Future look with the AI preview', () => {
     await act(async () => finish());
     expect(await screen.findByTestId('future-photo')).toBeOnTheScreen();
     expect(screen.getByTestId('future-blur')).toBeOnTheScreen();
-    expect(screen.getByText('AI illustration based on your forecast, not a medical prediction')).toBeOnTheScreen();
+    expect(screen.getByText('AI illustration from your forecast. Estimate only.')).toBeOnTheScreen();
     expect(prepare).toHaveBeenCalledWith('file:///scans/s1/front.heic');
     expect(provider.generate).toHaveBeenCalledWith({ imageBase64: 'U01BTEw=', stage: 3, years: 5 });
     expect(store.files.has('s1-s3.0-y5')).toBe(true);
@@ -121,7 +130,7 @@ describe('AI preview consent', () => {
     await render(wrap(<AiPreviewConsentScreen />));
     expect(await screen.findByText('Your photo leaves your phone for this')).toBeOnTheScreen();
     expect(screen.getByText('Nothing is kept on the server')).toBeOnTheScreen();
-    expect(screen.getByText(/isn’t a medical prediction/)).toBeOnTheScreen();
+    expect(screen.getByText(/Estimate only/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Agree and make my preview' }));
     await waitFor(async () => expect((await stores.profile.load()).aiPreview?.consentAt).toBeTruthy());
     expect(router.back).toHaveBeenCalled();

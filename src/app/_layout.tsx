@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { PurchasesProvider } from '@/paywall/PurchasesProvider';
 import { PlanProvider } from '@/plan/PlanProvider';
+import { ReminderSync } from '@/plan/ReminderSync';
 import { ProfileProvider } from '@/profile/ProfileProvider';
 import { ForecastProvider } from '@/reveal/ForecastProvider';
 import { ScanProvider } from '@/scan/ScanProvider';
@@ -31,6 +32,7 @@ export default function RootLayout() {
         <AiPreviewProvider>
         <ScanProvider>
           <ForecastProvider>
+            <ReminderSync />
             <Stack
               screenOptions={{
                 headerShown: false,
@@ -47,10 +49,17 @@ export default function RootLayout() {
               <Stack.Screen name="verdict" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="share" options={{ presentation: 'modal' }} />
               <Stack.Screen name="privacy" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="settings/index" />
+              <Stack.Screen name="settings/[step]" />
+              <Stack.Screen name="coach" />
+              <Stack.Screen name="products" options={{ presentation: 'modal' }} />
               <Stack.Screen name="options/index" />
               <Stack.Screen name="options/how" />
               <Stack.Screen name="options/[id]" options={{ presentation: 'modal' }} />
               <Stack.Screen name="ai-preview" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="styles/index" />
+              <Stack.Screen name="styles/[id]" />
+              <Stack.Screen name="transplant" />
               <Stack.Screen
                 name="scan/session"
                 options={{
@@ -59,6 +68,7 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen name="scan/[id]" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="scan/upload" options={{ presentation: 'modal' }} />
               <Stack.Screen name="scan/panorama" options={{ presentation: 'fullScreenModal' }} />
             </Stack>
           </ForecastProvider>

@@ -24,7 +24,7 @@ export function goalCopy(goal: Goal | undefined, lowRisk: boolean): GoalCopy {
     case 'keep':
       return {
         ...NONE,
-        sentence: lowRisk ? null : 'Your goal is to keep what you have. Catching change early is what makes that work.',
+        sentence: lowRisk ? null : 'Goal: keep what you have.',
         headline: 'Keep what you have',
         benefits: [
           'Weekly scans that catch change early',
@@ -32,12 +32,12 @@ export function goalCopy(goal: Goal | undefined, lowRisk: boolean): GoalCopy {
           'Year-by-year forecast to age 50',
           'Your daily plan, adjusted monthly',
         ],
-        today: 'Your goal: keep what you have. The monthly verdict says whether you are.',
+        today: null,
       };
     case 'regrow':
       return {
         ...NONE,
-        sentence: 'Your goal is to regrow. Your scans will show what’s working, month by month.',
+        sentence: 'Goal: regrow.',
         headline: 'See what’s working',
         benefits: [
           'Monthly before and after, measured the same way',
@@ -45,12 +45,12 @@ export function goalCopy(goal: Goal | undefined, lowRisk: boolean): GoalCopy {
           'What each option is likely to change',
           'Your daily plan, adjusted monthly',
         ],
-        today: 'Your goal: regrow. Results show at 6 to 12 months, so steady days matter most.',
+        today: 'Results show at 6 to 12 months.',
       };
     case 'know':
       return {
         ...NONE,
-        sentence: 'You want to know where it’s heading. Here’s the honest version, as a range.',
+        sentence: null,
         cta: lowRisk ? null : 'See your full forecast',
         headline: 'See where your hair is heading',
         benefits: [
@@ -59,21 +59,21 @@ export function goalCopy(goal: Goal | undefined, lowRisk: boolean): GoalCopy {
           'Your forecast, refreshed every month',
           'Weekly scans that catch change early',
         ],
-        today: 'Your forecast updates after every monthly verdict.',
+        today: null,
       };
     case 'shave':
       return {
         ...NONE,
-        sentence: 'You’re thinking of shaving it. Plenty of people own it and never look back.',
+        sentence: null,
         cta: 'See your forecast and options',
         headline: 'Decide with the full picture',
         benefits: [
-          'Year-by-year forecast, so you can choose your timing',
+          'Year-by-year forecast',
           'You vs your forecast, every month',
-          'Your options, with honest odds',
+          'Your options and odds',
           'Weekly scans if you want to keep watching',
         ],
-        today: 'Your forecast shows when change is likely, so the timing is your call.',
+        today: null,
       };
     default:
       return NONE;

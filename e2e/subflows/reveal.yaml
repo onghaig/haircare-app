@@ -7,8 +7,9 @@ appId: com.onghaig.haircare
     timeout: 40000
 - assertVisible: ".*Norwood today.*"
 - assertVisible: "You in 5 years"
-# The preview is one accessibility element, so the caption is part of its label.
-- assertVisible: ".*Illustration based on your forecast, not a medical prediction"
+# The preview is one accessibility element, so the caption is part of its label. It is the
+# user's own photo with the forecast hairline, or words when there's no photo: never a drawing.
+- assertVisible: ".*[Nn]ot a medical prediction.*"
 - takeScreenshot: e2e-21-reveal
 - tapOn: "10 years"
 - assertVisible: "You in 10 years"

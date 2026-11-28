@@ -32,7 +32,7 @@ export default function PrivacyScreen() {
         </Card>
       ))}
       <Text variant="caption" color="textMuted">
-        Estimates for wellness tracking, not a diagnosis. The full privacy policy is published before launch.
+        Estimates only. Full privacy policy coming before launch.
       </Text>
     </SubScreen>
   );

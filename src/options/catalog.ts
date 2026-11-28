@@ -17,10 +17,11 @@ import type { Profile, TreatmentChoice } from '@/profile/types';
  */
 export const SHOW_RX_TO_ADULTS = true;
 
-/** 3 strong, 2 some, 1 limited, 0 not shown to help pattern loss (not counted in the forecast). */
-export type Evidence = 0 | 1 | 2 | 3;
+/** 4 very strong, 3 strong, 2 some, 1 limited, 0 not shown to help pattern loss (not counted in the forecast). */
+export type Evidence = 0 | 1 | 2 | 3 | 4;
 
 export const EVIDENCE_LABEL: Record<Evidence, string> = {
+  4: 'Very strong',
   3: 'Strong',
   2: 'Some',
   1: 'Limited',
@@ -28,6 +29,7 @@ export const EVIDENCE_LABEL: Record<Evidence, string> = {
 };
 
 export const EVIDENCE_MEANING: Record<Evidence, string> = {
+  4: 'Large trials of each part, and the pair did better than either alone',
   3: 'Several large randomised trials in men with pattern loss',
   2: 'Fewer or shorter trials',
   1: 'Small studies only',
@@ -92,13 +94,13 @@ export const OPTIONS: OptionInfo[] = [
     id: 'dutasteride',
     name: 'Dutasteride',
     role: 'slows',
-    evidence: 2,
+    evidence: 3,
     rx: true,
     items: ['dutasteride'],
     takes: ['dutasteride'],
     short: 'Changes your slope. A stronger DHT blocker, used off-label for hair in many places.',
     about: 'A daily prescription capsule that lowers DHT more than finasteride. Only a clinician can decide if it suits you.',
-    evidenceText: 'Fewer trials than finasteride, mostly 6 to 12 months',
+    evidenceText: 'Randomised trials in men, including head-to-head trials against finasteride',
     timeline: 'Results by 6 to 12 months',
     tradeoffs: 'Side effects like finasteride, and it stays in the body for months. Loss resumes if stopped.',
     notFor: 'Under 18s, or anyone who could get pregnant',
@@ -112,7 +114,7 @@ export const OPTIONS: OptionInfo[] = [
     items: ['minoxidil'],
     takes: ['minoxidil'],
     short: 'Adds density on top and crown while you use it.',
-    about: 'A foam or liquid you apply to the scalp once or twice a day. It grows hair while you use it but does not slow the loss underneath.',
+    about: 'A foam or liquid you apply to the scalp once or twice a day. It grows hair while you use it. It doesn’t slow loss.',
     evidenceText: 'Several large trials in men, mostly on the top and crown',
     timeline: 'Extra shedding for the first weeks is common. Regrowth shows by 6 to 12 months',
     tradeoffs: 'Scalp itch or flaking for some. The gain fades within a few months of stopping.',
@@ -150,13 +152,13 @@ export const OPTIONS: OptionInfo[] = [
     id: 'fin_minox',
     name: 'Finasteride + minoxidil',
     role: 'both',
-    evidence: 2,
+    evidence: 4,
     rx: true,
     items: ['finasteride', 'minoxidil'],
     takes: [],
     short: 'Slope and lift together.',
     about: 'Finasteride to slow the loss underneath, and minoxidil to add density on top. Only a clinician can decide if it suits you.',
-    evidenceText: 'Fewer trials of the pair than of each one alone',
+    evidenceText: 'Large trials of each part, and trials of the pair did better than either alone',
     timeline: 'Results by 6 to 12 months',
     tradeoffs: 'The trade-offs of both. Stopping either loses its part of the effect.',
     notFor: 'Under 18s, or anyone who could get pregnant',
@@ -170,7 +172,7 @@ export const OPTIONS: OptionInfo[] = [
     items: [],
     takes: ['ketoconazole'],
     short: 'Helps a flaky or itchy scalp. Not counted in your forecast.',
-    about: 'An anti-dandruff shampoo used 2 to 3 times a week. Small studies hint at a benefit for hair, not enough to count.',
+    about: 'An anti-dandruff shampoo used 2 to 3 times a week. Small studies hint it may help hair.',
     evidenceText: 'Small studies only',
     timeline: 'Scalp feels better within weeks',
     tradeoffs: 'Can dry the hair.',
@@ -184,7 +186,7 @@ export const OPTIONS: OptionInfo[] = [
     items: [],
     takes: [],
     short: 'Helps with shedding. Not shown to change pattern loss.',
-    about: 'Poor sleep, high stress and low iron can raise shedding for a few months. They are not shown to change pattern loss, so they do not move your forecast.',
+    about: 'Poor sleep, high stress and low iron can raise shedding for a few months. They don’t change your forecast.',
     evidenceText: 'Not shown to change pattern loss',
     timeline: 'Shedding usually settles 3 to 6 months after the cause does',
     tradeoffs: 'None.',

@@ -5,7 +5,7 @@ import { Text } from '@/components/ui';
 import type { Zone } from '@/profile/types';
 import { alpha, colors } from '@/theme';
 
-import { CrownView, Face, hairlineGeometry } from './Face';
+import { CrownOutline, HeadOutline, hairlineGeometry } from './HeadDiagram';
 
 const BOX = { w: 200, h: 236 };
 const RECEDE = 0.35;
@@ -67,7 +67,7 @@ export function HeadZonePicker({
       <View style={styles.col}>
         <View style={{ width, height }}>
           <Svg width={width} height={height} viewBox={`0 0 ${BOX.w} ${BOX.h}`}>
-            <Face id="zp" recede={RECEDE} />
+            <HeadOutline recede={RECEDE} />
             <Path d={line.d} fill="none" stroke={colors.accent} strokeOpacity={on('hairline') ? 0.35 : 0.08} strokeWidth={14} strokeLinecap="round" />
             <Path d={line.d} fill="none" stroke={on('hairline') ? colors.accent : colors.textMuted} strokeWidth={2} strokeDasharray={dash('hairline')} />
             <Ellipse cx={54} cy={78} rx={14} ry={18} fill={zoneFill('temples')} stroke={zoneStroke('temples')} strokeWidth={1.6} strokeDasharray={dash('temples')} />
@@ -82,7 +82,7 @@ export function HeadZonePicker({
       <View style={styles.col}>
         <View style={{ width, height }}>
           <Svg width={width} height={height} viewBox={`0 0 ${BOX.w} ${BOX.h}`}>
-            <CrownView id="zp" />
+            <CrownOutline />
             <Ellipse cx={100} cy={58} rx={40} ry={24} fill={zoneFill('top')} stroke={zoneStroke('top')} strokeWidth={1.6} strokeDasharray={dash('top')} />
             <Circle cx={100} cy={102} r={26} fill={zoneFill('crown')} stroke={zoneStroke('crown')} strokeWidth={1.6} strokeDasharray={dash('crown')} />
           </Svg>

@@ -43,7 +43,7 @@ describe('scans against both lines', () => {
     expect(v.planAt(12)).toBeCloseTo(-0.2 * MM_PER_STAGE);
     expect(v.untreatedAt(12)).toBeCloseTo(0.8 * MM_PER_STAGE);
     expect(v.verdict).toBe('onPlan');
-    expect(v.sentence).toMatch(/ahead of the do-nothing forecast/);
+    expect(v.sentence).toMatch(/ahead of no plan/);
   });
 
   it('ahead or behind only past scan noise', () => {

@@ -5,8 +5,13 @@ package expo.modules.headmap.core
  * first lines up, and auto-capture once every check has stayed green for a short, steady hold.
  * Small flickers do not reset the hold. Port of CaptureGate.swift.
  */
-class CaptureGate(val holdFrames: Int = 8, val graceFrames: Int = 1) {
+class CaptureGate(var holdFrames: Int = 8, val graceFrames: Int = 2) {
   enum class Event { ALIGNED, LOST, CAPTURE }
+
+  companion object {
+    /** Hold per view: temples capture as soon as the hairline is clear (about 0.2 s), the rest after 0.5 s. */
+    fun holdFrames(view: ScanView): Int = if (view.isTemple) 3 else 8
+  }
 
   var greenRun = 0
     private set

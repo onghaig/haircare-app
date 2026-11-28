@@ -1,17 +1,17 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Ellipse } from 'react-native-svg';
 
-import { CrownView, Face } from '@/components/head/Face';
+import { CrownOutline, HeadOutline } from '@/components/head/HeadDiagram';
 import { Chips, ToggleRow } from '@/components/onboarding/Controls';
 import { Button, CloseButton, Text } from '@/components/ui';
 import { answer } from '@/plan/log';
 import { mmss, routineFor, stepAt, totalSeconds, type MassageStep, type Variation } from '@/plan/massage';
 import { usePlan } from '@/plan/PlanProvider';
+import { loadNaturalVoice, speakNaturally } from '@/scan/voice';
 import { dayKey } from '@/plan/tasks';
 import { alpha, colors, minTouchTarget, spacing } from '@/theme';
 
@@ -57,12 +57,14 @@ export default function MassageScreen() {
     return () => clearInterval(t);
   }, [running, finished]);
 
+  useEffect(() => loadNaturalVoice(), []);
+
   // Each new step: a firm haptic, and the instruction spoken when voice is on.
   const index = at?.index ?? -1;
   useEffect(() => {
     if (!running || index < 0) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    if (voice) Speech.speak(`${steps[index].title}. ${steps[index].movement}`, { rate: 0.95 });
+    if (voice) speakNaturally(`${steps[index].title}. ${steps[index].movement}`);
   }, [index, running, voice, steps]);
 
   // The routine auto-completes the day's massage task.
@@ -89,7 +91,7 @@ export default function MassageScreen() {
         )}
         <View style={styles.head}>
           <Svg width={180} height={212} viewBox="0 0 200 236">
-            {step.view === 'front' ? <Face id="massage" recede={0.2} /> : <CrownView id="massage" />}
+            {step.view === 'front' ? <HeadOutline recede={0.2} /> : <CrownOutline />}
             {step.zones.flatMap((z) =>
               AREAS[z].map((e, i) => (
                 <Ellipse key={`${z}${i}`} {...e} fill={alpha(colors.accent, 0.28)} stroke={colors.accent} strokeWidth={1.6} />

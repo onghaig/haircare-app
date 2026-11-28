@@ -6,6 +6,7 @@
     "@expo/ui": "~58.0.30",
     "expo": "~58.1.0",
     "expo-blur": "~58.0.6",
+    "expo-camera": "~58.0.14",
     "expo-constants": "~58.0.16",
     "expo-dev-client": "~58.0.22",
     "expo-device": "~58.0.5",
@@ -64,7 +65,8 @@
     "models": "node modules/headmap/scripts/download-models.mjs",
     "postinstall": "node modules/headmap/scripts/download-models.mjs --soft",
     "test:swift": "cd modules/headmap/core && swift test",
-    "test:kotlin": "cd modules/headmap/kotlin-core && gradle test"
+    "test:kotlin": "cd modules/headmap/kotlin-core && gradle test",
+    "reference-photos": "node --import ./scripts/reference-photos/resolve.mjs scripts/reference-photos/make.mts"
   },
   "private": true,
   "jest": {

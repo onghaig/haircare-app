@@ -102,7 +102,7 @@ data class QualityReport(
 }
 
 data class QualityThresholds(
-  val poseToleranceDeg: Double = 5.0,
+  val poseToleranceDeg: Double = 8.0,
   val minSharpness: Double = 40.0,
   /** Mean face brightness (0 to 255) must sit strictly between these. */
   val minBrightness: Double = 60.0,
@@ -123,6 +123,12 @@ data class QualityThresholds(
   val minAimShare: Double = 0.05,
   /** Aim: under this share, the phone is too far from the head. */
   val closeAimShare: Double = 0.3,
+  /** Temple views: turned the right way by at least this much yaw (degrees), not to exactly 45. */
+  val templeMinTurnDeg: Double = 15.0,
+  val templeMaxTurnDeg: Double = 75.0,
+  val templeMaxTiltDeg: Double = 25.0,
+  /** Temple views: points of that side's traced hairline needed to count it as clearly in the shot. */
+  val templeMinTracePoints: Int = 6,
 )
 
 class QualityScorer(val thresholds: QualityThresholds = QualityThresholds()) {
@@ -199,6 +205,13 @@ class QualityScorer(val thresholds: QualityThresholds = QualityThresholds()) {
     }
   }
 
+  /** Temple views: turned toward the view's side by enough, without an exact angle. */
+  fun templeTurnOk(p: PoseAngles, view: ScanView): Boolean {
+    val turn = abs(p.yaw)
+    return p.yaw * view.targetPose.yaw > 0 && turn >= thresholds.templeMinTurnDeg && turn <= thresholds.templeMaxTurnDeg &&
+      abs(p.pitch) <= thresholds.templeMaxTiltDeg && abs(p.roll) <= thresholds.templeMaxTiltDeg
+  }
+
   /** Scores one frame. Pass `landmarks = null` when no face was found. */
   fun evaluate(
     view: ScanView,
@@ -224,13 +237,20 @@ class QualityScorer(val thresholds: QualityThresholds = QualityThresholds()) {
 
     val ok = mutableMapOf(
       QualityCheck.FACE_FOUND to true,
-      QualityCheck.CENTRED to (centring == CentringHint.OK),
-      QualityCheck.POSE to ((poseError ?: Double.POSITIVE_INFINITY) <= thresholds.poseToleranceDeg),
-      QualityCheck.DISTANCE to (distance == DistanceHint.OK),
       QualityCheck.SHARPNESS to ((stats?.sharpness ?: 0.0) > thresholds.minSharpness),
       QualityCheck.EXPOSURE to (stats?.let { it.faceBrightness > thresholds.minBrightness && it.faceBrightness < thresholds.maxBrightness } ?: false),
       QualityCheck.BACKLIGHT to !(stats?.backlit ?: false),
     )
+    if (view.isTemple) {
+      // Temples take the photo as soon as that side's hairline is clearly in the shot: turned the
+      // right way (not to an exact angle), and no centring or distance gate.
+      ok[QualityCheck.POSE] = pose?.let { templeTurnOk(it, view) } ?: false
+      ok[QualityCheck.HAIRLINE_FOUND] = (hairline?.curve?.size ?: 0) >= thresholds.templeMinTracePoints
+    } else {
+      ok[QualityCheck.CENTRED] = centring == CentringHint.OK
+      ok[QualityCheck.POSE] = (poseError ?: Double.POSITIVE_INFINITY) <= thresholds.poseToleranceDeg
+      ok[QualityCheck.DISTANCE] = distance == DistanceHint.OK
+    }
     if (view.needsForehead) ok[QualityCheck.FOREHEAD_VISIBLE] = hairline?.foreheadVisible ?: false
     if (view.measuresHairline) ok[QualityCheck.HAIRLINE_FOUND] = hairline?.hairlineFound ?: false
 

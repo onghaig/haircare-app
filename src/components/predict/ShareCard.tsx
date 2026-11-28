@@ -2,7 +2,7 @@ import type { ComponentRef, Ref } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { Face } from '@/components/head/Face';
+import { hairlineGeometry } from '@/components/head/HeadDiagram';
 import { Text } from '@/components/ui';
 import type { YearForecast } from '@/forecast';
 import { chanceLabel, likelyRange } from '@/predict/predict';
@@ -58,9 +58,10 @@ export function ShareCard({
           </Text>
         </View>
       ) : (
-        <View style={styles.face}>
-          <Svg width="100%" height="100%" viewBox="0 0 200 240">
-            <Face id="share" recede={recede} top={top} shoulders />
+        // No traced hairline: just the hairline shape at this stage, as a line. Never a drawn face.
+        <View style={styles.trace} testID="share-shape">
+          <Svg width={TRACE_W} height={TRACE_H} viewBox="40 40 120 70">
+            <Path d={hairlineGeometry(recede, top).d} stroke={colors.accent} strokeWidth={3} strokeLinecap="round" fill="none" />
           </Svg>
         </View>
       )}
@@ -74,7 +75,7 @@ export function ShareCard({
         {`${chanceLabel(year.pNorwood3Plus)} chance of Norwood 3 or more by ${year.age}`}
       </Text>
       <Text variant="caption" color="textMuted" style={{ textAlign: 'center' }}>
-        An estimate, not a diagnosis.
+        Estimate only.
       </Text>
       <Text variant="caption" color="textMuted" style={styles.mark} testID="share-watermark">
         Haircare · forecast from my answers and scan
@@ -97,7 +98,6 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   brand: { letterSpacing: 2, fontWeight: '700' },
-  face: { width: '42%', aspectRatio: 200 / 240, marginVertical: spacing.sm },
   trace: { alignItems: 'center', gap: 2, marginVertical: spacing.md },
   mark: { position: 'absolute', bottom: spacing.sm, fontSize: 11, letterSpacing: 0.5, opacity: 0.8 },
 });

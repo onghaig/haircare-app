@@ -19,7 +19,7 @@ import { colors, radius, spacing } from '@/theme';
 
 const VERDICT_LINE = {
   better: 'Your hairline measured lower on your forehead than at your baseline, by more than a re-scan can explain.',
-  holding: 'No change bigger than a re-scan can tell apart. For most people, holding steady is a win.',
+  holding: 'No real change. Holding steady is a win.',
   worse: 'Your hairline measured higher than at your baseline, by more than a re-scan can explain.',
 } as const;
 
@@ -76,7 +76,7 @@ function pages(r: VerdictReport, vs: VersusPaths | null): Page[] {
             </View>
           ))}
           <Text variant="caption" color="textMuted">
-            Estimated from your front photos. Changes inside the margin of a re-scan count as no real change.
+            From your front photos. Tiny changes count as no change.
           </Text>
         </View>
       ),

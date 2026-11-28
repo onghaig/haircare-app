@@ -80,6 +80,34 @@ export interface CaptureResult {
 
 export type PermissionStatus = 'granted' | 'denied';
 
+/** Whole-head panorama: off, the face sweep (front camera), or the back of the head (back camera). */
+export type PanoramaMode = 'off' | 'face' | 'back';
+
+/** Live panorama progress, about 8 a second and at once when a head region fills. */
+export interface PanoramaProgress {
+  mode: PanoramaMode;
+  /** Head regions with a frame so far (0..24, see src/scan/headCoverage.ts). */
+  filled: number[];
+  /** The region the camera is looking at now, when known. */
+  cell?: number;
+  azimuth?: number;
+  elevation?: number;
+  /** This frame was good enough to keep (sharp, lit, face or hair found). */
+  ok: boolean;
+  yaw?: number;
+  pitch?: number;
+}
+
+/** One kept panorama frame: the best one for its head region. */
+export interface PanoramaFrame {
+  uri: string;
+  cell: number;
+  azimuth: number;
+  elevation: number;
+  mode: Exclude<PanoramaMode, 'off'>;
+  report?: QualityReport;
+}
+
 export interface HeadMapCameraViewProps {
   view: ScanView;
   /** Face width from the baseline scan, for the distance check. */
@@ -88,6 +116,10 @@ export interface HeadMapCameraViewProps {
   autoCapture?: boolean;
   /** Pause the camera without unmounting (default true). */
   active?: boolean;
+  /** Whole-head panorama capture (default off). `back` switches to the back camera. */
+  panorama?: PanoramaMode;
+  onPanorama?: (event: { nativeEvent: PanoramaProgress }) => void;
+  onPanoramaDone?: (event: { nativeEvent: { frames: PanoramaFrame[] } }) => void;
   onQuality?: (event: { nativeEvent: QualityReport }) => void;
   onAligned?: (event: { nativeEvent: { view: ScanView } }) => void;
   onCapture?: (event: { nativeEvent: CaptureResult }) => void;
@@ -100,4 +132,8 @@ export interface HeadMapCameraViewRef {
   resetCapture(): Promise<void>;
   /** Watch the frames for this long and send the best one as a capture (crown, on your own). */
   startBurst(durationMs: number): Promise<void>;
+  /** Save the best frame of every head region and send them in `onPanoramaDone`. */
+  finishPanorama(): Promise<void>;
+  /** Forget the panorama frames so far. */
+  resetPanorama(): Promise<void>;
 }

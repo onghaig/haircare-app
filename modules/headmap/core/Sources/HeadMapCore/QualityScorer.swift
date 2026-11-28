@@ -71,7 +71,9 @@ public struct QualityReport: Equatable, Sendable {
 }
 
 public struct QualityThresholds: Sendable {
-  public var poseToleranceDeg = 5.0
+  /// Front and top: how far the head may be off the target pose on any axis. 8 degrees is easy to
+  /// hold by hand and changes the measured hairline by under 1 percent (cos 8).
+  public var poseToleranceDeg = 8.0
   public var minSharpness = 40.0
   /// Mean face brightness (0 to 255) must sit strictly between these.
   public var minBrightness = 60.0
@@ -92,6 +94,13 @@ public struct QualityThresholds: Sendable {
   public var minAimShare = 0.05
   /// Aim: under this share, the phone is too far from the head.
   public var closeAimShare = 0.3
+  /// Temple views: the head only has to be turned the right way, by this much or more (degrees of
+  /// yaw), not held at exactly 45. Nodding and tilting are allowed up to `templeMaxTiltDeg`.
+  public var templeMinTurnDeg = 15.0
+  public var templeMaxTurnDeg = 75.0
+  public var templeMaxTiltDeg = 25.0
+  /// Temple views: points of that side's traced hairline needed to count it as clearly in the shot.
+  public var templeMinTracePoints = 6
   public init() {}
 }
 
@@ -166,6 +175,14 @@ public struct QualityScorer: Sendable {
     return report
   }
 
+  /// Temple views: turned toward the view's side by enough, without an exact angle.
+  public func templeTurnOK(_ p: PoseAngles, view: ScanView) -> Bool {
+    let target = view.targetPose.yaw
+    let turn = abs(p.yaw)
+    return p.yaw * target > 0 && turn >= thresholds.templeMinTurnDeg && turn <= thresholds.templeMaxTurnDeg
+      && abs(p.pitch) <= thresholds.templeMaxTiltDeg && abs(p.roll) <= thresholds.templeMaxTiltDeg
+  }
+
   /// Scores one frame. Pass `landmarks: nil` when no face was found.
   public func evaluate(
     view: ScanView, landmarks: FaceLandmarks?, pose: PoseAngles?, hair: HairMask?, gray: GrayImage?,
@@ -189,13 +206,20 @@ public struct QualityScorer: Sendable {
 
     var ok: [QualityCheck: Bool] = [
       .faceFound: true,
-      .centred: centring == .ok,
-      .pose: (poseError ?? .infinity) <= thresholds.poseToleranceDeg,
-      .distance: distance == .ok,
       .sharpness: (stats?.sharpness ?? 0) > thresholds.minSharpness,
       .exposure: stats.map { $0.faceBrightness > thresholds.minBrightness && $0.faceBrightness < thresholds.maxBrightness } ?? false,
       .backlight: !(stats?.backlit ?? false),
     ]
+    if view.isTemple {
+      // Temples take the photo as soon as that side's hairline is clearly in the shot: turned the
+      // right way (not to an exact angle), and no centring or distance gate.
+      ok[.pose] = pose.map { templeTurnOK($0, view: view) } ?? false
+      ok[.hairlineFound] = (hairline?.curve.count ?? 0) >= thresholds.templeMinTracePoints
+    } else {
+      ok[.centred] = centring == .ok
+      ok[.pose] = (poseError ?? .infinity) <= thresholds.poseToleranceDeg
+      ok[.distance] = distance == .ok
+    }
     if view.needsForehead { ok[.foreheadVisible] = hairline?.foreheadVisible ?? false }
     if view.measuresHairline { ok[.hairlineFound] = hairline?.hairlineFound ?? false }
 
